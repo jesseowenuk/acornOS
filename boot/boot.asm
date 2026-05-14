@@ -17,7 +17,19 @@ start:
     mov si, msg         ; Point SI register at our message
     call print          ; Call our print routine
 
-    jmp $               ; Infinite loop - hang here forever
+    ; Disable interrupts before switching modes
+    cli
+
+    ; Load our GDT
+    lgdt [gdt_descriptor]
+
+    ; Set the Protection Enable bit in CR0
+    mov eax, cr0
+    or eax, 1
+    mov cr0, eax
+
+    ; Far jump to flush the CPU pipeline and land in 32-bit mode
+    jmp 0x08:protected_mode
 
 print:
     mov ah, 0x0E        ; BIOS teletype function
@@ -31,8 +43,57 @@ print:
 .done: 
     ret
 
-msg db 'Hello from AcornOS!', 13, 10, 0
+msg db 'Switching to protected mode...', 13, 10, 0
 ; 13 = carriage return, 10 = newline, 0 = null terminator
+
+; --- GDT -----------------------------------------------------
+gdt_start:
+    ; Null descriptor
+    dd 0x00000000
+    dd 0x00000000
+
+    ; Code segment descriptor
+    dw 0xFFFF                   ; Limit low
+    dw 0x0000                   ; Base low
+    db 0x00                     ; Base mid
+    db 10011010b                ; Access: present, ring 0, code, readable
+    db 11001111b                ; Flags + limit high: 32-bit, 4KB granularity
+    db 0x00                     ; Base high
+
+    ; Data segment descriptor
+    dw 0xFFFF
+    dw 0x0000
+    db 0x00
+    db 10010010b                ; Access: present, ring 0, data, writable
+    db 11001111b
+    db 0x00
+
+gdt_end:
+
+gdt_descriptor:
+    dw gdt_end - gdt_start - 1  ; GDT size minus 1
+    dd gdt_start                ; GDT address
+
+; --- Protected mode entry -----------------------------------------------------
+
+[BITS 32]
+protected_mode:
+    ; update all segment registers to use our data descriptor (offset 0x10)
+    mov ax, 0x10
+    mov ds, ax
+    mov ss, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov esp, 0x90000            ; Set up a fresh 32-bit stack
+
+    ; Confirm we made it - write directly to VGA memory
+    mov byte [0xB8000], 'O'
+    mov byte [0xB8001], 0x0A    ; Green on black
+    mov byte [0xB8002], 'K'
+    mov byte [0xB8003], 0x0A    ; Green on black
+
+    jmp $               ; Infinite loop - hang here forever
 
 ; Pad the file to 510 bytes, then add the 2 byte boot signature
 times 510-($-$$) db 0
