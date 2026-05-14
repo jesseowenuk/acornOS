@@ -2,6 +2,18 @@
 [ORG 0x7C00]            ; Tell NASM our code will be loaded at 0x7C00
 
 start:
+    ; Segment register setup - zero them all out
+    xor ax, ax          ; AX = 0 (xor is the idiomatic way to zero a register)
+    mov ds, ax          ; Data segment = 0
+    mov es, ax          ; Extra segment = 0
+    mov ss, ax          ; Stack segment = 0
+    mov sp, 0x7C00      ; Stack pointer just below our bootloader in memory
+
+    ; Clear the screen
+    mov ah, 0x00        ; BIOS function: set video mode
+    mov al, 0x03        ; Mode 3 = 80x25 colour text
+    int 0x10
+
     mov si, msg         ; Point SI register at our message
     call print          ; Call our print routine
 
