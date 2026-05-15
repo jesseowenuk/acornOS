@@ -1,5 +1,6 @@
 #include "idt.h"
 #include "vga.h"
+#include "pic.h"
 
 #include <stdint.h>
 
@@ -15,6 +16,9 @@ extern void isr0();
 extern void isr1();
 extern void isr2();
 extern void isr3();
+
+extern void irq0();
+extern void irq1();
 
 void idt_set_entry(int n, uint32_t base, uint16_t selector, uint8_t flags)
 {
@@ -35,6 +39,8 @@ void idt_init()
     idt_set_entry(1, (uint32_t)isr1, 0x08, 0x8E);       // Debug
     idt_set_entry(2, (uint32_t)isr2, 0x08, 0x8E);       // Non-maskable interrupt
     idt_set_entry(3, (uint32_t)isr3, 0x08, 0x8E);       // Breakpoint
+    idt_set_entry(32, (uint32_t)irq0, 0x08, 0x8E);      // Timer
+    idt_set_entry(33, (uint32_t)irq1, 0x08, 0x8E);      // Keyboard
 
     idt_flush((uint32_t)&descriptor);
 }
@@ -58,4 +64,9 @@ void isr_handler(registers_t regs)
     }
 
     for(;;);
+}
+
+void irq_handler(registers_t regs)
+{
+    pic_send_eoi(regs.int_no - 32);
 }

@@ -31,3 +31,33 @@ isr_common_stub:
     add esp, 8              ; Clean up int_no and err_code
     sti
     iret
+
+; Macro for hardware IRQs
+%macro IRQ 2
+global irq%1
+irq%1:
+    cli
+    push byte 0
+    push byte %2
+    jmp irq_common_stub
+%endmacro
+
+IRQ 0, 32           ; Timer
+IRQ 1, 33           ; Keyboard
+
+extern irq_handler
+
+irq_common_stub:
+    pusha
+    push ds
+    mov ax, 0x10
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    call irq_handler
+    pop ds
+    popa
+    add esp, 8
+    sti
+    iret
