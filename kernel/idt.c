@@ -2,6 +2,7 @@
 #include "vga.h"
 #include "pic.h"
 #include "keyboard.h"
+#include "timer.h"
 
 #include <stdint.h>
 
@@ -69,6 +70,13 @@ void isr_handler(registers_t regs)
 
 void irq_handler(registers_t regs)
 {
+    // 32 = IRQ0 = timer
+    if(regs.int_no == 32)
+    {
+        // Forward to timer handler
+        timer_handler(&regs);
+    }
+
     // 33 = IRQ1 = kayboard
     if(regs.int_no == 33)
     {

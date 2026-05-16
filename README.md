@@ -15,6 +15,7 @@ A tiny OS built from scratch, step by step, guided by AI.
 - [ ] Memory manager - heap allocation, dynamic memory
 - [ ] Shell commands - echo, uptime, splash screen
 - [ ] Serial output - kernel logging to terminal
+- [ ] Full documentation - every file, function and concept explained
 
 ## Building
 ```bash

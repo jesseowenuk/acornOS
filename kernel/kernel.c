@@ -4,6 +4,7 @@
 #include "pic.h"
 #include "keyboard.h"
 #include "shell.h"
+#include "timer.h"
 
 void kernel_main()
 {       
@@ -28,6 +29,12 @@ void kernel_main()
     pic_init();                                 // Remap hardware interrupts
     vga_set_colour(LIGHT_GREEN, BLACK);
     vga_print("PIC online.\n");
+
+    vga_set_colour(WHITE, BLACK);
+    vga_print("Initialising timer...\n");
+    timer_init();                               // Set up PIT at 100Hz
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    vga_print("Timer online.\n");
 
     vga_set_colour(WHITE, BLACK);
     vga_print("Initialising  keyboard...\n");
