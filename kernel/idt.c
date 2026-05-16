@@ -1,6 +1,7 @@
 #include "idt.h"
 #include "vga.h"
 #include "pic.h"
+#include "keyboard.h"
 
 #include <stdint.h>
 
@@ -68,5 +69,14 @@ void isr_handler(registers_t regs)
 
 void irq_handler(registers_t regs)
 {
+    // 33 = IRQ1 = kayboard
+    if(regs.int_no == 33)
+    {
+        // Forward to the keyboard handler
+        keyboard_handler(&regs);
+    }
+
+    // Always send End of Interrupt to PIC so it knows we're done
+    // and can send the next interrupt
     pic_send_eoi(regs.int_no - 32);
 }

@@ -29,5 +29,6 @@ typedef struct
 
 void idt_init();
 void idt_set_entry(int n, uint32_t base, uint16_t selector, uint8_t flags);
+void keyboard_handler(registers_t* regs);
 
 #endif
