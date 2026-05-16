@@ -3,6 +3,7 @@
 #include "idt.h"
 #include "pic.h"
 #include "keyboard.h"
+#include "shell.h"
 
 void kernel_main()
 {       
@@ -42,8 +43,7 @@ void kernel_main()
     vga_set_colour(LIGHT_GREEN, BLACK);
     vga_print("Interrupts enabled.\n");
 
-    vga_set_colour(CYAN, BLACK);
-    vga_print("\nacornOS ready. Start typing!\n\n");
+    shell_init();
 
     // Hang forever - interrupts will fire keyboard_handler() for us
     for(;;); // hang

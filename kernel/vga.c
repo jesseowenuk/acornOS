@@ -62,6 +62,17 @@ void vga_putchar(char c)
     {
         cursor_x = 0;
     }
+    else if(c == '\b')
+    {
+        // Backspace - move cursor back one 
+        if(cursor_x > 0)
+        {
+            // only if we're not at the line start
+            cursor_x--;
+            // overwrite charcter with a space
+            vga[cursor_y * VGA_WIDTH + cursor_x] = make_entry(' ', colour);
+        }
+    }
     else
     {
         vga[cursor_y * VGA_WIDTH + cursor_x] = make_entry(c, colour);

@@ -2,6 +2,7 @@
 #include "idt.h"
 #include "pic.h"
 #include "vga.h"
+#include "shell.h"
 
 // Port 0x60 is the keyboard data port
 // Reading from it gives us the scancode of the last key event
@@ -31,7 +32,8 @@ static const char scancode_table[] =
     'o',    'p',    '[',    ']',    '\n',   0,      'a',    's',    // 0x18-0x1F
     'd',    'f',    'g',    'h',    'j',    'k',    'l',    ';',    // 0x20-0x27
     '\'',   '`',    0,      '\\',   'z',    'x',    'c',    'v',    // 0x28-0x2F
-    'b',    'n',    'm',    ',',    '.',    '/',    0,      '*',    // 0x30-0x37         
+    'b',    'n',    'm',    ',',    '.',    '/',    0,      '*',    // 0x30-0x37    
+    0,      ' ',    0                                               // 0x38-0x39     
 };
 
 // This is called by irq_handler() in idt.c every time IRQ1 fires
@@ -51,6 +53,8 @@ void keyboard_handler(registers_t* regs)
         return;
     }
 
+
+
     // Look up the scancode in our table
     // Make sure the scancode is within our table
     if(scancode < sizeof(scancode_table))
@@ -61,7 +65,8 @@ void keyboard_handler(registers_t* regs)
         // 0 means no printable character (e.g. shift, ctrl, function keys)
         if(c != 0)
         {
-            vga_putchar(c);
+            // Send to shell instead of direcltly to VGA
+            shell_handle_key(c);
         }
     }
 }
