@@ -214,7 +214,7 @@ void mem_print_stats()
     vga_print("    Used       : ");
     print_num(heap_used);
     vga_print(" bytes\n");
-    vga_print(" Free       : ");
+    vga_print("    Free       : ");
     print_num(free_bytes);
     vga_print(" bytes\n");
     vga_print("    Blocks     : ");

@@ -1,5 +1,7 @@
 #include "shell.h"
 #include "vga.h"
+#include "timer.h"      // For uptime command
+#include "mem.h"        // For mem command
 
 // -- String helpers ----------------------------------------------------
 // We have no standard library so we write our own minimal helpers
@@ -22,6 +24,52 @@ static int streq(const char* a, const char* b)
 
     // Both must be at null terminator to be equal
     return *a == *b;
+}
+
+// Check if a string starts with a given prefix
+// Returns pointer to the character after the prefix, or 0 if no match
+static const char* starts_with(const char* str, const char* prefix)
+{
+    // Walk the prefix
+    while(*prefix)
+    {
+        if(*str != *prefix)
+        {
+            // Mismatch
+            return 0;
+        }
+
+        str++;
+        prefix++;
+    }
+
+    // Return pointer to the rest of string after prefix
+    return str;
+}
+
+// Print a number to VGA - no printf yet so we do it manually
+static void print_num(uint32_t n)
+{
+    if(n == 0)
+    {
+        vga_putchar('0');
+        return;
+    }
+
+    // Max 10 digits in a 32-bit number
+    char buf[10];
+    int i = 0;
+
+    while(n > 0)
+    {
+        buf[i++] = '0' + (n % 10);      // Extract last digit
+        n /= 10;                        // Remove last digit
+    }
+
+    while( i > 0)
+    {
+        vga_putchar(buf[--i]);          // Print digits in reverse
+    }
 }
 
 // -- Buffer ----------------------------------------------------
@@ -47,7 +95,7 @@ static void buffer_clear()
 static void print_prompt()
 {
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("\nacorn> ");             // The shell prompt
+    vga_print("acorn> ");             // The shell prompt
     vga_set_colour(WHITE, BLACK);       // Input typed in white
 }
 
@@ -65,9 +113,12 @@ static void cmd_help()
     vga_set_colour(YELLOW, BLACK);
     vga_print("\nAvailable commands\n");
     vga_set_colour(WHITE, BLACK);
-    vga_print("    help    -- show this message\n");
-    vga_print("    clear   -- clear the screen\n");
-    vga_print("    about   -- about acornOS\n");
+    vga_print("    help         -- show this message\n");
+    vga_print("    clear        -- clear the screen\n");
+    vga_print("    about        -- about acornOS\n");
+    vga_print("    uptime       -- show time since boot\n");
+    vga_print("    mem          -- show memory usage\n");
+    vga_print("    echo <text>  -- print text screen\n");
 }
 
 static int skip_prompt = 0;         // Flag to suppress prompt after command
@@ -94,6 +145,66 @@ static void cmd_about()
     vga_set_colour(WHITE, BLACK);
     vga_print("A tiny OS built from scratch.\n");
     vga_print("Guided by AI, built by hand.\n");
+    vga_print("github.com/jesseowenuk/acornOS\n");
+}
+
+static void cmd_uptime()
+{
+    uint32_t seconds = timer_get_seconds();         // Get seconds since boot from timer
+    uint32_t minutes = seconds / 60;                // Convert to minutes
+    uint32_t hours = minutes / 60;                  // Convert to hours
+
+    seconds %= 60;                                  // Remainder in seconds
+    minutes %= 60;                                  // Remainder in minutes
+
+    vga_set_colour(WHITE, BLACK);
+    vga_print("\nUptime: ");
+
+    // Print hours
+    print_num(hours);
+    vga_putchar('h');
+    vga_putchar(' ');
+
+    // Print minutes
+    print_num(minutes);
+    vga_putchar('m');
+    vga_putchar(' ');
+
+    // Print seconds
+    print_num(seconds);
+    vga_putchar('s');
+    vga_print("\n");
+}
+
+static void cmd_mem()
+{
+    // Delegate entirely to memory manager
+    mem_print_stats();
+}
+
+static void cmd_echo(const char* text)
+{
+    if(*text == ' ')
+    {
+        // Skip the space after "echo"
+        text++;
+    }
+
+    // Nothing after echo
+    if(*text == 0)
+    {
+        vga_set_colour(LIGHT_RED, BLACK);
+        vga_print("Usage: echo <text>\n");
+    }
+    else
+    {
+        // Print everything after "echo "
+        vga_set_colour(WHITE, BLACK);
+
+        // Print the text
+        vga_print(text);
+        vga_print("\n");
+    }
 }
 
 // -- Command dispatch ----------------------------------------------------
@@ -117,19 +228,38 @@ static void process_command()
     {
         cmd_about();
     }
-    else if(buffer[0] == 0)
+    else if(streq(buffer, "uptime"))
     {
-        // User just pressed enter on empty line
-        // So do nothing - just reprint the prompt
+        // Show uptime since boot
+        cmd_uptime();
+    }
+    else if(streq(buffer, "mem"))
+    {
+        // Show memory stats
+        cmd_mem();
     }
     else
     {
-        vga_set_colour(LIGHT_RED, BLACK);
-        vga_print("Unknown command: ");
-        vga_set_colour(WHITE, BLACK);
-        vga_print(buffer);              // Echo back what they typed
-        vga_print("\n");
-        vga_set_colour(WHITE, BLACK);
+        // Check for "echo " prefix - echo takes an argument
+        const char* echo_text = starts_with(buffer, "echo");
+
+        if(echo_text)
+        {
+            // Pass everything after "echo" to handler
+            cmd_echo(echo_text);
+        }
+        else if(buffer[0] == 0)
+        {
+            // Empty line - just re-print the prompt
+        }
+        else
+        {
+            vga_set_colour(LIGHT_RED, BLACK);
+            vga_print("Unknown command: ");
+            vga_set_colour(WHITE, BLACK);
+            vga_print(buffer);              // Echo back what they typed
+            vga_print("\n");
+        }
     }
 }
 
@@ -140,6 +270,7 @@ void shell_handle_key(char c)
 {
     // Reset flag before processing
     skip_prompt = 0;
+
     // Enter key - process the command
     if(c == '\n')
     {
