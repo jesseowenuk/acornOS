@@ -76,7 +76,4 @@ void keyboard_init()
     // Nothing to configure on the keyboard hardware for basic input
     // The PIC is already set up to receive IRQ1
     // We just need to register our handler - done in idt.c
-
-    // Confirm initialisation
-    vga_print("Keyboard online.\n");
 }

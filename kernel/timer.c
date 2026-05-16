@@ -117,6 +117,4 @@ void timer_init()
     // Send the reload value - low byte first, then high byte
     outb(PIT_CHANNEL0, reload & 0xFF);          // Low byte
     outb(PIT_CHANNEL0, (reload >> 8) & 0xFF);   // High byte
-
-    vga_print("Timer online.\n");
 }

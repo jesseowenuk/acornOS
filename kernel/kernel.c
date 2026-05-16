@@ -5,6 +5,7 @@
 #include "keyboard.h"
 #include "shell.h"
 #include "timer.h"
+#include "mem.h"
 
 void kernel_main()
 {       
@@ -34,13 +35,19 @@ void kernel_main()
     vga_print("Initialising timer...\n");
     timer_init();                               // Set up PIT at 100Hz
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("Timer online.\n");
+    vga_print("Timer online\n");
+                             
+    vga_set_colour(WHITE, BLACK);
+    vga_print("Initialising keyboard...\n");
+    keyboard_init();                            // Set up the keyboard
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    vga_print("Keyboard online\n");
 
     vga_set_colour(WHITE, BLACK);
-    vga_print("Initialising  keyboard...\n");
-    keyboard_init();                           // Register keyboard handler
+    vga_print("Initialising memory manager...\n");
+    mem_init();                                 // Set up the heap
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("Keyboard online.\n");
+    vga_print("Memory manager online\n");
 
     // Enable hardware interrupts.
     // From this point the CPU will respond to IRQs

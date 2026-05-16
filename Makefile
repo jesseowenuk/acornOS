@@ -11,7 +11,7 @@ debug: os.img
 boot.bin: boot/boot.asm
 	nasm -f bin boot/boot.asm -o boot.bin
 
-kernel.bin: kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gdt_flush.asm kernel/idt.c kernel/isr.asm kernel/idt_flush.asm kernel/pic.c kernel/keyboard.c kernel/shell.c kernel/timer.c
+kernel.bin: kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gdt_flush.asm kernel/idt.c kernel/isr.asm kernel/idt_flush.asm kernel/pic.c kernel/keyboard.c kernel/shell.c kernel/timer.c kernel/mem.c
 	$(CC) $(CFLAGS) -c kernel/kernel.c -o kernel.o
 	$(CC) $(CFLAGS) -c kernel/vga.c -o vga.o
 	$(CC) $(CFLAGS) -c kernel/gdt.c -o gdt.o
@@ -20,10 +20,11 @@ kernel.bin: kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gdt_flush.asm kerne
 	$(CC) $(CFLAGS) -c kernel/keyboard.c -o keyboard.o
 	$(CC) $(CFLAGS) -c kernel/shell.c -o shell.o
 	$(CC) $(CFLAGS) -c kernel/timer.c -o timer.o
+	$(CC) $(CFLAGS) -c kernel/mem.c -o mem.o
 	nasm -f elf kernel/gdt_flush.asm -o gdt_flush.o
 	nasm -f elf kernel/isr.asm -o isr.o
 	nasm -f elf kernel/idt_flush.asm -o idt_flush.o
-	i686-elf-ld -o kernel.bin -Ttext 0x1000 --oformat binary kernel.o vga.o gdt.o gdt_flush.o idt.o isr.o idt_flush.o pic.o keyboard.o shell.o timer.o
+	i686-elf-ld -o kernel.bin -Ttext 0x1000 --oformat binary kernel.o vga.o gdt.o gdt_flush.o idt.o isr.o idt_flush.o pic.o keyboard.o shell.o timer.o mem.o
 
 os.img: boot.bin kernel.bin
 	cat boot.bin kernel.bin > os.img
