@@ -6,48 +6,62 @@
 #include "shell.h"
 #include "timer.h"
 #include "mem.h"
+#include "serial.h"
 
 void kernel_main()
 {       
     vga_init();                                 // Clear screen, set default colour
+
+    // Initialise serial first so we can log everything that follows
+    serial_init();
+    serial_println("Kernel started.");
+
     vga_print("acornOS v0.1\n");
     vga_print("------------\n");
 
     vga_set_colour(WHITE, BLACK);
     vga_print("Initialising GDT...\n");
-    gdt_init();                                 // Set up memory segments       
+    gdt_init();                                 // Set up memory segments   
+    serial_println("GDT initialised.");    
     vga_set_colour(LIGHT_GREEN, BLACK);
     vga_print("GDT online.\n");
     
     vga_set_colour(WHITE, BLACK);
     vga_print("Initialising IDT...\n");
     idt_init();                                 // Set up interrupt handlers
+    serial_println("IDT initialised");
     vga_set_colour(LIGHT_GREEN, BLACK);
     vga_print("IDT online.\n");
 
     vga_set_colour(WHITE, BLACK);
     vga_print("Initialising PIC...\n");
     pic_init();                                 // Remap hardware interrupts
+    serial_println("PIC initialised");
     vga_set_colour(LIGHT_GREEN, BLACK);
     vga_print("PIC online.\n");
 
     vga_set_colour(WHITE, BLACK);
     vga_print("Initialising timer...\n");
     timer_init();                               // Set up PIT at 100Hz
+    serial_println("Timer initialised");
     vga_set_colour(LIGHT_GREEN, BLACK);
     vga_print("Timer online\n");
                              
     vga_set_colour(WHITE, BLACK);
     vga_print("Initialising keyboard...\n");
     keyboard_init();                            // Set up the keyboard
+    serial_println("Keyboard initialised");
     vga_set_colour(LIGHT_GREEN, BLACK);
     vga_print("Keyboard online\n");
 
     vga_set_colour(WHITE, BLACK);
     vga_print("Initialising memory manager...\n");
     mem_init();                                 // Set up the heap
+    serial_println("Memory manager initialised");
     vga_set_colour(LIGHT_GREEN, BLACK);
     vga_print("Memory manager online\n");
+
+    serial_println("All subsystems online. Starting shell.");
 
     // Enable hardware interrupts.
     // From this point the CPU will respond to IRQs
