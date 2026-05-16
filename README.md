@@ -9,13 +9,12 @@ A tiny OS built from scratch, step by step, guided by AI.
 - Keyboard input via IRQ1 scancode translation
 - VGA text driver with colours, cursor and scrolling
 - Interactive shell with built-in commands: help, about, clear
+- UART serial driver logging kernel output to terminal via COM1
 
 ## Roadmap
-- [ ] Timer driver - IRQ0, system ticks, clock in the corner
-- [ ] Memory manager - heap allocation, dynamic memory
-- [ ] Shell commands - echo, uptime, splash screen
-- [ ] Serial output - kernel logging to terminal
 - [ ] Full documentation - every file, function and concept explained
+- [ ] Processes and scheduling
+- [ ] Filesystem
 
 ## Building
 ```bash
