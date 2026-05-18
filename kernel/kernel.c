@@ -7,8 +7,9 @@
 #include "timer.h"
 #include "mem.h"
 #include "serial.h"
+#include "pmm.h"
 
-void kernel_main()
+void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
 {       
     vga_init();                                 // Clear screen, set default colour
 
@@ -60,6 +61,13 @@ void kernel_main()
     serial_println("Memory manager initialised");
     vga_set_colour(LIGHT_GREEN, BLACK);
     vga_print("Memory manager online\n");
+
+    vga_set_colour(WHITE, BLACK);
+    vga_print("Initialising PMM...\n");
+    pmm_init(mem_map_addr, mem_map_count);      // Pass E820 map from bootloader
+    serial_println("PMM initialised.");
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    vga_print("PMM online\n");
 
     serial_println("All subsystems online. Starting shell.");
 

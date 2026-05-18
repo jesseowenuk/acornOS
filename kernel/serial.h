@@ -13,6 +13,9 @@ void serial_init();
 // Write a single character to the serial port
 void serial_putchar(char c);
 
+// Print without a newline to the serial port
+void serial_print(const char* str);
+
 // Write a string followed by a newline to the serial port
 void serial_println(const char* str);
 

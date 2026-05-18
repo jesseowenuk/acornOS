@@ -2,6 +2,7 @@
 #include "vga.h"
 #include "timer.h"      // For uptime command
 #include "mem.h"        // For mem command
+#include "pmm.h"
 
 // -- String helpers ----------------------------------------------------
 // We have no standard library so we write our own minimal helpers
@@ -178,8 +179,11 @@ static void cmd_uptime()
 
 static void cmd_mem()
 {
-    // Delegate entirely to memory manager
+    // Heap stats from mem.c
     mem_print_stats();
+
+    // Physical memory stats from pmm.c
+    pmm_print_stats();
 }
 
 static void cmd_echo(const char* text)

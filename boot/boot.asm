@@ -2,9 +2,50 @@
 [ORG 0x7C00]                    ; Tell NASM our code will be loaded at 0x7C00 (BIOS always loads the bootloader here)
 
 KERNEL_OFFSET equ 0x1000        ; Where we'll load the kernel in memory (well below our bootloader)
+MEMORY_MAP_COUNT_ADDRESS equ 0x600    ; Store count here - just after the map
 
 start:
     mov [boot_drive], dl        ; BIOS puts boot drive in DL - save it immediatley
+
+    ; -- Detect memory via BIOS INT 0x15, E820 --------------------------
+    ; E820 asks the BIOS for a map of physical memory
+    ; It fills a table at MEMORY_MAP_ADDRESS with entries describing
+    ; each region - usable RAM, reserved, ACPI etc.
+    ; We must do this in real mode before entering protected mode
+    ; because INT 0x15 is a BIOS call and BIOS only works in real mode
+
+    xor ax, ax
+    mov es, ax                  ; ES = 0
+
+    xor ebx, ebx                ; Continuation value - 0 = start of map
+    mov word [0x600], 0         ; Zero the entry count
+    mov di, 0x500               ; Buffer address for entries
+
+.e820_loop:
+    mov eax, 0xE820             ; Function code - must reset each iteration
+    mov edx, 0x534D4150         ; 'SMAP' magic - must reset each iteration
+    mov ecx, 24                 ; Entry size - must reset each iteration
+    mov word [di + 20], 1       ; ACPI extended attribute
+    mov word [di + 22], 0       ; Zero upper word
+    int 0x15
+
+    jc .e820_done                ; Carry = no more entries or not supported
+    cmp eax, 0x534D4150          ; Verify BIOS returned SMAP
+    jne .e820_done               ; If not - something went wrong
+
+    cmp ecx, 0                  ; Skip zero length entries
+    je .e820_next
+
+    inc word [0x600]            ; Increment entry count
+    add di, 24                  ; Advance buffer pointer
+
+.e820_next:
+    test ebx, ebx               ; EBX = 0 means last entry
+    je .e820_done
+    jmp .e820_loop               ; Get next entry
+
+.e820_done:
+    ; --- Now set up segments and stack ------------------------
 
     ; Segment register setup - zero them all out
     xor ax, ax                  ; AX = 0 (xor is the idiomatic way to zero a register)
@@ -131,6 +172,16 @@ protected_mode:
     mov gs, ax
     mov esp, 0x90000            ; Set up a fresh 32-bit stack in high memory
                                 ; well away from our bootloader and kernel
+
+    ; Push memory map info as arguments to kernel_main
+    ; These will be on the stack when kernel_main is called
+    ; C calling convention: arguments pushed right to left
+    movzx eax, word [0x600]     ; Read count from the fixed address
+                                ; Read the count we saved during boot
+                                ; memory_map_count is a 16-bit value in the bootloader
+
+    push eax                    ; Push count as second argument
+    push dword 0x500            ; Push map address as first argument
 
     call KERNEL_OFFSET          ; jump to the kernel
                                 ; this is where kernel_main() is loaded
