@@ -107,4 +107,36 @@ void paging_init()
     serial_println(hex);
 
     serial_println("Paging: first 4MB identity mapped.");
+
+    // Step 4: load page directory address into CR3
+    // CR3 is the Page Directory Base Register (PDBSR)
+    // The CPU reads this to find our page directory on every TLB miss
+    // we must pass the PHYSICAL address - paging isn't on yet so
+    // virtual == physical at this point
+    __asm__ volatile(
+        "mov %0, %%cr3"                   // Load address of kernel_directory into CR3
+        :                                // No output operands
+        : "r"(&kernel_directory)         // Input: address of our page directory 
+    );
+
+    // Step 5: enable paging by setting bit 31 of CR0
+    // we must read CR0 first, set the bit, then write it back
+    // Bit 31 = PG (Paging) flag
+    // The instant this executes, ALL memory accesses go through page tables
+    uint32_t cr0;
+    __asm__ volatile(
+        "mov %%cr0, %0"                 // Read current CR0 value
+        : "=r"(cr0)                     // Output: store in CR0 variale
+    );
+    cr0 |= 0x80000000;                  // Set bit 31 - the paging enable bit
+                                        // 0x80000000 = 1000 0000 0000 0000 0000 0000 0000 0000
+
+    __asm__ volatile(
+        "mov %0, %%cr0"                 // Write modified CR0 back
+        :                               // No output operands
+        : "r"(cr0)                      // Input: our modified value
+    );
+
+    // If we reach here - paging is enabled and we survived!
+    serial_println("Paging: enabled! Still alive.");
 }
