@@ -8,6 +8,7 @@
 #include "mem.h"
 #include "serial.h"
 #include "pmm.h"
+#include "paging.h"
 
 void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
 {       
@@ -68,6 +69,13 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     serial_println("PMM initialised.");
     vga_set_colour(LIGHT_GREEN, BLACK);
     vga_print("PMM online\n");
+
+    vga_set_colour(WHITE, BLACK);
+    vga_print("Initialising paging...\n");
+    paging_init();
+    serial_println("Paging initialised");
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    vga_print("Paging ready.\n");
 
     serial_println("All subsystems online. Starting shell.");
 
