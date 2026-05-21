@@ -140,3 +140,86 @@ void paging_init()
     // If we reach here - paging is enabled and we survived!
     serial_println("Paging: enabled! Still alive.");
 }
+
+// --- Page fault handler ---------------------------------------
+// Called by isr_handler in idt.c when interrupt 14 fires
+// regs->err_code contains the fault flags
+// CR2 contains the virtual address that caused the fault
+void page_fault_handler(registers_t* regs)
+{
+    // Read CR2 - the CPU stores the faulting address here automatically
+    uint32_t faulting_addr;
+    __asm__ volatile(
+        "mov %%cr2, %0"             // Read CR2 into faulting_addr
+        : "=r"(faulting_addr)       // Output operand
+    );
+
+    // Decode the error code bits
+    // Present
+    // 0 = page not present
+    // 1 = page present but protection violated
+    int present = regs->err_code & 0x1;
+
+    // Write
+    // 0 = fault happened on a read
+    // 1 = fault happened on a write
+    int write = regs->err_code & 0x2;
+
+    // User
+    // 0 = kernel was accessing the address
+    // 1 = user program was accessing it
+    int user = regs->err_code & 0x4;
+
+    // Print fault information to VGA
+    vga_set_colour(RED, BLACK);
+    vga_print("\n--- PAGE FAULT ---\n");
+    vga_set_colour(WHITE, BLACK);
+
+    vga_print("Address : 0x");
+    // Print faulting address as hex
+    char hex[9];
+    const char* digits = "0123456789ABCDEF";
+    uint32_t addr = faulting_addr;
+    for(int i = 7; i >= 0; i--)
+    {
+        hex[i] = digits[addr & 0xF];
+        addr >>= 4;
+    }
+    hex[8] = 0;
+    vga_print(hex);
+    vga_print("\n");
+
+    vga_print("Reason  : ");
+    if(!present)
+    {
+        vga_print("page not present ");
+    }
+
+    if(write)
+    {
+        vga_print("on write ");
+    }
+
+    if(!write)
+    {
+        vga_print("on read ");
+    }
+
+    if(user)
+    {
+        vga_print("from user space ");
+    }
+
+    if(!user)
+    {
+        vga_print("from kernel ");
+    }
+    vga_print("\n");
+
+    // Log to serial too
+    serial_print("PAGE FAULT at 0x");
+    serial_println(hex);
+
+    // Hang - we can't safely continue after a page fault
+    for(;;);
+}

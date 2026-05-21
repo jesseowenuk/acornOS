@@ -19,15 +19,22 @@ ISR_NOERR 3
 
 isr_common_stub:
     pusha                   ; Push all general purpose registers
-    push ds
+    mov ax, ds              ; Save current data segment value
+    push eax                ; Push it as a 32-bit value
     mov ax, 0x10            ; Load kernel data segment
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
+    push esp                ; Push stack pointer as register_t* argument
     call isr_handler        ; Call our C handler
-    pop ds
-    popa
+    pop eax                 ; Clean up push esp
+    pop eax                 ; Restore saved data segment value
+    mov ds, ax              ; Restore all segment registers from it
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    popa                    ; Restore general purpose registers
     add esp, 8              ; Clean up int_no and err_code
     sti
     iret
@@ -42,22 +49,44 @@ irq%1:
     jmp irq_common_stub
 %endmacro
 
+; Macro for CPU exceptions that DO push an error code automatically
+; We do NOT push a dummy one - the CPU already pushed the real one
+%macro ISR_ERR 1
+global isr%1
+isr%1:
+    cli                     ; Disable interrupts
+                            ; Note no dummy error code push here!
+                            ; CPU already pushed the real error code
+    push dword %1           ; Push interrupt number
+    jmp isr_common_stub     ; Jump to shared handler
+%endmacro
+
 IRQ 0, 32           ; Timer
 IRQ 1, 33           ; Keyboard
+
+; Page fault (interrupt 14) pushes a real error code
+ISR_ERR 14
 
 extern irq_handler
 
 irq_common_stub:
-    pusha
-    push ds
-    mov ax, 0x10
+    pusha                       ; Save all general purpose registers
+    mov ax, ds                  ; Save current data segment value
+    push eax                    ; Push it as a 32-bit value
+    mov ax, 0x10                ; Load kernel data segment
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
-    call irq_handler
-    pop ds
-    popa
-    add esp, 8
+    push esp                    ; Push stack pointer as registers_t* argument
+    call irq_handler            ; Call C handler
+    pop eax                     ; Clean up push esp
+    pop eax                     ; Restore saved data segment value
+    mov ds, ax                  ; Restore all segement registers from it
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    popa                        ; Restore general purpose registers
+    add esp, 8                  ; Clean up int_no and err_code
     sti
     iret

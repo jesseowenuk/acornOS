@@ -1,6 +1,8 @@
 #ifndef PAGING_H
 #define PAGING_H
 
+#include "idt.h"
+
 #include <stdint.h>
 
 // --- Page Directory Entry (PDE) -------------------------
@@ -75,5 +77,6 @@ typedef struct __attribute__((aligned(4096)))
 #define PAGE_USER       0x3                 // Page is accessible from user space
 
 void paging_init();                         // Set up page tables and enable paging
+void page_fault_handler(registers_t* regs); // Called on interrupt 14
 
 #endif

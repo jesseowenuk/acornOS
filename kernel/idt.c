@@ -3,6 +3,8 @@
 #include "pic.h"
 #include "keyboard.h"
 #include "timer.h"
+#include "paging.h"
+#include "serial.h"
 
 #include <stdint.h>
 
@@ -18,6 +20,7 @@ extern void isr0();
 extern void isr1();
 extern void isr2();
 extern void isr3();
+extern void isr14();
 
 extern void irq0();
 extern void irq1();
@@ -41,6 +44,7 @@ void idt_init()
     idt_set_entry(1, (uint32_t)isr1, 0x08, 0x8E);       // Debug
     idt_set_entry(2, (uint32_t)isr2, 0x08, 0x8E);       // Non-maskable interrupt
     idt_set_entry(3, (uint32_t)isr3, 0x08, 0x8E);       // Breakpoint
+    idt_set_entry(14, (uint32_t)isr14, 0x08, 0x8E);     // Page fault
     idt_set_entry(32, (uint32_t)irq0, 0x08, 0x8E);      // Timer
     idt_set_entry(33, (uint32_t)irq1, 0x08, 0x8E);      // Keyboard
 
@@ -48,8 +52,16 @@ void idt_init()
 }
 
 // Called from isr_common_stub in isr.asm
-void isr_handler(registers_t regs)
+void isr_handler(registers_t* regs)
 {
+    if(regs->int_no == 14)
+    {
+        // 14 = page fault
+        // Forward to paging module
+        page_fault_handler(regs);
+        return;
+    }
+
     vga_set_colour(RED, BLACK);
     vga_print("\nCPU EXCEPTION: ");
 
@@ -60,31 +72,31 @@ void isr_handler(registers_t regs)
         "Breakpoint"
     };
 
-    if(regs.int_no < 4)
+    if(regs->int_no < 4)
     {
-        vga_print(exceptions[regs.int_no]);
+        vga_print(exceptions[regs->int_no]);
     }
 
     for(;;);
 }
 
-void irq_handler(registers_t regs)
+void irq_handler(registers_t* regs)
 {
     // 32 = IRQ0 = timer
-    if(regs.int_no == 32)
+    if(regs->int_no == 32)
     {
         // Forward to timer handler
-        timer_handler(&regs);
+        timer_handler(regs);
     }
 
     // 33 = IRQ1 = kayboard
-    if(regs.int_no == 33)
+    if(regs->int_no == 33)
     {
         // Forward to the keyboard handler
-        keyboard_handler(&regs);
+        keyboard_handler(regs);
     }
 
     // Always send End of Interrupt to PIC so it knows we're done
     // and can send the next interrupt
-    pic_send_eoi(regs.int_no - 32);
+    pic_send_eoi(regs->int_no - 32);
 }
