@@ -99,7 +99,7 @@ load_kernel:
     call print
 
     mov ah, 0x02                ; BIOS read sectors function
-    mov al, 20                  ; Number of sectors to read
+    mov al, 24                  ; Number of sectors to read
     mov ch, 0                   ; Cylinder number 0
     mov cl, 2                   ; Start from sector 2 (sector 1 is our bootloader)
     mov dh, 0                   ; Head number 0

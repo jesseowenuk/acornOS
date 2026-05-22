@@ -223,3 +223,164 @@ void page_fault_handler(registers_t* regs)
     // Hang - we can't safely continue after a page fault
     for(;;);
 }
+
+// --- Page table storage ------------------------------------
+
+// Allocate a fresh zeroed page table from our pool
+static page_table_t* alloc_table()
+{
+    // PMM gives us a free 4KB physical page - exactly the right size
+    page_table_t* table = (page_table_t*)pmm_alloc();
+    
+    if(!table)
+    {
+        serial_println("alloc_table: PMM out of memory!");
+        return 0;
+    }
+
+    // Zero out every entry - all pages start out as not present
+    uint32_t* t = (uint32_t*)table;
+    for(int j = 0; j < 1024; j++)
+    {
+        // Not present, not writable
+        t[j] = 0;
+    }
+
+    return table;
+}
+
+// --- map_page --------------------------------------------
+// Maps a single virtual address to a physical address with fiven flags
+// Both addresses are rounded down to 4KB page boundaries automatically
+void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags)
+{
+    // Round both addresses down to page boundaries
+    // e.g. 0x1234 becomes 0x1000 - we always map whole pages
+    // Clear bottom 12 bits
+    virtual_addr &= ~0xFFF;
+    physical_addr &= ~0xFFF;
+
+    // Get the page directory index from the virtual address
+    // Which entry in the page directory?
+    uint32_t pdi = PD_INDEX(virtual_addr);
+
+    // Get the page table index from the virtual address
+    // Which entry in the page table?
+    uint32_t pti = PT_INDEX(virtual_addr);
+
+    // Check if a page table already exists in this direcrory entry
+    if(!kernel_directory.entries[pdi].present)
+    {
+        // No page table yet so lets create one
+        page_table_t* new_table = alloc_table();
+
+        if(!new_table)
+        {
+            serial_println("map page: out of page tables!");
+            return;
+        }
+
+        // Install the new table into the directory
+        pde_set(
+            (pde_t*)&kernel_directory.entries[pdi],
+            (uint32_t)new_table,                // physical address of the new table
+            PAGE_PRESENT | PAGE_WRITABLE
+        );
+    }
+
+    // Get pointer to the page table for this directory entry
+    // frame contains the upper 20 bits of the table address
+    // shift left 12 to get the full address back
+    page_table_t* table = (page_table_t*)(
+        kernel_directory.entries[pdi].frame << 12
+    );
+
+    // Set the page table entry to map virtual -> physical
+    pte_set(
+        (pte_t*)&table->entries[pti],           // Which PTE to set
+        physical_addr,                          // Physical address to map to
+        flags                                   // Present, writable, user etc.
+    );
+
+    // Flush the TLB entry for this virtual address
+    // The CPU caches translations in the TLB - we must invalidate
+    // the old entry or the CPU will use the stale cached translation
+    __asm__ volatile(
+        "invlpg (%0)"                           // Invalidate TLB entry for this address
+        :                                       // No output
+        : "r"(virtual_addr)                     // Input: the virtual address to flush
+        : "memory"                              // Tells compiler memory may have changed
+    );
+}
+
+// --- unmap_page ----------------------------------------------------
+// Remove a virtual address mapping
+void unmap_page(uint32_t virtual_addr)
+{
+    virtual_addr &= ~0xFFF;                 // Round to page boundary
+
+    uint32_t pdi = PD_INDEX(virtual_addr);
+    uint32_t pti = PT_INDEX(virtual_addr);
+
+    // Check directory entry exists
+    if(!kernel_directory.entries[pdi].present)
+    {
+        // Nothing to unmap
+        return;
+    }
+
+    // Get the page table
+    page_table_t* table = (page_table_t*)(
+        kernel_directory.entries[pdi].frame << 12
+    );
+    
+    // Clear the page table entry
+    uint32_t* entry = (uint32_t*)&table->entries[pti];
+
+    // Zero = not present
+    *entry = 0;
+
+    // Flush TLB for this address
+    __asm__ volatile(
+        "invlpg (%0)"
+        : 
+        : "r"(virtual_addr)
+        : "memory"
+    );
+}
+
+// --- get_physical -----------------------------------------
+// Walks the page tables to find the physical address for a virtual address
+// Returns 0 if the address is not mapped
+uint32_t get_physical(uint32_t virtual_addr)
+{
+    uint32_t pdi = PD_INDEX(virtual_addr);
+    uint32_t pti = PT_INDEX(virtual_addr);
+
+    // Check directory entry is present
+    if(!kernel_directory.entries[pdi].present)
+    {
+        // Not mapped
+        return 0;
+    }
+
+    // Get the page table
+    page_table_t* table = (page_table_t*)(
+        kernel_directory.entries[pdi].frame << 12
+    );
+
+    // Check page table entry is present
+    if(!table->entries[pti].present)
+    {
+        // Not mapped
+        return 0;
+    }
+
+    // Get physical address - frame is upper 20 bits, add back the offset
+    uint32_t physical = table->entries[pti].frame << 12;
+
+    // Add the byte offset within the page
+    physical |= PG_OFFSET(virtual_addr);
+
+    return physical;
+}

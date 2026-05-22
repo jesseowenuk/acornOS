@@ -3,6 +3,13 @@
 CC = i686-elf-gcc
 CFLAGS = -ffreestanding -O2 -Wall -Wextra -fno-builtin
 
+check-size: kernel.bin
+	@SECTORS=$$(( ($$(wc -c < kernel.bin) + 511) / 512 )); \
+	echo "Kernel: $$(wc -c < kernel.bin) bytes = $$SECTORS sectors"; \
+	if [ $$SECTORS -gt 24 ]; then \
+		echo "WARNING: kernel is too big! Increase sector count in boot.asm!"; \
+	fi
+
 all: os.img
 
 debug: os.img
@@ -27,13 +34,18 @@ kernel.bin: kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gdt_flush.asm kerne
 	nasm -f elf kernel/gdt_flush.asm -o gdt_flush.o
 	nasm -f elf kernel/isr.asm -o isr.o
 	nasm -f elf kernel/idt_flush.asm -o idt_flush.o
-	i686-elf-ld -o kernel.bin -Ttext 0x1000 --oformat binary kernel.o vga.o gdt.o gdt_flush.o idt.o isr.o idt_flush.o pic.o keyboard.o shell.o timer.o mem.o serial.o pmm.o paging.o
+	i686-elf-ld -o kernel.bin \
+		-T kernel/linker.ld \
+		--oformat binary \
+		-Map kernel.map \
+		kernel.o vga.o gdt.o gdt_flush.o idt.o isr.o idt_flush.o \
+		pic.o keyboard.o shell.o timer.o mem.o serial.o pmm.o paging.o
 
 os.img: boot.bin kernel.bin
 	cat boot.bin kernel.bin > os.img
 	truncate -s 1440k os.img
 
-run: os.img
+run: os.img check-size
 	qemu-system-i386 -drive format=raw,file=os.img -serial stdio
 
 clean:

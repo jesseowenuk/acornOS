@@ -1,0 +1,182 @@
+
+There are no discarded input sections
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+*default*        0x00000000         0xffffffff
+
+Linker script and memory map
+
+                0x00001000                        . = 0x1000
+
+.text           0x00001000     0x222b
+ *(.text)
+ .text          0x00001000      0x30d kernel.o
+                0x00001000                kernel_main
+ *fill*         0x0000130d       0x13 
+ .text          0x00001320      0x231 vga.o
+                0x00001320                vga_set_colour
+                0x00001340                vga_clear
+                0x00001390                vga_putchar
+                0x000014c0                vga_print
+                0x00001500                vga_init
+ *fill*         0x00001551        0xf 
+ .text          0x00001560       0x66 gdt.o
+                0x00001560                gdt_init
+ *fill*         0x000015c6        0xa 
+ .text          0x000015d0       0x1d gdt_flush.o
+                0x000015d0                gdt_flush
+ *fill*         0x000015ed        0x3 
+ .text          0x000015f0      0x222 idt.o
+                0x000015f0                idt_set_entry
+                0x00001630                idt_init
+                0x00001730                isr_handler
+                0x000017b0                irq_handler
+ *fill*         0x00001812        0xe 
+ .text          0x00001820       0x7d isr.o
+                0x00001820                isr0
+                0x00001827                isr1
+                0x0000182e                isr2
+                0x00001835                isr3
+                0x00001863                irq0
+                0x0000186a                irq1
+                0x00001871                isr14
+ *fill*         0x0000189d        0x3 
+ .text          0x000018a0        0x8 idt_flush.o
+                0x000018a0                idt_flush
+ *fill*         0x000018a8        0x8 
+ .text          0x000018b0       0xef pic.o
+                0x000018b0                pic_init
+                0x00001930                pic_send_eoi
+                0x00001950                pic_mask
+                0x00001980                pic_unmask
+ *fill*         0x0000199f        0x1 
+ .text          0x000019a0       0x31 keyboard.o
+                0x000019a0                keyboard_handler
+                0x000019d0                keyboard_init
+ *fill*         0x000019d1       0x2f 
+ .text          0x00001a00      0x666 shell.o
+                0x00001ab0                shell_handle_key
+                0x00002010                shell_init
+ *fill*         0x00002066       0x1a 
+ .text          0x00002080      0x146 timer.o
+                0x00002080                timer_handler
+                0x00002180                timer_get_ticks
+                0x00002190                timer_get_seconds
+                0x000021b0                timer_init
+ *fill*         0x000021c6       0x3a 
+ .text          0x00002200      0x320 mem.o
+                0x000022b0                mem_init
+                0x000022e0                kmalloc
+                0x00002380                kfree
+                0x000023f0                mem_print_stats
+ .text          0x00002520      0x2a9 serial.o
+                0x00002520                serial_init
+                0x000026a0                serial_putchar
+                0x000026c0                serial_print
+                0x00002730                serial_println
+ *fill*         0x000027c9       0x37 
+ .text          0x00002800      0x5d1 pmm.o
+                0x00002970                pmm_init
+                0x00002c20                pmm_alloc
+                0x00002c90                pmm_free
+                0x00002cc0                pmm_free_pages
+                0x00002cd0                pmm_used_pages
+                0x00002ce0                pmm_print_stats
+ *fill*         0x00002dd1       0x2f 
+ .text          0x00002e00      0x42b paging.o
+                0x00002e00                paging_init
+                0x00002f60                page_fault_handler
+                0x000030a0                map_page
+                0x000031a0                unmap_page
+                0x000031e0                get_physical
+
+.rodata         0x00003240      0x788
+ *(.rodata)
+ .rodata        0x00003240       0x3b keyboard.o
+ *(.rodata.*)
+ .rodata.str1.1
+                0x0000327b      0x246 kernel.o
+ *fill*         0x000034c1        0x3 
+ .rodata.str1.4
+                0x000034c4       0x47 kernel.o
+ .rodata.str1.1
+                0x0000350b       0x48 idt.o
+ .rodata.str1.1
+                0x00003553       0x9d shell.o
+ .rodata.str1.4
+                0x000035f0      0x130 shell.o
+ .rodata.str1.1
+                0x00003720       0x9e mem.o
+ .rodata.str1.1
+                0x000037be       0x3c serial.o
+ .rodata.str1.1
+                0x000037fa       0x79 pmm.o
+ *fill*         0x00003873        0x1 
+ .rodata.str1.4
+                0x00003874       0x84 paging.o
+ .rodata.str1.1
+                0x000038f8       0xd0 paging.o
+
+.data           0x00004000     0x3000
+ *(.bss)
+ .bss           0x00004000        0x0 kernel.o
+ .bss           0x00004000        0xc vga.o
+ .bss           0x0000400c       0x20 gdt.o
+ *fill*         0x0000402c       0x14 
+ .bss           0x00004040      0x820 idt.o
+ .bss           0x00004860        0x0 pic.o
+ .bss           0x00004860        0x0 keyboard.o
+ .bss           0x00004860      0x120 shell.o
+ .bss           0x00004980        0x4 timer.o
+ .bss           0x00004984        0x8 mem.o
+ .bss           0x0000498c        0x0 serial.o
+ .bss           0x0000498c        0x8 pmm.o
+ *fill*         0x00004994      0x66c 
+ .bss           0x00005000     0x2000 paging.o
+ *(COMMON)
+LOAD kernel.o
+LOAD vga.o
+LOAD gdt.o
+LOAD gdt_flush.o
+LOAD idt.o
+LOAD isr.o
+LOAD idt_flush.o
+LOAD pic.o
+LOAD keyboard.o
+LOAD shell.o
+LOAD timer.o
+LOAD mem.o
+LOAD serial.o
+LOAD pmm.o
+LOAD paging.o
+OUTPUT(kernel.bin binary)
+
+.data           0x00007000        0x0
+ .data          0x00007000        0x0 kernel.o
+ .data          0x00007000        0x0 vga.o
+ .data          0x00007000        0x0 gdt.o
+ .data          0x00007000        0x0 idt.o
+ .data          0x00007000        0x0 pic.o
+ .data          0x00007000        0x0 keyboard.o
+ .data          0x00007000        0x0 shell.o
+ .data          0x00007000        0x0 timer.o
+ .data          0x00007000        0x0 mem.o
+ .data          0x00007000        0x0 serial.o
+ .data          0x00007000        0x0 pmm.o
+ .data          0x00007000        0x0 paging.o
+
+.comment        0x00000000       0xe4
+ .comment       0x00000000       0x13 kernel.o
+ .comment       0x00000013       0x13 vga.o
+ .comment       0x00000026       0x13 gdt.o
+ .comment       0x00000039       0x13 idt.o
+ .comment       0x0000004c       0x13 pic.o
+ .comment       0x0000005f       0x13 keyboard.o
+ .comment       0x00000072       0x13 shell.o
+ .comment       0x00000085       0x13 timer.o
+ .comment       0x00000098       0x13 mem.o
+ .comment       0x000000ab       0x13 serial.o
+ .comment       0x000000be       0x13 pmm.o
+ .comment       0x000000d1       0x13 paging.o

@@ -79,4 +79,29 @@ typedef struct __attribute__((aligned(4096)))
 void paging_init();                         // Set up page tables and enable paging
 void page_fault_handler(registers_t* regs); // Called on interrupt 14
 
+// --- Virtual to physical helpers
+
+// Extract the page directory index from a virtual address
+// Takes bits 31-22 - the top 10 bits
+#define PD_INDEX(addr) ((addr) >> 22)
+
+// Extract the page index from a virtual address
+// Takes bits 21-12 - the middle 10 bits
+// & 0x3FF masks to 10 bits (1023)
+#define PT_INDEX(addr) (((addr) >> 12) & 0x3FF)
+
+// Extract the page offset from a virtual address
+// Takes bits 11-0 - the bottom 12 bits
+// & 0xFFF masks to 12 bits (4095)
+#define PG_OFFSET(addr) ((addr) & 0xFFF)
+
+// Map a virtual address to a physical address
+void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags);
+
+// Remove a mapping
+void unmap_page(uint32_t virtual_addr);
+
+// Look up physical address for a virtual address
+uint32_t get_physical(uint32_t virtual_addr);
+
 #endif

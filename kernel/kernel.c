@@ -77,6 +77,37 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     vga_set_colour(LIGHT_GREEN, BLACK);
     vga_print("Paging ready.\n");
 
+    // Test map_page
+    vga_set_colour(YELLOW, BLACK);
+    vga_print("Testing map_page...\n");
+
+    // Allocate a physical page from PMM
+    void* phys = pmm_alloc();               // Get a free physical page
+
+    // Map it to an arbitrary virtual address
+    uint32_t virt = 0x400000;               // 4MB mark - just above our identity map
+    map_page(virt, (uint32_t)phys, PAGE_PRESENT | PAGE_WRITABLE);
+
+    // Write to the virtual address
+    volatile uint32_t* ptr = (volatile uint32_t*)virt;
+    *ptr = 0xDEADBEEF;                      // Write a test value
+
+    // Read it back
+    if(*ptr == 0xDEADBEEF)
+    {
+        vga_set_colour(LIGHT_GREEN, BLACK);
+        vga_print("map_page test passed!\n");
+    }
+    else
+    {
+        vga_set_colour(RED, BLACK);
+        vga_print("map_page test FAILED!\n");
+    }
+
+    // Unmap the page
+    unmap_page(virt);
+    vga_set_colour(WHITE, BLACK);
+
     serial_println("All subsystems online. Starting shell.");
 
     // Enable hardware interrupts.
