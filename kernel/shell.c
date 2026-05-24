@@ -3,6 +3,7 @@
 #include "timer.h"      // For uptime command
 #include "mem.h"        // For mem command
 #include "pmm.h"
+#include "process.h"
 
 // -- String helpers ----------------------------------------------------
 // We have no standard library so we write our own minimal helpers
@@ -119,6 +120,7 @@ static void cmd_help()
     vga_print("    about        -- about acornOS\n");
     vga_print("    uptime       -- show time since boot\n");
     vga_print("    mem          -- show memory usage\n");
+    vga_print("    ps           -- list all processes\n");
     vga_print("    echo <text>  -- print text screen\n");
 }
 
@@ -211,6 +213,12 @@ static void cmd_echo(const char* text)
     }
 }
 
+static void cmd_ps()
+{
+    // Delegate to process subsystem
+    process_print_all();
+}
+
 // -- Command dispatch ----------------------------------------------------
 
 // Called when the user presses enter
@@ -241,6 +249,10 @@ static void process_command()
     {
         // Show memory stats
         cmd_mem();
+    }
+    else if(streq(buffer, "ps"))
+    {
+        cmd_ps();
     }
     else
     {

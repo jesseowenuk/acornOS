@@ -4,6 +4,8 @@ SECTIONS {
     . = 0x1000;              /* Load address - where the bootloader puts us */
 
     .text : {               /* Code section */
+        start.o(.text)
+        kernel.o(.text)
         *(.text)
     }
 
@@ -17,7 +19,9 @@ SECTIONS {
     }
 
     .bss : {                /* Uninitialised global variables - zeroed at boot */
+        __bss_start = .;    /* Mark start of BSS */
         *(.bss)
         *(COMMON)
+        __bss_end = .;      /* Mark end of BSS */
     }
 }

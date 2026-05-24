@@ -18,7 +18,7 @@ debug: os.img
 boot.bin: boot/boot.asm
 	nasm -f bin boot/boot.asm -o boot.bin
 
-kernel.bin: kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gdt_flush.asm kernel/idt.c kernel/isr.asm kernel/idt_flush.asm kernel/pic.c kernel/keyboard.c kernel/shell.c kernel/timer.c kernel/mem.c kernel/serial.c kernel/pmm.c kernel/paging.c
+kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gdt_flush.asm kernel/idt.c kernel/isr.asm kernel/idt_flush.asm kernel/pic.c kernel/keyboard.c kernel/shell.c kernel/timer.c kernel/mem.c kernel/serial.c kernel/pmm.c kernel/paging.c kernel/process.c
 	$(CC) $(CFLAGS) -c kernel/kernel.c -o kernel.o
 	$(CC) $(CFLAGS) -c kernel/vga.c -o vga.o
 	$(CC) $(CFLAGS) -c kernel/gdt.c -o gdt.o
@@ -31,6 +31,8 @@ kernel.bin: kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gdt_flush.asm kerne
 	$(CC) $(CFLAGS) -c kernel/serial.c -o serial.o
 	$(CC) $(CFLAGS) -c kernel/pmm.c -o pmm.o
 	$(CC) $(CFLAGS) -c kernel/paging.c -o paging.o
+	$(CC) $(CFLAGS) -ffreestanding -O0 -Wall -fno-builtin -c kernel/process.c -o process.o
+	nasm -f elf kernel/start.asm -o start.o
 	nasm -f elf kernel/gdt_flush.asm -o gdt_flush.o
 	nasm -f elf kernel/isr.asm -o isr.o
 	nasm -f elf kernel/idt_flush.asm -o idt_flush.o
@@ -38,15 +40,15 @@ kernel.bin: kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gdt_flush.asm kerne
 		-T kernel/linker.ld \
 		--oformat binary \
 		-Map kernel.map \
-		kernel.o vga.o gdt.o gdt_flush.o idt.o isr.o idt_flush.o \
-		pic.o keyboard.o shell.o timer.o mem.o serial.o pmm.o paging.o
+		start.o kernel.o vga.o gdt.o gdt_flush.o idt.o isr.o idt_flush.o \
+		pic.o keyboard.o shell.o timer.o mem.o serial.o pmm.o paging.o process.o
 
 os.img: boot.bin kernel.bin
 	cat boot.bin kernel.bin > os.img
 	truncate -s 1440k os.img
 
 run: os.img check-size
-	qemu-system-i386 -drive format=raw,file=os.img -serial stdio
+	qemu-system-i386 -drive format=raw,file=os.img,if=floppy -serial stdio
 
 clean:
 	rm -f *.bin *.o *.img

@@ -192,7 +192,7 @@ void pmm_init(uint32_t mem_map_addr, uint32_t mem_map_count)
     }
 
     // Mark pages covering our heap (0x20000 - 0x80000)
-    for(uint32_t addr = 0x20000; addr < 0x80000; addr += PAGE_SIZE)
+    for(uint32_t addr = 0x50000; addr < 0x90000; addr += PAGE_SIZE)
     {
         bitmap_set(addr / PAGE_SIZE);
         used_pages++;

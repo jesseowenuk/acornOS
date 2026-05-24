@@ -1,5 +1,7 @@
+#include "util.h"
 #include "mem.h"
 #include "vga.h"        // For mem_print_stats() output
+#include "serial.h"
 
 // --- Block header --------------------------------------
 // Every allocation is preceded by this header in memory
@@ -74,6 +76,16 @@ void mem_init()
 
 void* kmalloc(uint32_t size)
 {
+    serial_print("DEBUG kmalloc: heap_start=0x");
+    print_num_serial((uint32_t)heap_start);
+    serial_print(" block.free=");
+    print_num_serial(heap_start->free);
+    serial_print(" block.size=");
+    print_num_serial(heap_start->size);
+    serial_print(" requested=");
+    print_num_serial(size);
+    serial_println("");
+
     // Allocating zero bytes makes no sense
     if(size == 0)
     {
@@ -98,6 +110,12 @@ void* kmalloc(uint32_t size)
     {
         if(current->free && current->size >= size)
         {
+            serial_print("DEBUG: found block, about to allocate at 0x");
+            print_num_serial((uint32_t)current);
+            serial_print(" HEADER_SIZE=");
+            print_num_serial(HEADER_SIZE);
+            serial_println("");
+
             // Found a free block big enough
             // Split the block if there's enough room left over
             // Only split if the leftover would be useful (> header + 4 bytes)
@@ -130,7 +148,13 @@ void* kmalloc(uint32_t size)
             heap_used += current->size;
 
             // Return pointer to the data region - just after the header
-            return (void*)((uint8_t*)current + HEADER_SIZE);
+            void* result = (void*)((uint8_t*)current + HEADER_SIZE);
+            serial_print("DEBUG: returning dec=");
+            print_num_serial((uint32_t)result);
+            serial_print(" hex=");
+            print_hex_serial((uint32_t)result);
+            serial_println("");
+            return result;
         }
 
         // Move to next block and keep looking
