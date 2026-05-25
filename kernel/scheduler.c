@@ -76,15 +76,18 @@ void scheduler_tick(registers_t* regs)
 
     if(!run_queue_head)
     {
-        // E,pty run queue
+        // Empty run queue
         return;
     }
 
     // Decrement the current process's remaining time slice
     current_process->ticks_remaining--;
 
+    // Always switch away from idle if another process is ready
+    int force_switch = (current_process->pid == 0);
+
     // If the process still has time left - let it continue
-    if(current_process->ticks_remaining > 0)
+    if(current_process->ticks_remaining > 0 && !force_switch)
     {
         return;
     }
@@ -95,16 +98,35 @@ void scheduler_tick(registers_t* regs)
                                             // Since the list is circular this
                                             // always gives us a valid process
 
-    // Skip dead processes
-    while(new->state == PROCESS_DEAD && new != old)
+    // Walk the queue looking for a non-dead, preferably non-idle process
+    process_t* best = 0;
+    process_t* scan = old->next;
+
+    int i = 0;
+    while(i < 16)                           // Max of 16 processes
     {
-        // Keep walking until we find a live one
-        new = new->next;
+        if(scan->state != PROCESS_DEAD && scan->pid != 0)
+        {
+            best = scan;                    // Found a real process
+            break;
+        }
+        scan = scan->next;
+        i++;
+    }
+
+    // If we found a real process use it, otherwise fall back to idle
+    if(best)
+    {
+        new = best;
+    }
+    else if(new->state == PROCESS_DEAD)
+    {
+        // Nothing to run
+        return;
     }
 
     if(new == old)
     {
-        // Only one process - no switch needed
         return;
     }
 

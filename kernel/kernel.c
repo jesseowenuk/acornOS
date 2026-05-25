@@ -23,6 +23,18 @@ static void shell_process()
     for(;;);
 }
 
+// The idle process - runs when nothing else wants to
+// hlt pauses the CPU until the next interrupt fires
+// This saves power and reduces heat vs spinning in a loop
+static void idle_process()
+{
+    while(1)
+    {
+        // Just spin for now - we'll add hlt properly later
+        // when we have proper blocking implemented.
+    }
+}
+
 void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
 {       
     vga_init();                                 // Clear screen, set default colour
@@ -135,9 +147,15 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     // From this point the CPU will respond to IRQs
     __asm__ volatile ("sti"); 
 
-    // Start the shell
+    // Create and add the idle process first
+    // PID 0 is always the idle process by convention
+    //process_t* idle = process_create("idle", idle_process, 0);
+    //scheduler_add(idle);
+
+    // Create and add the shell process
     process_t* shell = process_create("shell", shell_process, 0);
     scheduler_add(shell);
+
     scheduler_start();          // start scheduling - never returns
 
     // Hang forever - interrupts will fire keyboard_handler() for us

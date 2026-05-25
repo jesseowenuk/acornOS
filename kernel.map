@@ -10,7 +10,7 @@ Linker script and memory map
 
                 0x00001000                        . = 0x1000
 
-.text           0x00001000     0x32c2
+.text           0x00001000     0x32e2
  start.o(.text)
  .text          0x00001000       0x19 start.o
                 0x00001000                _start
@@ -106,49 +106,49 @@ Linker script and memory map
  .text          0x00004070       0x68 switch.o
                 0x00004070                switch_context
  *fill*         0x000040d8        0x8 
- .text          0x000040e0      0x1e2 scheduler.o
+ .text          0x000040e0      0x202 scheduler.o
                 0x000040e0                scheduler_init
                 0x00004110                scheduler_add
                 0x000041a0                scheduler_tick
-                0x00004220                scheduler_yield
-                0x00004250                scheduler_start
+                0x00004240                scheduler_yield
+                0x00004270                scheduler_start
 
-.rodata         0x000042e0      0xb53
+.rodata         0x00004300      0xb53
  *(.rodata)
- .rodata        0x000042e0       0x3b keyboard.o
- *fill*         0x0000431b        0x1 
- .rodata        0x0000431c      0x1d1 process.o
+ .rodata        0x00004300       0x3b keyboard.o
+ *fill*         0x0000433b        0x1 
+ .rodata        0x0000433c      0x1d1 process.o
  *(.rodata.*)
  .rodata.str1.1
-                0x000044ed      0x294 kernel.o
- *fill*         0x00004781        0x3 
+                0x0000450d      0x294 kernel.o
+ *fill*         0x000047a1        0x3 
  .rodata.str1.4
-                0x00004784       0x8f kernel.o
+                0x000047a4       0x8f kernel.o
  .rodata.str1.1
-                0x00004813       0x48 idt.o
+                0x00004833       0x48 idt.o
  .rodata.str1.1
-                0x0000485b       0xa0 shell.o
- *fill*         0x000048fb        0x1 
+                0x0000487b       0xa0 shell.o
+ *fill*         0x0000491b        0x1 
  .rodata.str1.4
-                0x000048fc      0x158 shell.o
+                0x0000491c      0x158 shell.o
  .rodata.str1.1
-                0x00004a54      0x120 mem.o
+                0x00004a74      0x120 mem.o
  .rodata.str1.4
-                0x00004b74       0x2c mem.o
+                0x00004b94       0x2c mem.o
  .rodata.str1.1
-                0x00004ba0       0x3c serial.o
+                0x00004bc0       0x3c serial.o
  .rodata.str1.1
-                0x00004bdc       0x79 pmm.o
- *fill*         0x00004c55        0x3 
+                0x00004bfc       0x79 pmm.o
+ *fill*         0x00004c75        0x3 
  .rodata.str1.4
-                0x00004c58       0x84 paging.o
+                0x00004c78       0x84 paging.o
  .rodata.str1.1
-                0x00004cdc       0xd0 paging.o
+                0x00004cfc       0xd0 paging.o
  .rodata.str1.1
-                0x00004dac       0x62 scheduler.o
- *fill*         0x00004e0e        0x2 
+                0x00004dcc       0x62 scheduler.o
+ *fill*         0x00004e2e        0x2 
  .rodata.str1.4
-                0x00004e10       0x23 scheduler.o
+                0x00004e30       0x23 scheduler.o
 
 .data           0x00005000     0x3050
                 0x00005000                        __bss_start = .
