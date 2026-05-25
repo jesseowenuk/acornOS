@@ -117,6 +117,8 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     vga_set_colour(LIGHT_GREEN, BLACK);
     vga_print("Process manager online.\n");
 
+    process_print_offsets();
+
     process_create("kernel", 0, 0);         // PID 0 = kernel idle process
     process_create("test", test_process, 0);    // PID 1 = test process
 

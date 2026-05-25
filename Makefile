@@ -18,7 +18,7 @@ debug: os.img
 boot.bin: boot/boot.asm
 	nasm -f bin boot/boot.asm -o boot.bin
 
-kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gdt_flush.asm kernel/idt.c kernel/isr.asm kernel/idt_flush.asm kernel/pic.c kernel/keyboard.c kernel/shell.c kernel/timer.c kernel/mem.c kernel/serial.c kernel/pmm.c kernel/paging.c kernel/process.c
+kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gdt_flush.asm kernel/idt.c kernel/isr.asm kernel/idt_flush.asm kernel/pic.c kernel/keyboard.c kernel/shell.c kernel/timer.c kernel/mem.c kernel/serial.c kernel/pmm.c kernel/paging.c kernel/process.c kernel/switch.asm
 	$(CC) $(CFLAGS) -c kernel/kernel.c -o kernel.o
 	$(CC) $(CFLAGS) -c kernel/vga.c -o vga.o
 	$(CC) $(CFLAGS) -c kernel/gdt.c -o gdt.o
@@ -36,12 +36,14 @@ kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gd
 	nasm -f elf kernel/gdt_flush.asm -o gdt_flush.o
 	nasm -f elf kernel/isr.asm -o isr.o
 	nasm -f elf kernel/idt_flush.asm -o idt_flush.o
+	nasm -f elf kernel/switch.asm -o switch.o
 	i686-elf-ld -o kernel.bin \
 		-T kernel/linker.ld \
 		--oformat binary \
 		-Map kernel.map \
 		start.o kernel.o vga.o gdt.o gdt_flush.o idt.o isr.o idt_flush.o \
-		pic.o keyboard.o shell.o timer.o mem.o serial.o pmm.o paging.o process.o
+		pic.o keyboard.o shell.o timer.o mem.o serial.o pmm.o paging.o \
+		process.o switch.o
 
 os.img: boot.bin kernel.bin
 	cat boot.bin kernel.bin > os.img

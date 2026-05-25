@@ -260,3 +260,39 @@ void process_print_all()
         vga_print("\n");
     }
 }
+
+void process_print_offsets()
+{
+    process_t p;
+    serial_print("pid offset: ");
+    print_num_serial((uint32_t)&p.pid - (uint32_t)&p);
+    serial_println("");
+
+    serial_print("name offset: ");
+    print_num_serial((uint32_t)&p.name - (uint32_t)&p);
+    serial_println("");
+
+    serial_print("state offset: ");
+    print_num_serial((uint32_t)&p.state - (uint32_t)&p);
+    serial_println("");
+
+    serial_print("cpu offset: ");
+    print_num_serial((uint32_t)&p.cpu - (uint32_t)&p);
+    serial_println("");
+
+    serial_print("cpu.eax offset: ");
+    print_num_serial((uint32_t)&p.cpu.eax - (uint32_t)&p);
+    serial_println("");
+
+    serial_print("cpu.esp offset: ");
+    print_num_serial((uint32_t)&p.cpu.esp - (uint32_t)&p);
+    serial_println("");
+
+    serial_print("cpu.eip offset: ");
+    print_num_serial((uint32_t)&p.cpu.eip - (uint32_t)&p);
+    serial_println("");
+
+    serial_print("sizeof process_t: ");
+    print_num_serial(sizeof(process_t));
+    serial_println("");
+}

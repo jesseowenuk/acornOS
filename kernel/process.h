@@ -84,4 +84,10 @@ void process_exit(process_t* process);
 // Print all processes - like a simple 'ps' command
 void process_print_all();
 
+// Defined in switch.asm - performs the actual context switch
+// Saves old process CPU state and restores new process CPU state
+void switch_context(process_t* old, process_t* new);
+
+void process_print_offsets();
+
 #endif
