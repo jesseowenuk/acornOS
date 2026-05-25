@@ -3,10 +3,17 @@
 #include "pic.h"
 #include "vga.h"
 #include "shell.h"
+#include "process.h"
+#include "scheduler.h"
+#include "serial.h"
 
 // Port 0x60 is the keyboard data port
 // Reading from it gives us the scancode of the last key event
 #define KEYBOARD_DATA_PORT 0x60
+
+// Process waiting for a keypress
+process_t* keyboard_waiting = 0;
+static char pending_key = 0;
 
 // Read a byte from an I/O port
 // We define it here again logically - later we'll move I/O helpers to a shared header
@@ -53,8 +60,6 @@ void keyboard_handler(registers_t* regs)
         return;
     }
 
-
-
     // Look up the scancode in our table
     // Make sure the scancode is within our table
     if(scancode < sizeof(scancode_table))
@@ -65,10 +70,34 @@ void keyboard_handler(registers_t* regs)
         // 0 means no printable character (e.g. shift, ctrl, function keys)
         if(c != 0)
         {
-            // Send to shell instead of direcltly to VGA
-            shell_handle_key(c);
+            // Store the key
+            pending_key = c;
+
+            // Wake the process that was waiting for input
+            if(keyboard_waiting)
+            {
+                // Wake up the waiting process
+                process_wake(keyboard_waiting);
+
+                // clear the waiter
+                keyboard_waiting = 0;       
+            }
         }
     }
+}
+
+// Shell calls this to get the next key - blocks if none available
+char keyboard_getchar()
+{
+    while(pending_key == 0)
+    {
+        // Block until key arrives
+        keyboard_wait(current_process);
+    }
+
+    char c = pending_key;
+    pending_key = 0;
+    return c;
 }
 
 void keyboard_init()
@@ -76,4 +105,19 @@ void keyboard_init()
     // Nothing to configure on the keyboard hardware for basic input
     // The PIC is already set up to receive IRQ1
     // We just need to register our handler - done in idt.c
+}
+
+void keyboard_wait(process_t* proc)
+{
+    // Register who is waiting
+    keyboard_waiting = proc;
+
+    // Block the process
+    process_block(proc);
+
+    // Tell PIC we're done with IRQ1
+    pic_send_eoi(1);
+
+    // Give up the CPU - don't return until woken
+    scheduler_yield();
 }

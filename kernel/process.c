@@ -286,10 +286,6 @@ void process_block(process_t* proc)
     // Mark as blocked
     // Scheduler will skip this process until it's woken up
     proc->state = PROCESS_BLOCKED;          
-
-    serial_print("Process blocked '");
-    serial_print(proc->name);
-    serial_println("'");
 }
 
 // --- process_wake ---------------------------------------
@@ -312,10 +308,6 @@ void process_wake(process_t* proc)
 
     // Mark as ready to run. Scheduler will pick it up on the next tick
     proc->state = PROCESS_READY;
-
-    serial_print("Process: woke '");
-    serial_print(proc->name);
-    serial_println("'");
 }
 
 void process_print_offsets()

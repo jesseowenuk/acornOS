@@ -84,50 +84,49 @@ void scheduler_tick(registers_t* regs)
     current_process->ticks_remaining--;
 
     // If the process still has time left - let it continue
-    if(current_process->ticks_remaining > 0)
+    if(current_process->ticks_remaining > 0 && current_process->pid != 0)
     {
         return;
     }
 
-    // Time slice expired - pick the next process
+    // Either time slice has expired OR we're idle
+    // In either case find the next runnable process
     process_t* old = current_process;       // Save pointer to outgoing process
-    process_t* new = old->next;             // Pick the next process in the queue
+    process_t* scan = old->next;             // Pick the next process in the queue
                                             // Since the list is circular this
                                             // always gives us a valid process
+    process_t* best = 0;
 
     // Walk the queue looking for a non-dead, preferably non-idle process
     int checked = 0;
     while(checked < MAX_PROCESSES)
     {
-        if(new->state == PROCESS_READY || new->state == PROCESS_RUNNING)
+        if(scan->state == PROCESS_READY)
         {
             // Found a runnable process
+            best = scan;
             break;
         }
         
         // Skip this one
-        new = new->next;
+        scan = scan->next;
         checked++;
     }
 
-    if(new == old && old->state == PROCESS_BLOCKED)
+    if(!best)
     {
-        // Current process is blocked and nothing else can run
-        // This is where idle would run - for now just return
+        // Nothing ready - reset time slice and keep running current
+        current_process->ticks_remaining = current_process->time_slice;
         return;
     }
 
-    if(new == old)
-    {
-        // Nothing else to run
-        return;
-    }
+    process_t* new = best;
 
     // Reset the new process's time slice
     new->ticks_remaining = new->time_slice;
 
     // Update states
-    old->state = PROCESS_READY;             // Outgoing process is now ready
+    old->state = (old->state == PROCESS_READY) ? PROCESS_READY : old->state;             
     new->state = PROCESS_RUNNING;           // Incoming process is now running
 
     // Update current process pointer
