@@ -13,33 +13,14 @@
 #include "process.h"
 #include "scheduler.h"
 
-// Create a test processes to verify everything works
-void process_a()
+// The shell runs as a kernel process
+static void shell_process()
 {
-    // This process just counts - we'll see it working via serial
-    uint32_t count = 0;
-    while(1)
-    {
-        count++;
-        if(count % 10000000 == 0)
-        {
-            // Every ~10 million iterations
-            serial_println("Process A running...");
-        }
-    }
-}
+    // Print the first prompt
+    shell_init();
 
-static void process_b()
-{
-    uint32_t count = 0;
-    while(1)
-    {
-        count++;
-        if(count % 10000000 == 0)
-        {
-            serial_println("Process B running...");
-        }
-    }
+    // Hang - keyboard interrupts drive the shell
+    for(;;);
 }
 
 void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
@@ -148,14 +129,6 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     vga_set_colour(LIGHT_GREEN, BLACK);
     vga_print("Scheduler online.\n");
 
-    // Create processes
-    process_t* pa = process_create("process_a", process_a, 0);
-    process_t* pb = process_create("process_b", process_b, 0);
-
-    // Add to scheduler run queue
-    scheduler_add(pa);
-    scheduler_add(pb);
-
     serial_println("All subsystems online. Starting shell.");
 
     // Enable hardware interrupts.
@@ -163,10 +136,9 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     __asm__ volatile ("sti"); 
 
     // Start the shell
-    shell_init();
-
-    // Start the scheduling - never returns
-    scheduler_start();
+    process_t* shell = process_create("shell", shell_process, 0);
+    scheduler_add(shell);
+    scheduler_start();          // start scheduling - never returns
 
     // Hang forever - interrupts will fire keyboard_handler() for us
     for(;;); // hang
