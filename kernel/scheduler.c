@@ -83,11 +83,8 @@ void scheduler_tick(registers_t* regs)
     // Decrement the current process's remaining time slice
     current_process->ticks_remaining--;
 
-    // Always switch away from idle if another process is ready
-    int force_switch = (current_process->pid == 0);
-
     // If the process still has time left - let it continue
-    if(current_process->ticks_remaining > 0 && !force_switch)
+    if(current_process->ticks_remaining > 0)
     {
         return;
     }
@@ -99,34 +96,30 @@ void scheduler_tick(registers_t* regs)
                                             // always gives us a valid process
 
     // Walk the queue looking for a non-dead, preferably non-idle process
-    process_t* best = 0;
-    process_t* scan = old->next;
-
-    int i = 0;
-    while(i < 16)                           // Max of 16 processes
+    int checked = 0;
+    while(checked < MAX_PROCESSES)
     {
-        if(scan->state != PROCESS_DEAD && scan->pid != 0)
+        if(new->state == PROCESS_READY || new->state == PROCESS_RUNNING)
         {
-            best = scan;                    // Found a real process
+            // Found a runnable process
             break;
         }
-        scan = scan->next;
-        i++;
+        
+        // Skip this one
+        new = new->next;
+        checked++;
     }
 
-    // If we found a real process use it, otherwise fall back to idle
-    if(best)
+    if(new == old && old->state == PROCESS_BLOCKED)
     {
-        new = best;
-    }
-    else if(new->state == PROCESS_DEAD)
-    {
-        // Nothing to run
+        // Current process is blocked and nothing else can run
+        // This is where idle would run - for now just return
         return;
     }
 
     if(new == old)
     {
+        // Nothing else to run
         return;
     }
 

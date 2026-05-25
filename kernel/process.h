@@ -88,6 +88,12 @@ void process_print_all();
 // Saves old process CPU state and restores new process CPU state
 void switch_context(process_t* old, process_t* new);
 
+// Block the current process - it will not be scheduled until woken
+void process_block(process_t* proc);
+
+// Wake a blocked process - it will be scheduled again
+void process_wake(process_t* proc);
+
 void process_print_offsets();
 
 #endif

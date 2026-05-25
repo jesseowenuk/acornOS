@@ -271,6 +271,53 @@ void process_print_all()
     }
 }
 
+// --- process_block ----------------------------------------
+// Marks a process as blocked so the scheduler skips it
+// The process will not run again until process_wake is called
+
+void process_block(process_t* proc)
+{
+    if(!proc)
+    {
+        // Safety check
+        return;
+    }
+
+    // Mark as blocked
+    // Scheduler will skip this process until it's woken up
+    proc->state = PROCESS_BLOCKED;          
+
+    serial_print("Process blocked '");
+    serial_print(proc->name);
+    serial_println("'");
+}
+
+// --- process_wake ---------------------------------------
+// Marks a blocked process as ready so the scheduler picks it up
+// Called from interrupt handlers when the event a process was waiting for occurs
+
+void process_wake(process_t* proc)
+{
+    if(!proc)
+    {
+        // safety check
+        return;
+    }
+
+    if(proc->state != PROCESS_BLOCKED)
+    {
+        // Only wake blocked processes, ignore if already ready/running
+        return;
+    }
+
+    // Mark as ready to run. Scheduler will pick it up on the next tick
+    proc->state = PROCESS_READY;
+
+    serial_print("Process: woke '");
+    serial_print(proc->name);
+    serial_println("'");
+}
+
 void process_print_offsets()
 {
     process_t p;
