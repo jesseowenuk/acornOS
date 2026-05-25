@@ -10,17 +10,17 @@ Linker script and memory map
 
                 0x00001000                        . = 0x1000
 
-.text           0x00001000     0x3128
+.text           0x00001000     0x3342
  start.o(.text)
  .text          0x00001000       0x19 start.o
                 0x00001000                _start
  kernel.o(.text)
  *fill*         0x00001019       0x27 
- .text          0x00001040      0x4e4 kernel.o
-                0x00001040                test_process
-                0x000010f0                kernel_main
+ .text          0x00001040      0x4fe kernel.o
+                0x00001040                process_a
+                0x00001170                kernel_main
  *(.text)
- *fill*         0x00001524       0x1c 
+ *fill*         0x0000153e        0x2 
  .text          0x00001540      0x231 vga.o
                 0x00001540                vga_set_colour
                 0x00001560                vga_clear
@@ -34,12 +34,12 @@ Linker script and memory map
  .text          0x000017f0       0x1d gdt_flush.o
                 0x000017f0                gdt_flush
  *fill*         0x0000180d        0x3 
- .text          0x00001810      0x222 idt.o
+ .text          0x00001810      0x22a idt.o
                 0x00001810                idt_set_entry
                 0x00001850                idt_init
                 0x00001950                isr_handler
                 0x000019d0                irq_handler
- *fill*         0x00001a32        0xe 
+ *fill*         0x00001a3a        0x6 
  .text          0x00001a40       0x7d isr.o
                 0x00001a40                isr0
                 0x00001a47                isr1
@@ -97,48 +97,61 @@ Linker script and memory map
                 0x00003760                map_page
                 0x00003860                unmap_page
                 0x000038a0                get_physical
- .text          0x000038eb      0x7cd process.o
+ .text          0x000038eb      0x7ff process.o
                 0x00003b1d                process_init
                 0x00003b6b                process_create
-                0x00003df2                process_exit
-                0x00003e3f                process_print_all
-                0x00003f44                process_print_offsets
- *fill*         0x000040b8        0x8 
- .text          0x000040c0       0x68 switch.o
-                0x000040c0                switch_context
+                0x00003e24                process_exit
+                0x00003e71                process_print_all
+                0x00003f76                process_print_offsets
+ *fill*         0x000040ea        0x6 
+ .text          0x000040f0       0x68 switch.o
+                0x000040f0                switch_context
+ *fill*         0x00004158        0x8 
+ .text          0x00004160      0x1e2 scheduler.o
+                0x00004160                scheduler_init
+                0x00004190                scheduler_add
+                0x00004220                scheduler_tick
+                0x000042a0                scheduler_yield
+                0x000042d0                scheduler_start
 
-.rodata         0x00004140      0xaf8
+.rodata         0x00004360      0xb8b
  *(.rodata)
- .rodata        0x00004140       0x3b keyboard.o
- *fill*         0x0000417b        0x1 
- .rodata        0x0000417c      0x1d1 process.o
+ .rodata        0x00004360       0x3b keyboard.o
+ *fill*         0x0000439b        0x1 
+ .rodata        0x0000439c      0x1d1 process.o
  *(.rodata.*)
  .rodata.str1.1
-                0x0000434d      0x2c3 kernel.o
+                0x0000456d      0x2cc kernel.o
+ *fill*         0x00004839        0x3 
  .rodata.str1.4
-                0x00004610       0x8f kernel.o
+                0x0000483c       0x8f kernel.o
  .rodata.str1.1
-                0x0000469f       0x48 idt.o
+                0x000048cb       0x48 idt.o
  .rodata.str1.1
-                0x000046e7       0xa0 shell.o
- *fill*         0x00004787        0x1 
+                0x00004913       0xa0 shell.o
+ *fill*         0x000049b3        0x1 
  .rodata.str1.4
-                0x00004788      0x158 shell.o
+                0x000049b4      0x158 shell.o
  .rodata.str1.1
-                0x000048e0      0x120 mem.o
+                0x00004b0c      0x120 mem.o
  .rodata.str1.4
-                0x00004a00       0x2c mem.o
+                0x00004c2c       0x2c mem.o
  .rodata.str1.1
-                0x00004a2c       0x3c serial.o
+                0x00004c58       0x3c serial.o
  .rodata.str1.1
-                0x00004a68       0x79 pmm.o
- *fill*         0x00004ae1        0x3 
+                0x00004c94       0x79 pmm.o
+ *fill*         0x00004d0d        0x3 
  .rodata.str1.4
-                0x00004ae4       0x84 paging.o
+                0x00004d10       0x84 paging.o
  .rodata.str1.1
-                0x00004b68       0xd0 paging.o
+                0x00004d94       0xd0 paging.o
+ .rodata.str1.1
+                0x00004e64       0x62 scheduler.o
+ *fill*         0x00004ec6        0x2 
+ .rodata.str1.4
+                0x00004ec8       0x23 scheduler.o
 
-.data           0x00005000     0x3048
+.data           0x00005000     0x3050
                 0x00005000                        __bss_start = .
  *(.bss)
  .bss           0x00005000        0x0 kernel.o
@@ -159,8 +172,9 @@ Linker script and memory map
                 0x00008000                process_table
                 0x00008040                current_process
                 0x00008044                next_pid
+ .bss           0x00008048        0x8 scheduler.o
  *(COMMON)
-                0x00008048                        __bss_end = .
+                0x00008050                        __bss_end = .
 LOAD start.o
 LOAD kernel.o
 LOAD vga.o
@@ -179,24 +193,26 @@ LOAD pmm.o
 LOAD paging.o
 LOAD process.o
 LOAD switch.o
+LOAD scheduler.o
 OUTPUT(kernel.bin binary)
 
-.data           0x00008048        0x0
- .data          0x00008048        0x0 kernel.o
- .data          0x00008048        0x0 vga.o
- .data          0x00008048        0x0 gdt.o
- .data          0x00008048        0x0 idt.o
- .data          0x00008048        0x0 pic.o
- .data          0x00008048        0x0 keyboard.o
- .data          0x00008048        0x0 shell.o
- .data          0x00008048        0x0 timer.o
- .data          0x00008048        0x0 mem.o
- .data          0x00008048        0x0 serial.o
- .data          0x00008048        0x0 pmm.o
- .data          0x00008048        0x0 paging.o
- .data          0x00008048        0x0 process.o
+.data           0x00008050        0x0
+ .data          0x00008050        0x0 kernel.o
+ .data          0x00008050        0x0 vga.o
+ .data          0x00008050        0x0 gdt.o
+ .data          0x00008050        0x0 idt.o
+ .data          0x00008050        0x0 pic.o
+ .data          0x00008050        0x0 keyboard.o
+ .data          0x00008050        0x0 shell.o
+ .data          0x00008050        0x0 timer.o
+ .data          0x00008050        0x0 mem.o
+ .data          0x00008050        0x0 serial.o
+ .data          0x00008050        0x0 pmm.o
+ .data          0x00008050        0x0 paging.o
+ .data          0x00008050        0x0 process.o
+ .data          0x00008050        0x0 scheduler.o
 
-.comment        0x00000000       0xf7
+.comment        0x00000000      0x10a
  .comment       0x00000000       0x13 kernel.o
  .comment       0x00000013       0x13 vga.o
  .comment       0x00000026       0x13 gdt.o
@@ -210,3 +226,4 @@ OUTPUT(kernel.bin binary)
  .comment       0x000000be       0x13 pmm.o
  .comment       0x000000d1       0x13 paging.o
  .comment       0x000000e4       0x13 process.o
+ .comment       0x000000f7       0x13 scheduler.o

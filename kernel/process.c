@@ -178,6 +178,16 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
     proc->cpu.ds = 0x10;                        // Kernel data segment selector
     proc->cpu.ss = 0x10;                        // Kernel stack segment selector
 
+    // Pre-load the entry point onto the process stack
+    // When scheduler_start does 'ret' it pops this address
+    // and jumps to the process_entry function
+    uint32_t* stack = (uint32_t*)proc->stack_top;
+    *stack = (uint32_t)entry;                   // Push entry point onto stack
+
+    proc->cpu.esp = proc->stack_top;            // ESP points to the entry point
+    proc->cpu.eip = (uint32_t)entry;            // EIP also set for direct jump
+    proc->cpu.ebp = proc->stack_top;            // EBP same as ESP initially 
+
     // Step 7: use the kernel page directory for now
     // Later each process will get its own - for now they share kernel mappings
     // 0 = use kernel page directory

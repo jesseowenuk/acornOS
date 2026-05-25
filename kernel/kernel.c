@@ -11,13 +11,35 @@
 #include "pmm.h"
 #include "paging.h"
 #include "process.h"
+#include "scheduler.h"
 
-// Create a test process to verify everything works
-void test_process()
+// Create a test processes to verify everything works
+void process_a()
 {
-    // This function represents a process
-    // It won't actually run yet - we just create the PCB
-    for(;;);
+    // This process just counts - we'll see it working via serial
+    uint32_t count = 0;
+    while(1)
+    {
+        count++;
+        if(count % 10000000 == 0)
+        {
+            // Every ~10 million iterations
+            serial_println("Process A running...");
+        }
+    }
+}
+
+static void process_b()
+{
+    uint32_t count = 0;
+    while(1)
+    {
+        count++;
+        if(count % 10000000 == 0)
+        {
+            serial_println("Process B running...");
+        }
+    }
 }
 
 void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
@@ -119,51 +141,32 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
 
     process_print_offsets();
 
-    process_create("kernel", 0, 0);         // PID 0 = kernel idle process
-    process_create("test", test_process, 0);    // PID 1 = test process
-
-    // Test map_page
-    vga_set_colour(YELLOW, BLACK);
-    vga_print("Testing map_page...\n");
-
-    // Allocate a physical page from PMM
-    void* phys = pmm_alloc();               // Get a free physical page
-
-    // Map it to an arbitrary virtual address
-    uint32_t virt = 0x400000;               // 4MB mark - just above our identity map
-    map_page(virt, (uint32_t)phys, PAGE_PRESENT | PAGE_WRITABLE);
-
-    // Write to the virtual address
-    volatile uint32_t* ptr = (volatile uint32_t*)virt;
-    *ptr = 0xDEADBEEF;                      // Write a test value
-
-    // Read it back
-    if(*ptr == 0xDEADBEEF)
-    {
-        vga_set_colour(LIGHT_GREEN, BLACK);
-        vga_print("map_page test passed!\n");
-    }
-    else
-    {
-        vga_set_colour(RED, BLACK);
-        vga_print("map_page test FAILED!\n");
-    }
-
-    // Unmap the page
-    unmap_page(virt);
     vga_set_colour(WHITE, BLACK);
+    vga_print("Initialising scheduler...\n");
+    scheduler_init();
+    serial_println("Scheduler initialised.");
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    vga_print("Scheduler online.\n");
+
+    // Create processes
+    process_t* pa = process_create("process_a", process_a, 0);
+    process_t* pb = process_create("process_b", process_b, 0);
+
+    // Add to scheduler run queue
+    scheduler_add(pa);
+    scheduler_add(pb);
 
     serial_println("All subsystems online. Starting shell.");
 
     // Enable hardware interrupts.
     // From this point the CPU will respond to IRQs
-    vga_set_colour(WHITE, BLACK);
-    vga_print("Enabling interrupts.\n");
     __asm__ volatile ("sti"); 
-    vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("Interrupts enabled.\n");
 
+    // Start the shell
     shell_init();
+
+    // Start the scheduling - never returns
+    scheduler_start();
 
     // Hang forever - interrupts will fire keyboard_handler() for us
     for(;;); // hang

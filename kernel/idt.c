@@ -5,6 +5,7 @@
 #include "timer.h"
 #include "paging.h"
 #include "serial.h"
+#include "scheduler.h"
 
 #include <stdint.h>
 
@@ -83,10 +84,10 @@ void isr_handler(registers_t* regs)
 void irq_handler(registers_t* regs)
 {
     // 32 = IRQ0 = timer
-    if(regs->int_no == 32)
+    if(regs->int_no == 32)              // IRQ0 = timer
     {
-        // Forward to timer handler
-        timer_handler(regs);
+        timer_handler(regs);            // Update clock
+        scheduler_tick(regs);           // Run scheduler - may switch process
     }
 
     // 33 = IRQ1 = kayboard
