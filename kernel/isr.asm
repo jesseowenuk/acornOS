@@ -7,8 +7,8 @@ extern isr_handler
 global isr%1
 isr%1:
     cli
-    push byte 0             ; Dummy error code
-    push byte %1            ; Interrupt number
+    push dword 0             ; Dummy error code
+    push dword %1            ; Interrupt number
     jmp isr_common_stub
 %endmacro
 
@@ -16,6 +16,7 @@ ISR_NOERR 0
 ISR_NOERR 1
 ISR_NOERR 2
 ISR_NOERR 3
+ISR_NOERR 128               ; INT 0x80 (system call)
 
 isr_common_stub:
     pusha                   ; Push all general purpose registers
@@ -44,8 +45,8 @@ isr_common_stub:
 global irq%1
 irq%1:
     cli
-    push byte 0
-    push byte %2
+    push dword 0
+    push dword %2
     jmp irq_common_stub
 %endmacro
 

@@ -6,6 +6,7 @@
 #include "paging.h"
 #include "serial.h"
 #include "scheduler.h"
+#include "syscall.h"
 
 #include <stdint.h>
 
@@ -22,6 +23,7 @@ extern void isr1();
 extern void isr2();
 extern void isr3();
 extern void isr14();
+extern void isr128();
 
 extern void irq0();
 extern void irq1();
@@ -48,6 +50,8 @@ void idt_init()
     idt_set_entry(14, (uint32_t)isr14, 0x08, 0x8E);     // Page fault
     idt_set_entry(32, (uint32_t)irq0, 0x08, 0x8E);      // Timer
     idt_set_entry(33, (uint32_t)irq1, 0x08, 0x8E);      // Keyboard
+    idt_set_entry(128, (uint32_t)isr128, 0x08, 0xEE);   // 0xEE = present, ring 3 callable, interrupt gate. Ring 3 callable 
+                                                        // means user programs can trigger it without a GPF
 
     idt_flush((uint32_t)&descriptor);
 }
@@ -60,6 +64,13 @@ void isr_handler(registers_t* regs)
         // 14 = page fault
         // Forward to paging module
         page_fault_handler(regs);
+        return;
+    }
+
+    // System call (INT 0x80)
+    if(regs->int_no == 128)
+    {
+        syscall_handler(regs);
         return;
     }
 
