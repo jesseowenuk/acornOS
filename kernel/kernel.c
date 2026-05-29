@@ -13,6 +13,7 @@
 #include "process.h"
 #include "scheduler.h"
 #include "syscall.h"
+#include "kprintf.h"
 
 // The shell runs as a kernel process
 static void shell_process()
@@ -52,114 +53,94 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
 
     // Initialise serial first so we can log everything that follows
     serial_init();
-    serial_println("Kernel started.");
+    kserial_printf("Kernel started.\n");
 
-    vga_print("acornOS v0.1\n");
-    vga_print("------------\n");
+    kprintf("acornOS v0.1\n");
+    kprintf("------------\n");
 
     vga_set_colour(WHITE, BLACK);
-    vga_print("Initialising GDT...\n");
+    kprintf("Initialising GDT...\n");
     gdt_init();                                 // Set up memory segments   
-    serial_println("GDT initialised.");    
+    kserial_printf("GDT initialised.\n");    
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("GDT online.\n");
+    kprintf("GDT online.\n");
     
     vga_set_colour(WHITE, BLACK);
-    vga_print("Initialising IDT...\n");
+    kprintf("Initialising IDT...\n");
     idt_init();                                 // Set up interrupt handlers
-    serial_println("IDT initialised");
+    kserial_printf("IDT initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("IDT online.\n");
+    kprintf("IDT online.\n");
 
     vga_set_colour(WHITE, BLACK);
-    vga_print("Initialising PIC...\n");
+    kprintf("Initialising PIC...\n");
     pic_init();                                 // Remap hardware interrupts
-    serial_println("PIC initialised");
+    kserial_printf("PIC initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("PIC online.\n");
+    kprintf("PIC online.\n");
 
     vga_set_colour(WHITE, BLACK);
-    vga_print("Initialising timer...\n");
+    kprintf("Initialising timer...\n");
     timer_init();                               // Set up PIT at 100Hz
-    serial_println("Timer initialised");
+    kserial_printf("Timer initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("Timer online\n");
+    kprintf("Timer online\n");
                              
     vga_set_colour(WHITE, BLACK);
-    vga_print("Initialising keyboard...\n");
+    kprintf("Initialising keyboard...\n");
     keyboard_init();                            // Set up the keyboard
-    serial_println("Keyboard initialised");
+    kserial_printf("Keyboard initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("Keyboard online\n");
+    kprintf("Keyboard online\n");
 
     vga_set_colour(WHITE, BLACK);
-    vga_print("Initialising memory manager...\n");
+    kprintf("Initialising memory manager...\n");
     mem_init();                                 // Set up the heap
-    serial_println("Memory manager initialised");
+    kserial_printf("Memory manager initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("Memory manager online\n");
-
-    // Debug
-    void* test_alloc = kmalloc(16);
-    serial_print("DEBUG: test kmalloc after init = 0x");
-    uint32_t addr = (uint32_t)test_alloc;
-    char hex[9];
-    const char* digits = "0123456789ABCDEF";
-    for(int i = 7; i >= 0; i--) {
-        hex[i] = digits[addr & 0xF];
-        addr >>= 4;
-    }
-    hex[8] = 0;
-    serial_println(hex);
-    kfree(test_alloc);
+    kprintf("Memory manager online\n");
 
     vga_set_colour(WHITE, BLACK);
-    vga_print("Initialising PMM...\n");
+    kprintf("Initialising PMM...\n");
     pmm_init(mem_map_addr, mem_map_count);      // Pass E820 map from bootloader
-    serial_println("PMM initialised.");
+    kserial_printf("PMM initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("PMM online\n");
+    kprintf("PMM online\n");
 
     vga_set_colour(WHITE, BLACK);
-    vga_print("Initialising paging...\n");
+    kprintf("Initialising paging...\n");
     paging_init();
-    serial_println("Paging initialised");
+    kserial_printf("Paging initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("Paging ready.\n");
-
-    uint32_t* raw = (uint32_t*)0x50000;
-    serial_print("RAW[0] size=");
-    print_num_serial(raw[0]);
-    serial_print(" RAW[1] free=");
-    print_num_serial(raw[1]);
-    serial_print(" RAW[2] next=");
-    print_num_serial(raw[2]);
-    serial_println("");
+    kprintf("Paging ready.\n");
 
     vga_set_colour(WHITE, BLACK);
-    vga_print("Initialising process manager...\n");
+    kprintf("Initialising process manager...\n");
     process_init();
-    serial_println("Process manager initialised.");
+    kserial_printf("Process manager initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("Process manager online.\n");
+    kprintf("Process manager online.\n");
 
     process_print_offsets();
 
     vga_set_colour(WHITE, BLACK);
-    vga_print("Initialising scheduler...\n");
+    kprintf("Initialising scheduler...\n");
     scheduler_init();
-    serial_println("Scheduler initialised.");
+    kserial_printf("Scheduler initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("Scheduler online.\n");
+    kprintf("Scheduler online.\n");
 
     vga_set_colour(WHITE, BLACK);
-    vga_print("Initialising syscalls...\n");
+    kprintf("Initialising syscalls...\n");
     syscall_init();
-    serial_println("Syscalls initialised.");
+    kserial_printf("Syscalls initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    vga_print("Syscalls online.\n");
+    kprintf("Syscalls online.\n");
 
-    serial_println("All subsystems online. Starting shell.");
+    kprintf("kprintf test: %s %d 0x%x\n", "hello", 42, 0xDEAD);
+    kserial_printf("Serial test: pid=%d name=%s\n", 0, "kernel");
+
+    kserial_printf("All subsystems online. Starting shell.\n");
 
     // Enable hardware interrupts.
     // From this point the CPU will respond to IRQs
