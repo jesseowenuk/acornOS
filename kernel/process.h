@@ -94,6 +94,4 @@ void process_block(process_t* proc);
 // Wake a blocked process - it will be scheduled again
 void process_wake(process_t* proc);
 
-void process_print_offsets();
-
 #endif

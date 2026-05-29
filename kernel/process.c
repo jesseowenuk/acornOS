@@ -5,6 +5,7 @@
 #include "paging.h"             // For page directory management
 #include "serial.h"             // For debug logging
 #include "vga.h"                // For process_print_all output
+#include "kprintf.h"
 
 // --- Global state ----------------------------------------
 
@@ -20,30 +21,6 @@ process_t* current_process = 0;
 // PID 0 = kernel idle process
 // PID 1 = first real process
 uint32_t next_pid = 0;
-
-// --- Helper: print a number
-static void print_num(uint32_t n)
-{
-    if(n == 0)
-    {
-        vga_putchar('0');
-        return;
-    }
-
-    char buf[10];
-    int i = 0;
-    while(n > 0)
-    {
-        buf[i++] = '0' + (n % 10);
-        n /= 10;
-    }
-
-    while(i > 0)
-    {
-        vga_putchar(buf[--i]);
-        return;
-    }
-}
 
 // --- String helpers --------------------------------------
 // We don't have a standard library so we implement what we need.
@@ -90,7 +67,7 @@ void process_init()
     // No process running yet
     current_process = 0;
 
-    serial_println("Process: subsystem initialised.");
+    kserial_printf("Process: subsystem initialised.\n");
 }
 
 process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
@@ -112,7 +89,7 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
     if(slot == -1)
     {
         // No more room for processes
-        serial_println("process_create: process table full!");
+        kserial_printf("process_create: process table full!\n");
         return 0;
     }
 
@@ -122,18 +99,10 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
 
     uint32_t eax_val;
     __asm__ volatile("mov %%eax, %0" : "=r"(eax_val));
-    serial_print("EAX after kmalloc: ");
-    print_hex_serial(eax_val);
-    serial_println("");
-
-    // Debug
-    serial_print("proc ptr: ");
-    print_num_serial((uint32_t)proc);
-    serial_print("");
 
     if(proc == 0)
     {
-        serial_println("process_create: failed to allocate PCB!");
+        kserial_printf("process_create: failed to allocate PCB!\n");
         return 0;
     }
 
@@ -154,7 +123,7 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
     proc->stack = (uint32_t)pmm_alloc();        // Allocate one 4KB page
     if(!proc->stack)
     {
-        serial_println("process_create: failed to allocate stack!");
+        kserial_printf("process_create: failed to allocate stack!\n");
         kmalloc(0);             // TODO: free PCB
         return 0;
     }
@@ -197,13 +166,7 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
     process_table[slot] = proc;
 
     // Log creation
-    serial_print("Process: created '");
-    serial_print(name);
-    serial_print("' PID=");
-    print_num_serial(proc->pid);
-    serial_print(" entry=0x");
-    print_num_serial((uint32_t)entry);
-    serial_println("");
+    kserial_printf("Process: created '%s' PID=%d entry=0x%x\n", name, proc->pid, (uint32_t)entry);
 
     return proc;
 }
@@ -220,9 +183,7 @@ void process_exit(process_t* process)
     // Mark as dead
     process->state = PROCESS_DEAD;
 
-    serial_print("Process: '");
-    serial_print(process->name);
-    serial_println("' exited.");
+    kserial_printf("Process: '%s' exited.\n", process->name);
 
     // TODO: free stack and PCB memory
     // TODO: notify parent process
@@ -235,8 +196,8 @@ void process_exit(process_t* process)
 void process_print_all()
 {
     vga_set_colour(CYAN, BLACK);
-    vga_print("\nPID STATE    NAME\n");
-    vga_print("--- -------  ----\n");
+    kprintf("\nPID STATE    NAME\n");
+    kprintf("--- -------  ----\n");
     vga_set_colour(WHITE, BLACK);
 
     const char* state_names[] = 
@@ -257,17 +218,7 @@ void process_print_all()
 
         process_t* proc = process_table[i];
 
-        // Print PID
-        print_num(proc->pid);
-        vga_print("    ");
-
-        // Print state
-        vga_print(state_names[proc->state]);
-        vga_print("  ");
-
-        // Print name
-        vga_print(proc->name);
-        vga_print("\n");
+        kprintf("%d    %s  %s\n", proc->pid, state_names[proc->state], proc->name);
     }
 }
 
@@ -308,40 +259,4 @@ void process_wake(process_t* proc)
 
     // Mark as ready to run. Scheduler will pick it up on the next tick
     proc->state = PROCESS_READY;
-}
-
-void process_print_offsets()
-{
-    process_t p;
-    serial_print("pid offset: ");
-    print_num_serial((uint32_t)&p.pid - (uint32_t)&p);
-    serial_println("");
-
-    serial_print("name offset: ");
-    print_num_serial((uint32_t)&p.name - (uint32_t)&p);
-    serial_println("");
-
-    serial_print("state offset: ");
-    print_num_serial((uint32_t)&p.state - (uint32_t)&p);
-    serial_println("");
-
-    serial_print("cpu offset: ");
-    print_num_serial((uint32_t)&p.cpu - (uint32_t)&p);
-    serial_println("");
-
-    serial_print("cpu.eax offset: ");
-    print_num_serial((uint32_t)&p.cpu.eax - (uint32_t)&p);
-    serial_println("");
-
-    serial_print("cpu.esp offset: ");
-    print_num_serial((uint32_t)&p.cpu.esp - (uint32_t)&p);
-    serial_println("");
-
-    serial_print("cpu.eip offset: ");
-    print_num_serial((uint32_t)&p.cpu.eip - (uint32_t)&p);
-    serial_println("");
-
-    serial_print("sizeof process_t: ");
-    print_num_serial(sizeof(process_t));
-    serial_println("");
 }

@@ -121,8 +121,6 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf("Process manager online.\n");
 
-    process_print_offsets();
-
     vga_set_colour(WHITE, BLACK);
     kprintf("Initialising scheduler...\n");
     scheduler_init();
