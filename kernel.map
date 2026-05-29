@@ -10,7 +10,7 @@ Linker script and memory map
 
                 0x00001000                        . = 0x1000
 
-.text           0x00001000     0x2def
+.text           0x00001000     0x2d6f
  start.o(.text)
  .text          0x00001000       0x19 start.o
                 0x00001000                _start
@@ -118,57 +118,57 @@ Linker script and memory map
                 0x000035e0                scheduler_yield
                 0x00003610                scheduler_start
  *fill*         0x0000366a        0x6 
- .text          0x00003670      0x195 syscall.o
-                0x00003760                syscall_handler
-                0x000037f0                syscall_init
- *fill*         0x00003805       0x3b 
- .text          0x00003840      0x5af kprintf.o
-                0x00003840                kvsnprintf
-                0x00003d30                kprintf
-                0x00003d80                kserial_printf
+ .text          0x00003670      0x145 syscall.o
+                0x00003740                syscall_handler
+                0x000037a0                syscall_init
+ *fill*         0x000037b5        0xb 
+ .text          0x000037c0      0x5af kprintf.o
+                0x000037c0                kvsnprintf
+                0x00003cb0                kprintf
+                0x00003d00                kserial_printf
 
-.rodata         0x00003e00      0xb4d
+.rodata         0x00003d80      0xb59
  *(.rodata)
- .rodata        0x00003e00       0x3b keyboard.o
- *fill*         0x00003e3b        0x1 
- .rodata        0x00003e3c      0x139 process.o
- *fill*         0x00003f75        0x3 
- .rodata        0x00003f78       0x14 syscall.o
- .rodata        0x00003f8c       0x58 kprintf.o
+ .rodata        0x00003d80       0x3b keyboard.o
+ *fill*         0x00003dbb        0x1 
+ .rodata        0x00003dbc      0x139 process.o
+ *fill*         0x00003ef5        0x3 
+ .rodata        0x00003ef8       0x14 syscall.o
+ .rodata        0x00003f0c       0x58 kprintf.o
  *(.rodata.*)
  .rodata.str1.1
-                0x00003fe4      0x2f6 kernel.o
- *fill*         0x000042da        0x2 
+                0x00003f64      0x2f6 kernel.o
+ *fill*         0x0000425a        0x2 
  .rodata.str1.4
-                0x000042dc       0x6c kernel.o
+                0x0000425c       0x6c kernel.o
  .rodata.str1.1
-                0x00004348       0x48 idt.o
+                0x000042c8       0x48 idt.o
  .rodata.str1.1
-                0x00004390       0xa0 shell.o
+                0x00004310       0xa0 shell.o
  .rodata.str1.4
-                0x00004430      0x158 shell.o
+                0x000043b0      0x158 shell.o
  .rodata.str1.1
-                0x00004588       0x89 mem.o
+                0x00004508       0x89 mem.o
  .rodata.str1.1
-                0x00004611       0x3c serial.o
- *fill*         0x0000464d        0x3 
+                0x00004591       0x3c serial.o
+ *fill*         0x000045cd        0x3 
  .rodata.str1.4
-                0x00004650       0x24 pmm.o
+                0x000045d0       0x24 pmm.o
  .rodata.str1.1
-                0x00004674       0x6a pmm.o
- *fill*         0x000046de        0x2 
+                0x000045f4       0x6a pmm.o
+ *fill*         0x0000465e        0x2 
  .rodata.str1.4
-                0x000046e0       0xcf paging.o
+                0x00004660       0xcf paging.o
  .rodata.str1.1
-                0x000047af       0xa0 paging.o
+                0x0000472f       0xa0 paging.o
  .rodata.str1.1
-                0x0000484f       0x19 scheduler.o
+                0x000047cf       0x19 scheduler.o
  .rodata.str1.4
-                0x00004868       0x77 scheduler.o
+                0x000047e8       0x77 scheduler.o
  .rodata.str1.1
-                0x000048df       0x56 syscall.o
+                0x0000485f       0x62 syscall.o
  .rodata.str1.1
-                0x00004935       0x18 kprintf.o
+                0x000048c1       0x18 kprintf.o
 
 .data           0x00005000     0x3050
                 0x00005000                        __bss_start = .

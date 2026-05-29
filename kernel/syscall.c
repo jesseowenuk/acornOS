@@ -2,8 +2,8 @@
 #include "process.h"            // For current_process, process_exit
 #include "scheduler.h"          // For scheduler_yield
 #include "keyboard.h"           // For keyboard_getchar
-#include "vga.h"                // For vga_print
 #include "serial.h"             // For debug logging
+#include "kprintf.h"
 
 // --- sys_exit ---------------------------------------------------
 // Terminate the current process
@@ -12,9 +12,7 @@ static void sys_exit(registers_t* regs)
 {
     int exit_code = (int)regs->ebx;         // Get exit code from EBX
 
-    serial_print("Syscall: exit(");
-    serial_putchar('0' + exit_code);
-    serial_println(")");
+    kserial_printf("Syscall: exit(%d)\n", exit_code);
 
     // Mark process as dead
     process_exit(current_process);   
@@ -49,7 +47,7 @@ static void sys_write(registers_t* regs)
     while(written < len && str[written])
     {
         // Write each character to VGA
-        vga_putchar(str[written]);
+        kprintf("%c", str[written]);
         written++;
     }
 
@@ -128,9 +126,7 @@ void syscall_handler(registers_t* regs)
     if(syscall_num >= SYSCALL_COUNT)
     {
         // Invalid syscall number
-        serial_print("Syscall: unknown syscall.");
-        serial_putchar('0' + syscall_num);
-        serial_println("");
+        kserial_printf("Syscall: unknown syscall %d\n.", syscall_num);
 
         // return error
         regs->eax = -1;
@@ -138,9 +134,7 @@ void syscall_handler(registers_t* regs)
     }
 
     // Log the syscall for debugging
-    serial_print("Syscall: ");
-    serial_putchar('0' + syscall_num);
-    serial_println(" called");
+    kserial_printf("Syscall: %d called.\n", syscall_num);
 
     // Dispatch to the appropriate handler
     // Call the handler
@@ -154,5 +148,5 @@ void syscall_init()
 {
     // Nothing to do here yet - IDT entry is set up in idt_init()
     // This function exists for future initalisation
-    serial_println("Syscall: handler ready.");
+    kserial_printf("Syscall: handler ready.\n");
 }
