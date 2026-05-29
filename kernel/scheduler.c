@@ -3,6 +3,7 @@
 #include "timer.h"          // For timer_get_ticks
 #include "serial.h"         // For debug logging
 #include "vga.h"            // For vga_set_colour
+#include "kprintf.h"
 
 // --- Forward declarations ---------------------------------
 // switch_context is defined in switch.asm
@@ -23,7 +24,7 @@ void scheduler_init()
 {
     run_queue_head = 0;                     // Empty queue to start
     run_queue_tail = 0;
-    serial_println("Scheduler: initialised.");
+    kserial_printf("Scheduler: initialised.\n");
 }
 
 // --- scheduler_add ------------------------------------------
@@ -54,9 +55,7 @@ void scheduler_add(process_t* proc)
         run_queue_tail = proc;              // Update tail pointer
     }
 
-    serial_print("Scheduler: added process '");
-    serial_print(proc->name);
-    serial_println("' to run queue.");
+    kserial_printf("Scheduler: added process '%s' to run queue.\n", proc->name);
 }
 
 // --- scheduler_tick --------------------------------------
@@ -161,7 +160,7 @@ void scheduler_start()
 {
     if(!run_queue_head)
     {
-        serial_println("Scheduler: no process to run!");
+        kserial_printf("Scheduler: no process to run!\n");
         return;
     }
     
@@ -170,9 +169,7 @@ void scheduler_start()
     current_process->state = PROCESS_RUNNING;
     current_process->ticks_remaining = current_process->time_slice;
 
-    serial_print("Scheduler: starting with process '");
-    serial_print(current_process->name);
-    serial_println("");
+    kserial_printf("Scheduler: starting with process '%s'\n", current_process->name);
 
     // Set up the stack and jump to the process entry point
     // We do this in assemnbly to have full control
