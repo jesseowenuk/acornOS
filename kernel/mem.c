@@ -2,6 +2,7 @@
 #include "mem.h"
 #include "vga.h"        // For mem_print_stats() output
 #include "serial.h"
+#include "kprintf.h"
 
 // --- Block header --------------------------------------
 // Every allocation is preceded by this header in memory
@@ -23,36 +24,6 @@ typedef struct block_header
 
 static block_header_t* heap_start = 0;      // Pointer to first block in the list
 static uint32_t heap_used = 0;              // How many bytes are currently allocated
-
-// --- Helper: print a number --------------------------------------
-// We have no printf yet so we need to convert numbers to strings manually
-
-static void print_num(uint32_t n)
-{
-    if(n == 0)
-    {
-        vga_putchar('0');
-        return;
-    }
-
-    char buf[10];                       // Max 10 digits in a 32-bit number
-    int i = 0;
-
-    while(n > 0)
-    {
-        // Extract last digit
-        buf[i++] = '0' + (n % 10);
-
-        // Remove last digit
-        n /= 10;
-    }
-
-    // Print digits in reverse
-    while(i > 0)
-    {
-        vga_putchar(buf[--i]);
-    }
-}
 
 // --- Init --------------------------------------
 
@@ -76,16 +47,6 @@ void mem_init()
 
 void* kmalloc(uint32_t size)
 {
-    serial_print("DEBUG kmalloc: heap_start=0x");
-    print_num_serial((uint32_t)heap_start);
-    serial_print(" block.free=");
-    print_num_serial(heap_start->free);
-    serial_print(" block.size=");
-    print_num_serial(heap_start->size);
-    serial_print(" requested=");
-    print_num_serial(size);
-    serial_println("");
-
     // Allocating zero bytes makes no sense
     if(size == 0)
     {
@@ -103,19 +64,11 @@ void* kmalloc(uint32_t size)
     // Walk the free list looking for a block that's big enough
     block_header_t* current = heap_start;
 
-    vga_print("DEBUG: walking free list...\n");
-
     // While there are blocks to check
     while(current != 0)
     {
         if(current->free && current->size >= size)
         {
-            serial_print("DEBUG: found block, about to allocate at 0x");
-            print_num_serial((uint32_t)current);
-            serial_print(" HEADER_SIZE=");
-            print_num_serial(HEADER_SIZE);
-            serial_println("");
-
             // Found a free block big enough
             // Split the block if there's enough room left over
             // Only split if the leftover would be useful (> header + 4 bytes)
@@ -149,11 +102,7 @@ void* kmalloc(uint32_t size)
 
             // Return pointer to the data region - just after the header
             void* result = (void*)((uint8_t*)current + HEADER_SIZE);
-            serial_print("DEBUG: returning dec=");
-            print_num_serial((uint32_t)result);
-            serial_print(" hex=");
-            print_hex_serial((uint32_t)result);
-            serial_println("");
+    
             return result;
         }
 
@@ -209,10 +158,6 @@ void kfree(void* ptr)
 
 void mem_print_stats()
 {
-    vga_set_colour(CYAN, BLACK);
-    vga_print("\nMemory stats:\n");
-    vga_set_colour(WHITE, BLACK);
-
     // Count blocks and free space by walking the list
     uint32_t total_blocks = 0;
     uint32_t free_blocks = 0;
@@ -231,17 +176,12 @@ void mem_print_stats()
         current = current->next;
     }
 
-    vga_print("    Heap start : 0x100000\n");
-    vga_print("    Total size : ");
-    print_num(HEAP_SIZE / 1024);
-    vga_print("KB\n");
-    vga_print("    Used       : ");
-    print_num(heap_used);
-    vga_print(" bytes\n");
-    vga_print("    Free       : ");
-    print_num(free_bytes);
-    vga_print(" bytes\n");
-    vga_print("    Blocks     : ");
-    print_num(total_blocks);
-    vga_print("\n");
+    vga_set_colour(CYAN, BLACK);
+    kprintf("\nMemory stats:\n");
+    vga_set_colour(WHITE, BLACK);
+    kprintf("    Heap start : 0x%x\n", HEAP_START);
+    kprintf("    Total size : %uKB\n", HEAP_SIZE / 1024);
+    kprintf("    Used       : %u bytes\n", heap_used);
+    kprintf("    Free       : %u bytes\n", free_bytes);
+    kprintf("    Blocks     : %u\n", total_blocks);
 }
