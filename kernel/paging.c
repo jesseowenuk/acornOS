@@ -2,6 +2,7 @@
 #include "pmm.h"            // For PAGE_SIZE
 #include "serial.h"         // For debug logging
 #include "vga.h"            // For vga_print
+#include "kprintf.h"
 
 // --- Page directory -----------------------------------
 // We declare this statically so it lives in the kernel's BSS segment
@@ -90,23 +91,9 @@ void paging_init()
         PAGE_PRESENT | PAGE_WRITABLE            // Present and writable
     );
 
-    serial_println("Paging: page directory created.");
-    serial_print("Paging: kernel directory at 0x");
-
-    // Print address in hex for verification
-    uint32_t addr = (uint32_t)&kernel_directory;
-    char hex[9];
-    const char* digits = "0123456789ABCDEF";
-    for(int i = 7; i >= 0; i--)
-    {
-        hex[i] = digits[addr & 0x0F];
-        addr >>= 4;
-    }
-
-    hex[8] = 0;
-    serial_println(hex);
-
-    serial_println("Paging: first 4MB identity mapped.");
+    kprintf("Paging: page directory created.\n");
+    kserial_printf("Paging: kernel directory at 0x%x\n", (uint32_t)&kernel_directory);
+    kserial_printf("Paging: first 4MB identity mapped.\n");
 
     // Step 4: load page directory address into CR3
     // CR3 is the Page Directory Base Register (PDBSR)
@@ -138,7 +125,7 @@ void paging_init()
     );
 
     // If we reach here - paging is enabled and we survived!
-    serial_println("Paging: enabled! Still alive.");
+    kserial_printf("Paging: enabled! Still alive.\n");
 }
 
 // --- Page fault handler ---------------------------------------
@@ -172,53 +159,15 @@ void page_fault_handler(registers_t* regs)
 
     // Print fault information to VGA
     vga_set_colour(RED, BLACK);
-    vga_print("\n--- PAGE FAULT ---\n");
+    kprintf("\n--- PAGE FAULT ---\n");
     vga_set_colour(WHITE, BLACK);
 
-    vga_print("Address : 0x");
-    // Print faulting address as hex
-    char hex[9];
-    const char* digits = "0123456789ABCDEF";
-    uint32_t addr = faulting_addr;
-    for(int i = 7; i >= 0; i--)
-    {
-        hex[i] = digits[addr & 0xF];
-        addr >>= 4;
-    }
-    hex[8] = 0;
-    vga_print(hex);
-    vga_print("\n");
-
-    vga_print("Reason  : ");
-    if(!present)
-    {
-        vga_print("page not present ");
-    }
-
-    if(write)
-    {
-        vga_print("on write ");
-    }
-
-    if(!write)
-    {
-        vga_print("on read ");
-    }
-
-    if(user)
-    {
-        vga_print("from user space ");
-    }
-
-    if(!user)
-    {
-        vga_print("from kernel ");
-    }
-    vga_print("\n");
-
-    // Log to serial too
-    serial_print("PAGE FAULT at 0x");
-    serial_println(hex);
+    kprintf("Address : 0x%x\n", faulting_addr);
+    kprintf("Reason  : %s %s %s\n", 
+        present ? "protection violation" : "page not present",
+        write   ? "on write"             : "on read",
+        user    ? "from user space"      : "from kernel");
+    kserial_printf("PAGE FAULT at 0x%x\n", faulting_addr);
 
     // Hang - we can't safely continue after a page fault
     for(;;);
@@ -234,7 +183,7 @@ static page_table_t* alloc_table()
     
     if(!table)
     {
-        serial_println("alloc_table: PMM out of memory!");
+        kserial_printf("alloc_table: PMM out of memory!\n");
         return 0;
     }
 
@@ -276,7 +225,7 @@ void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags)
 
         if(!new_table)
         {
-            serial_println("map page: out of page tables!");
+            kserial_printf("map page: out of page tables!\n");
             return;
         }
 
