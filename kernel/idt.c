@@ -7,6 +7,7 @@
 #include "serial.h"
 #include "scheduler.h"
 #include "syscall.h"
+#include "kprintf.h"
 
 #include <stdint.h>
 
@@ -74,9 +75,6 @@ void isr_handler(registers_t* regs)
         return;
     }
 
-    vga_set_colour(RED, BLACK);
-    vga_print("\nCPU EXCEPTION: ");
-
     const char* exceptions[] = {
         "Divide By Zero",
         "Debug",
@@ -84,10 +82,8 @@ void isr_handler(registers_t* regs)
         "Breakpoint"
     };
 
-    if(regs->int_no < 4)
-    {
-        vga_print(exceptions[regs->int_no]);
-    }
+    vga_set_colour(RED, BLACK);
+    kprintf("\nCPU EXCEPTION: %s\n", regs->int_no < 4 ? exceptions[regs->int_no] : "Unknown");
 
     for(;;);
 }

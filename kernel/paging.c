@@ -1,7 +1,7 @@
 #include "paging.h"
 #include "pmm.h"            // For PAGE_SIZE
 #include "serial.h"         // For debug logging
-#include "vga.h"            // For vga_print
+#include "vga.h"
 #include "kprintf.h"
 
 // --- Page directory -----------------------------------

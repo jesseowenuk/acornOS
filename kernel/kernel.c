@@ -135,9 +135,6 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf("Syscalls online.\n");
 
-    kprintf("kprintf test: %s %d 0x%x\n", "hello", 42, 0xDEAD);
-    kserial_printf("Serial test: pid=%d name=%s\n", 0, "kernel");
-
     kserial_printf("All subsystems online. Starting shell.\n");
 
     // Enable hardware interrupts.
