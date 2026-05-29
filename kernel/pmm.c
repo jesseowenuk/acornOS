@@ -1,6 +1,7 @@
 #include "pmm.h"
 #include "vga.h"
 #include "serial.h"
+#include "kprintf.h"
 
 // --- Bitmap ---------------------------------------------
 // The bitmap is stored at PMM_BITMAP_ADDRESS
@@ -42,54 +43,6 @@ static int bitmap_test(uint32_t page)
     // & isolates the bit we care about
     // ! inverts it - bit 0 means free so we can return 1 for free
     return !(bitmap[page / 8] & (1 << (page % 8)));
-}
-
-// --- Number Printing help ---------------------------------------------
-
-static void print_num(uint32_t n)
-{
-    if(n == 0)
-    {
-        vga_putchar('0');
-        return;
-    }
-
-    char buf[10];
-    int i = 0;
-
-    while(n > 0)
-    {
-        buf[i++] = '0' + (n % 10);
-        n /= 10;
-    }
-
-    while(i > 0)
-    {
-        vga_putchar(buf[--i]);
-    }
-}
-
-static void print_num_serial(uint32_t n)
-{
-    if(n == 0)
-    {
-        serial_putchar('0');
-        return;
-    }
-
-    char buf[10];
-    int i = 0;
-
-    while(n > 0)
-    {
-        buf[i++] = '0' + (n % 10);
-        n /= 10;
-    }
-
-    while(i > 0)
-    {
-        serial_putchar(buf[--i]);
-    }    
 }
 
 // --- Init ---------------------------------------------
@@ -199,11 +152,7 @@ void pmm_init(uint32_t mem_map_addr, uint32_t mem_map_count)
     }
 
     // Log results to serial
-    serial_print("PMM: ");
-    print_num_serial(total_pages - used_pages);
-    serial_print(" free pages,  ");
-    print_num_serial(used_pages);
-    serial_println(" used pages.");
+    kserial_printf("PMM: %u free pages, %u used pages.\n", total_pages - used_pages, used_pages);
 }
 
 // --- Alloc --------------------------------------------------
@@ -265,21 +214,9 @@ uint32_t pmm_used_pages()
 void pmm_print_stats()
 {
     vga_set_colour(CYAN, BLACK);
-    vga_print("\nPhysical Memory:\n");
+    kprintf("\nPhysical Memory:\n");
     vga_set_colour(WHITE, BLACK);
-    vga_print("    Total pages : ");
-    print_num(total_pages);
-    vga_print(" (");
-    print_num(total_pages * PAGE_SIZE / 1024 / 1024);
-    vga_print("MB)\n");
-    vga_print("    Used pages : ");
-    print_num(used_pages);
-    vga_print(" (");
-    print_num(used_pages * PAGE_SIZE / 1024);
-    vga_print("KB)\n");
-    vga_print("    Free pages : ");
-    print_num(total_pages - used_pages);
-    vga_print(" (");
-    print_num((total_pages - used_pages) * PAGE_SIZE / 1024 / 1024);
-    vga_print("MB)\n");
+    kprintf("    Total pages : %u (%uMB)\n", total_pages, total_pages * PAGE_SIZE / 1024 /1024);
+    kprintf("    Used pages  : %u (%uKB)\n", used_pages, used_pages * PAGE_SIZE / 1024);
+    kprintf("    Free pages  : %u (%uMB)\n", total_pages - used_pages, (total_pages - used_pages) * PAGE_SIZE / 1024 / 1024);
 }
