@@ -1,4 +1,3 @@
-#include "util.h"
 #include "process.h"
 #include "mem.h"                // For kmalloc - allocating PCB structs
 #include "pmm.h"                // For pmm_alloc - allocating process stacks
