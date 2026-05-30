@@ -10,7 +10,7 @@ Linker script and memory map
 
                 0x00001000                        . = 0x1000
 
-.text           0x00001000     0x2d4d
+.text           0x00001000     0x2df0
  start.o(.text)
  .text          0x00001000       0x19 start.o
                 0x00001000                _start
@@ -119,66 +119,75 @@ Linker script and memory map
                 0x00003560                scheduler_yield
                 0x00003590                scheduler_start
  *fill*         0x000035ea        0x6 
- .text          0x000035f0      0x145 syscall.o
-                0x000036c0                syscall_handler
-                0x00003720                syscall_init
- *fill*         0x00003735        0xb 
- .text          0x00003740      0x55f kprintf.o
-                0x00003740                kvsnprintf
-                0x00003be0                kprintf
-                0x00003c30                kserial_printf
- *fill*         0x00003c9f        0x1 
- .text          0x00003ca0       0xad tss.o
-                0x00003ca0                tss_init
-                0x00003d40                tss_set_kernel_stack
+ .text          0x000035f0      0x155 syscall.o
+                0x000036d0                syscall_handler
+                0x00003730                syscall_init
+ *fill*         0x00003745       0x3b 
+ .text          0x00003780      0x55f kprintf.o
+                0x00003780                kvsnprintf
+                0x00003c20                kprintf
+                0x00003c70                kserial_printf
+ *fill*         0x00003cdf        0x1 
+ .text          0x00003ce0       0xad tss.o
+                0x00003ce0                tss_init
+                0x00003d80                tss_set_kernel_stack
+ *fill*         0x00003d8d        0x3 
+ .text          0x00003d90       0x36 usermode.o
+                0x00003d90                jump_to_usermode
+ *fill*         0x00003dc6        0xa 
+ .text          0x00003dd0       0x20 usermode_asm.o
+                0x00003dd0                enter_usermode
 
-.rodata         0x00003d60      0xb97
+.rodata         0x00003e00      0xbdc
  *(.rodata)
- .rodata        0x00003d60       0x3b keyboard.o
- *fill*         0x00003d9b        0x1 
- .rodata        0x00003d9c      0x139 process.o
- *fill*         0x00003ed5        0x3 
- .rodata        0x00003ed8       0x14 syscall.o
- .rodata        0x00003eec       0x58 kprintf.o
+ .rodata        0x00003e00       0x3b keyboard.o
+ *fill*         0x00003e3b        0x1 
+ .rodata        0x00003e3c      0x139 process.o
+ *fill*         0x00003f75        0x3 
+ .rodata        0x00003f78       0x14 syscall.o
+ .rodata        0x00003f8c       0x58 kprintf.o
  *(.rodata.*)
  .rodata.str1.1
-                0x00003f44      0x2e5 kernel.o
- *fill*         0x00004229        0x3 
+                0x00003fe4      0x2e5 kernel.o
+ *fill*         0x000042c9        0x3 
  .rodata.str1.4
-                0x0000422c       0x6c kernel.o
+                0x000042cc       0x6c kernel.o
  .rodata.str1.1
-                0x00004298       0x53 idt.o
+                0x00004338       0x53 idt.o
  .rodata.str1.1
-                0x000042eb       0xb0 shell.o
- *fill*         0x0000439b        0x1 
+                0x0000438b       0xb0 shell.o
+ *fill*         0x0000443b        0x1 
  .rodata.str1.4
-                0x0000439c      0x158 shell.o
+                0x0000443c      0x158 shell.o
  .rodata.str1.1
-                0x000044f4       0x89 mem.o
+                0x00004594       0x89 mem.o
  .rodata.str1.1
-                0x0000457d       0x3c serial.o
- *fill*         0x000045b9        0x3 
+                0x0000461d       0x3c serial.o
+ *fill*         0x00004659        0x3 
  .rodata.str1.4
-                0x000045bc       0x24 pmm.o
+                0x0000465c       0x24 pmm.o
  .rodata.str1.1
-                0x000045e0       0x6a pmm.o
- *fill*         0x0000464a        0x2 
+                0x00004680       0x6a pmm.o
+ *fill*         0x000046ea        0x2 
  .rodata.str1.4
-                0x0000464c       0xcf paging.o
+                0x000046ec       0xcf paging.o
  .rodata.str1.1
-                0x0000471b       0xa0 paging.o
+                0x000047bb       0xa0 paging.o
  .rodata.str1.1
-                0x000047bb       0x19 scheduler.o
+                0x0000485b       0x19 scheduler.o
  .rodata.str1.4
-                0x000047d4       0x77 scheduler.o
+                0x00004874       0x77 scheduler.o
  .rodata.str1.1
-                0x0000484b       0x62 syscall.o
+                0x000048eb       0x7e syscall.o
  .rodata.str1.1
-                0x000048ad       0x18 kprintf.o
+                0x00004969       0x18 kprintf.o
  .rodata.str1.1
-                0x000048c5       0x32 tss.o
+                0x00004981       0x32 tss.o
+ *fill*         0x000049b3        0x1 
+ .rodata.str1.4
+                0x000049b4       0x28 usermode.o
 
-.data           0x00005000     0x30c8
+.data           0x00005000     0x5000
                 0x00005000                        __bss_start = .
  *(.bss)
  .bss           0x00005000        0x0 kernel.o
@@ -207,8 +216,10 @@ Linker script and memory map
  .bss           0x00008050        0x0 kprintf.o
  *fill*         0x00008050       0x10 
  .bss           0x00008060       0x68 tss.o
+ *fill*         0x000080c8      0xf38 
+ .bss           0x00009000     0x1000 usermode.o
  *(COMMON)
-                0x000080c8                        __bss_end = .
+                0x0000a000                        __bss_end = .
 LOAD start.o
 LOAD kernel.o
 LOAD vga.o
@@ -231,28 +242,31 @@ LOAD scheduler.o
 LOAD syscall.o
 LOAD kprintf.o
 LOAD tss.o
+LOAD usermode.o
+LOAD usermode_asm.o
 OUTPUT(kernel.bin binary)
 
-.data           0x000080c8        0x0
- .data          0x000080c8        0x0 kernel.o
- .data          0x000080c8        0x0 vga.o
- .data          0x000080c8        0x0 gdt.o
- .data          0x000080c8        0x0 idt.o
- .data          0x000080c8        0x0 pic.o
- .data          0x000080c8        0x0 keyboard.o
- .data          0x000080c8        0x0 shell.o
- .data          0x000080c8        0x0 timer.o
- .data          0x000080c8        0x0 mem.o
- .data          0x000080c8        0x0 serial.o
- .data          0x000080c8        0x0 pmm.o
- .data          0x000080c8        0x0 paging.o
- .data          0x000080c8        0x0 process.o
- .data          0x000080c8        0x0 scheduler.o
- .data          0x000080c8        0x0 syscall.o
- .data          0x000080c8        0x0 kprintf.o
- .data          0x000080c8        0x0 tss.o
+.data           0x0000a000        0x0
+ .data          0x0000a000        0x0 kernel.o
+ .data          0x0000a000        0x0 vga.o
+ .data          0x0000a000        0x0 gdt.o
+ .data          0x0000a000        0x0 idt.o
+ .data          0x0000a000        0x0 pic.o
+ .data          0x0000a000        0x0 keyboard.o
+ .data          0x0000a000        0x0 shell.o
+ .data          0x0000a000        0x0 timer.o
+ .data          0x0000a000        0x0 mem.o
+ .data          0x0000a000        0x0 serial.o
+ .data          0x0000a000        0x0 pmm.o
+ .data          0x0000a000        0x0 paging.o
+ .data          0x0000a000        0x0 process.o
+ .data          0x0000a000        0x0 scheduler.o
+ .data          0x0000a000        0x0 syscall.o
+ .data          0x0000a000        0x0 kprintf.o
+ .data          0x0000a000        0x0 tss.o
+ .data          0x0000a000        0x0 usermode.o
 
-.comment        0x00000000      0x143
+.comment        0x00000000      0x156
  .comment       0x00000000       0x13 kernel.o
  .comment       0x00000013       0x13 vga.o
  .comment       0x00000026       0x13 gdt.o
@@ -270,3 +284,4 @@ OUTPUT(kernel.bin binary)
  .comment       0x0000010a       0x13 syscall.o
  .comment       0x0000011d       0x13 kprintf.o
  .comment       0x00000130       0x13 tss.o
+ .comment       0x00000143       0x13 usermode.o

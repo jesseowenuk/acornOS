@@ -14,6 +14,7 @@
 #include "syscall.h"
 #include "kprintf.h"
 #include "tss.h"
+#include "usermode.h"
 
 // The shell runs as a kernel process
 static void shell_process()
@@ -45,6 +46,39 @@ static void idle_process()
         // Scheduler then picks shell if it's ready
         __asm__ volatile ("hlt");
     }
+}
+
+// Simple user mode test program
+// This runs in ring 3 - can only use syscalls to talk to the kernel
+
+// Define as a global - address is fixed and known at compile time
+static const char user_msg[] = "Hello from user mode!\n";
+#define USER_MSG_LEN 22
+
+static void user_program()
+{
+    // Call SYS_WRITE to print a message
+    // EAX = 1 (SYS_WRITE), EBX = string pointer ECX = length
+    __asm__ volatile(
+        "mov $1, %%eax\n\t"               // SYS_WRITE
+        "int $0x80\n\t"
+        :
+        : "b"(user_msg), "c"(USER_MSG_LEN)
+        : "eax"
+    );
+
+    // Call to SYS_EXIT
+    __asm__ volatile(
+        "mov $0, %%eax\n\t"               // SYS_EXIT
+        "mov $0, %%ebx\n\t"                 // Exit code 0
+        "int $0x80\n\t"
+        :
+        :
+        : "eax", "ebx"
+    );
+
+    // Should never reach here
+    for(;;);
 }
 
 void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)

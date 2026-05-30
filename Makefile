@@ -18,7 +18,7 @@ debug: os.img
 boot.bin: boot/boot.asm
 	nasm -f bin boot/boot.asm -o boot.bin
 
-kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gdt_flush.asm kernel/idt.c kernel/isr.asm kernel/idt_flush.asm kernel/pic.c kernel/keyboard.c kernel/shell.c kernel/timer.c kernel/mem.c kernel/serial.c kernel/pmm.c kernel/paging.c kernel/process.c kernel/switch.asm kernel/scheduler.c kernel/syscall.c kernel/kprintf.c kernel/tss.c
+kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gdt_flush.asm kernel/idt.c kernel/isr.asm kernel/idt_flush.asm kernel/pic.c kernel/keyboard.c kernel/shell.c kernel/timer.c kernel/mem.c kernel/serial.c kernel/pmm.c kernel/paging.c kernel/process.c kernel/switch.asm kernel/scheduler.c kernel/syscall.c kernel/kprintf.c kernel/tss.c kernel/usermode.asm kernel/usermode.c
 	$(CC) $(CFLAGS) -c kernel/kernel.c -o kernel.o
 	$(CC) $(CFLAGS) -c kernel/vga.c -o vga.o
 	$(CC) $(CFLAGS) -c kernel/gdt.c -o gdt.o
@@ -35,19 +35,22 @@ kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gd
 	$(CC) $(CFLAGS) -c kernel/syscall.c -o syscall.o
 	$(CC) $(CFLAGS) -c kernel/kprintf.c -o kprintf.o
 	$(CC) $(CFLAGS) -c kernel/tss.c -o tss.o
+	$(CC) $(CFLAGS) -c kernel/usermode.c -o usermode.o
 	$(CC) $(CFLAGS) -ffreestanding -O0 -Wall -fno-builtin -c kernel/process.c -o process.o
 	nasm -f elf kernel/start.asm -o start.o
 	nasm -f elf kernel/gdt_flush.asm -o gdt_flush.o
 	nasm -f elf kernel/isr.asm -o isr.o
 	nasm -f elf kernel/idt_flush.asm -o idt_flush.o
 	nasm -f elf kernel/switch.asm -o switch.o
+	nasm -f elf kernel/usermode.asm -o usermode_asm.o
 	i686-elf-ld -o kernel.bin \
 		-T kernel/linker.ld \
 		--oformat binary \
 		-Map kernel.map \
 		start.o kernel.o vga.o gdt.o gdt_flush.o idt.o isr.o idt_flush.o \
 		pic.o keyboard.o shell.o timer.o mem.o serial.o pmm.o paging.o \
-		process.o switch.o scheduler.o syscall.o kprintf.o tss.o
+		process.o switch.o scheduler.o syscall.o kprintf.o tss.o \
+		usermode.o usermode_asm.o
 
 os.img: boot.bin kernel.bin
 	cat boot.bin kernel.bin > os.img

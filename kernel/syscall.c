@@ -34,6 +34,8 @@ static void sys_write(registers_t* regs)
     // ECX = string length
     uint32_t len = regs->ecx;
 
+    kserial_printf("sys_write: str=0x%x len=%d\n", (uint32_t)str, len);
+
     if(!str)
     {
         // NULL pointer check
