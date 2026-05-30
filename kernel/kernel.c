@@ -13,6 +13,7 @@
 #include "scheduler.h"
 #include "syscall.h"
 #include "kprintf.h"
+#include "tss.h"
 
 // The shell runs as a kernel process
 static void shell_process()
@@ -63,6 +64,13 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     kserial_printf("GDT initialised.\n");    
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf("GDT online.\n");
+
+    vga_set_colour(WHITE, BLACK);
+    kprintf("Initialising TS...\n");
+    tss_init();
+    kserial_printf("TSS initialised.\n");
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf("TSS online.\n");
     
     vga_set_colour(WHITE, BLACK);
     kprintf("Initialising IDT...\n");

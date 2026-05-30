@@ -62,21 +62,17 @@ static int uint_to_hex(char* buf, uint32_t n)
 {
     const char* digits = "0123456789ABCDEF";
 
-    // 0x prefix
-    buf[0] = '0';
-    buf[1] = 'x';
-
     for(int i = 7; i >= 0; i--)
     {
         // Extract lowest nibble
-        buf[2 + i] = digits[n & 0xF];
+        buf[i] = digits[n & 0xF];
 
         // Shift to the right 4 bits
         n >>= 4;
     }
 
-    // Always return 10 characters: "0x" + 8 hex digits
-    return 10;
+    // Always return 8 characters
+    return 8;
 }
 
 // --- kvsnprintf ---------------------------------------------
