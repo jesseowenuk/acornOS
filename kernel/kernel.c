@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #include "vga.h"
 #include "gdt.h"
 #include "idt.h"

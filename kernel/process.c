@@ -156,10 +156,16 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
     proc->cpu.eip = (uint32_t)entry;            // EIP also set for direct jump
     proc->cpu.ebp = proc->stack_top;            // EBP same as ESP initially 
 
-    // Step 7: use the kernel page directory for now
-    // Later each process will get its own - for now they share kernel mappings
-    // 0 = use kernel page directory
-    proc->page_dir = 0;
+    // Step 7: Each process gets own directory with kernel mappings shared
+    proc->page_dir = paging_clone_directory();
+
+    if(!proc->page_dir)
+    {
+        kserial_printf("process_create: failed to clone page directory!\n");
+        pmm_free((void*)proc->stack);
+        kfree(proc);
+        return 0;
+    }
 
     // Step 8: add to process table
     process_table[slot] = proc;

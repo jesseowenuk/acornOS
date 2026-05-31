@@ -104,4 +104,12 @@ void unmap_page(uint32_t virtual_addr);
 // Look up physical address for a virtual address
 uint32_t get_physical(uint32_t virtual_addr);
 
+// Clone the kernel page directory for a new process
+// Returns a new page directory with kernel mappings shared
+page_directory_t* paging_clone_directory();
+
+// Switch to a different page directory
+// Called on every context switch
+void paging_switch_directory(page_directory_t* dir);
+
 #endif

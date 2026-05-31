@@ -333,3 +333,82 @@ uint32_t get_physical(uint32_t virtual_addr)
 
     return physical;
 }
+
+// --- paging_clone_directory ---------------------------------
+// Creates a new page directory for a process
+// kernel mappings are shared - user mappings start empty
+
+page_directory_t* paging_clone_directory()
+{
+    // Allocate a new page directory from PMM
+    // Must be page aligned - PMM always returns page aligned memory
+    page_directory_t* new_dir = (page_directory_t*)pmm_alloc();
+
+    if(!new_dir)
+    {
+        kserial_printf("paging_clone_directory: out of memory!\n");
+        return 0;
+    }
+
+    // Zero out the entire new directory
+    // All entries start as not present
+    uint32_t* raw = (uint32_t*)new_dir;
+    
+    for(int i = 0; i < 1024; i++)
+    {
+        // Not present - no mappings yet
+        raw[i] = 0;
+    }
+
+    // Copy kernel page directory entries into the new directory
+    // We share kernel mappings between all processes
+    // Entry 0 covers 0x00000000 - 0x003FFFFF (first 4MB - our kernel)
+    // We copy this entry so the new process can still access kernel code
+    uint32_t* kernel_raw = (uint32_t*)&kernel_directory;
+
+    for(int i = 0; i < 1024; i++)
+    {
+        if(kernel_raw[i] & PAGE_PRESENT)
+        {
+            // This entry is present in kernel directory
+
+            // SO... share it - point to same page table
+            // Both directories now reference the same
+            // physical page table.
+            // Changes to kernel pages visible to all.
+            raw[i] = kernel_raw[i];
+        }
+
+        // Non present entries stay zero
+        // User space starts empty
+    }
+
+    kserial_printf("paging: cloned directory at 0x%x\n", (uint32_t)new_dir);
+    return new_dir;
+}
+
+// --- paging_switch_directory --------------------------------------------
+// Loads a page directory into CR3
+// Called on every context switch to switch virtual address spaces
+
+void paging_switch_directory(page_directory_t* dir)
+{
+    if(!dir)
+    {
+        // Safety check - never load null directory
+        return;
+    }
+
+    // Load the physical address of the page directory into CR3
+    // CR3 = Page Directory Base Register
+    // CPU reads this on every TLB miss to find the page directory
+    __asm__ volatile(
+        "mov %0, %%cr3"                 // Load new page directory
+        :                               // No output
+        : "r"(dir)                      // Input: address of new directory
+        : "memory"                      // Tell compiler memory layout may change
+    );
+
+    // Loading CR3 automatically flushes the entire TLB - all cached tranlations
+    // are invalidated so the CPU uses the new directory immediatley.
+}

@@ -76,6 +76,24 @@ switch_context:
     mov word [eax+84], ds           ; Save DS (data segment)
     mov word [eax+88], ss           ; Save SS (stack segment)
 
+    ; --- Switch page directory -------------------------------------
+    ; Get new process's page_dir (offset 100 in process_t)
+    mov eax, [esp+8]                ; Re-read new process pointer
+                                    ; (we need it again after saving old state)
+    mov ecx, [eax+100]              ; Load new->page_dir
+    test ecx, ecx                   ; Is it NULL?
+    jz .no_switch                   ; If NULL use kernel_directory
+
+    mov cr3, ecx                    ; Load new page directory into CR3
+                                    ; This flushes TLB and switches address space
+    jmp .done_switch
+
+.no_switch:
+    ; Load kernel directory address
+    ; If page_dir is NULL we keep the current CR3
+    nop                             ; Do nothing - keep current page directory
+
+.done_switch:
     ; --- Restore new process state ---------------------------------
 
     mov eax, [esp+8]                ; EAX = pointer to new process_t
