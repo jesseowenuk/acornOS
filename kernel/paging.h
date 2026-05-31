@@ -70,6 +70,9 @@ typedef struct __attribute__((aligned(4096)))
     pte_t entries[1024];                    // 1024 x 4 bytes = exactly 4KB
 } page_table_t;
 
+// The kernel page directory - accessible to other modules
+extern page_directory_t kernel_directory;
+
 // --- Flag constants ----------------------------------------------
 // Used when setting up entries - OR these together for the flags you want
 #define PAGE_PRESENT    0x1                 // Page is present in memory
@@ -97,6 +100,8 @@ void page_fault_handler(registers_t* regs); // Called on interrupt 14
 
 // Map a virtual address to a physical address
 void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags);
+
+void map_page_in(page_directory_t* dir, uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags);
 
 // Remove a mapping
 void unmap_page(uint32_t virtual_addr);

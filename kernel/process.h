@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include "paging.h"     // For page_directory_t
 
+// Size of the user space stack - 16KB
+#define USER_STACK_SIZE 16384
+
 // --- Process states -------------------------------------------
 typedef enum
 {
@@ -57,9 +60,9 @@ typedef struct process
     uint32_t            stack_top;          // Address of top of stack (stack grows down)
     page_directory_t*   page_dir;           // This process's virtual memory map
                                             // NULL = use kernel page directory
-    uint32_t            time_slice;         // How many timer ticks this process gets
+    int32_t             time_slice;         // How many timer ticks this process gets
                                             // before being preempted
-    uint32_t            ticks_remaining;    // Ticks left in current time slice
+    int32_t             ticks_remaining;    // Ticks left in current time slice
     struct process*     next;               // Used by scheduler
 } process_t;
 
@@ -93,5 +96,9 @@ void process_block(process_t* proc);
 
 // Wake a blocked process - it will be scheduled again
 void process_wake(process_t* proc);
+
+// Create a process that runs in ring 3 (user mode)
+// entry = virtual address where process starts executing
+process_t* create_user_process(const char* name, void (*entry)());
 
 #endif

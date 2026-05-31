@@ -53,14 +53,12 @@ static void idle_process()
 // Simple user mode test program
 // This runs in ring 3 - can only use syscalls to talk to the kernel
 
-// Define as a global - address is fixed and known at compile time
-static const char user_msg[] = "Hello from user mode!\n";
-#define USER_MSG_LEN 22
+static const char user_msg[] = "Hello from ring 3 process!\n";
+#define USER_MSG_LEN 28
 
-static void user_program()
+static void user_test_program()
 {
-    // Call SYS_WRITE to print a message
-    // EAX = 1 (SYS_WRITE), EBX = string pointer ECX = length
+    // Write message via syscall
     __asm__ volatile(
         "mov $1, %%eax\n\t"               // SYS_WRITE
         "int $0x80\n\t"

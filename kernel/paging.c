@@ -8,7 +8,7 @@
 // We declare this statically so it lives in the kernel's BSS segment
 // __attribute__((aligned(4096))) ensures it starts on a 4KB boundary
 // which is required by the CPU - CR3 must point to a 4KB-aligned address
-static page_directory_t kernel_directory __attribute__((aligned(4096)));
+page_directory_t kernel_directory __attribute__((aligned(4096)));
 
 // --- Page table ----------------------------------------
 // We need one page table for every 4MB of virtual space we want to map
@@ -262,6 +262,42 @@ void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags)
     );
 }
 
+// --- map_page_in ---------------------------------------------------
+// Map a page in a SPECIFIC page directory
+void map_page_in(page_directory_t* dir, uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags)
+{
+    virtual_addr &= ~0xFFF;
+    physical_addr &= ~0xFFF;
+
+    uint32_t pdi = PD_INDEX(virtual_addr);
+    uint32_t pti = PT_INDEX(virtual_addr);
+
+    // Check if page table exists in THIS directory
+    if(!dir->entries[pdi].present)
+    {
+        page_table_t* new_table = alloc_table();
+
+        if(!new_table)
+        {
+            kserial_printf("map_page_in: out of page tables!\n");
+            return;
+        }
+
+        pde_set((pde_t*)&dir->entries[pdi], (uint32_t)new_table, PAGE_PRESENT | PAGE_WRITABLE);
+    }
+
+    page_table_t* table = (page_table_t*)(dir->entries[pdi].frame << 12);
+
+    pte_set((pte_t*)&table->entries[pti], physical_addr, flags);
+
+    __asm__ volatile(
+        "invlpg (%0)"
+        :
+        : "r"(virtual_addr)
+        : "memory"
+    );
+}
+
 // --- unmap_page ----------------------------------------------------
 // Remove a virtual address mapping
 void unmap_page(uint32_t virtual_addr)
@@ -398,6 +434,8 @@ void paging_switch_directory(page_directory_t* dir)
         // Safety check - never load null directory
         return;
     }
+
+    kserial_printf("switching CR3 to 0x%x\n", (uint32_t)dir);
 
     // Load the physical address of the page directory into CR3
     // CR3 = Page Directory Base Register

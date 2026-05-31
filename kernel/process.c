@@ -5,6 +5,9 @@
 #include "serial.h"             // For debug logging
 #include "vga.h"                // For process_print_all output
 #include "kprintf.h"
+#include "tss.h"
+
+extern void iret_to_usermode();
 
 // --- Global state ----------------------------------------
 
@@ -264,4 +267,127 @@ void process_wake(process_t* proc)
 
     // Mark as ready to run. Scheduler will pick it up on the next tick
     proc->state = PROCESS_READY;
+}
+
+// --- process_user_create_process -----------------------------------
+
+process_t* create_user_process(const char* name, void (*entry)())
+{
+    // Step 1: find a free slot in the process table
+    int slot = -1;
+
+    for(int i = 0; i < MAX_PROCESSES; i++)
+    {
+        if(process_table[i] == 0)
+        {
+            slot = i;
+            break;
+        }
+    }
+
+    if(slot == -1)
+    {
+        kserial_printf("create_user_process: process table full!\n");
+        return 0;
+    }
+
+    // Step 2: Allocate PCB
+    process_t* proc = (process_t*)kmalloc(sizeof(process_t));
+
+    if(!proc)
+    {
+        kserial_printf("create_user_process: failed to allocate PCB!\n");
+        return 0;
+    }
+
+    kmemset(proc, 0, sizeof(process_t));
+
+    // Step 3: fill in the basic details
+    proc->pid  = next_pid++;
+    kstrcpy(proc->name, name, 32);
+    proc->state = PROCESS_READY;
+    proc->time_slice = 10;
+    proc->ticks_remaining = 10;
+    proc->next = 0;
+
+    // Step 4: allocate kernel stack
+    // Used when this process triggers an interrupt
+    // The CPU switches to this stack automatically via TSS
+    proc->stack = (uint32_t)pmm_alloc();
+
+    if(!proc->stack)
+    {
+        kserial_printf("create_user_process: failed to allocate kernel stack!\n");
+        kfree(proc);
+        return 0;
+    }
+
+    // Top of kernel stack
+    proc->stack_top = proc->stack + PAGE_SIZE - 4;
+
+    // Step 5: allocate user stack
+    // This is what the process itself uses for function calls
+    // Lives in user space - process can read and write it freely
+    uint32_t user_stack = (uint32_t)pmm_alloc();
+
+    if(!user_stack)
+    {
+        kserial_printf("create_user_process: failed to allocate user stack!\n");
+        pmm_free((void*)proc->stack);
+        kfree(proc);
+        return 0;
+    }
+
+    // Step 6: clone kernel page directory
+    proc->page_dir = paging_clone_directory();
+
+    if(!proc->page_dir)
+    {
+        kserial_printf("create_user_process: failed to clone page directory!\n");
+        pmm_free((void*)user_stack);
+        pmm_free((void*)proc->stack);
+        kfree(proc);
+        return 0;
+    }
+
+    // Step 7: map user stack into process's virtual address space
+    // Must switch to process's page directory to map into it
+    // Just below 3GB - top of user space
+    uint32_t user_stack_virt = 0xBFFFF000;
+
+    // Map user stack - now goes into the current process's own page directory
+    map_page_in(proc->page_dir,             // Map into THIS process's directory
+                user_stack_virt,            // Virtual address
+                user_stack,                 // Physical address
+                PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER
+    );
+
+    // Step 8: pre-load the kernel stack with an iret frame
+    // When switch_context first runs this process it will
+    // find this frame and iret into ring 3
+    uint32_t* kstack = (uint32_t*)proc->stack_top;
+
+    *kstack-- = 0x23;                               // SS - user stack segment (RPL=3)
+    *kstack-- = user_stack_virt + PAGE_SIZE - 4;    // ESP - top of user stack
+    *kstack-- = 0x200;                              // EFLAGS - interrupts enabled
+    *kstack-- = 0x1B;                               // CS - user code segment (RPL=3)
+    *kstack-- = (uint32_t)entry;                    // EIP - entry point
+
+    // Step 9: Set up CPU state to point at our iret frame
+    // When switch_context restores this process it will
+    // restore these registers then ret to our iret stub
+    kmemset(&proc->cpu, 0, sizeof(cpu_state_t));
+    proc->cpu.esp = (uint32_t)kstack + 4;           // ESP points to the top of iret frame
+    proc->cpu.eip = (uint32_t)iret_to_usermode;     // First thing we do is iret to ring 3
+    proc->cpu.eflags = 0x200;                       // Interrupts enabled
+    proc->cpu.cs = 0x08;                            // Kernel code for now
+    proc->cpu.ds = 0x10;                            // Kernel data for now
+    proc->cpu.ss = 0x10;                            // Kernel stack segment
+
+    // Step 10: add to process table
+    process_table[slot] = proc;
+
+    kserial_printf("create_user_process: '%s' PID=%d entry=0x%x\n", name, proc->pid, (uint32_t)entry);
+
+    return proc;
 }

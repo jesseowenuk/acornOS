@@ -39,7 +39,7 @@ static void sys_write(registers_t* regs)
     if(!str)
     {
         // NULL pointer check
-        regs->eax -1;
+        regs->eax = -1;
 
         // return error
         return;

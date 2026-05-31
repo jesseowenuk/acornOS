@@ -1,6 +1,7 @@
 [BITS 32]
 
 global enter_usermode                   ; Make visible to C code
+global iret_to_usermode
 
 ; enter_usermode(uint32_t entry, uint32_t stack)
 ; Arguments (C calling convention):
@@ -49,3 +50,22 @@ enter_usermode:
                                     ; Loads SS and ESP for user stack
                                     ; Jumps to EIP in ring 3
                                     ; This instruction never returns
+
+iret_to_usermode:
+    ; At this point the kernel stack has our iret frame
+    ;   [esp+0] = EIP (entry point)
+    ;   [esp+4] = CS (0x1B user code)
+    ;   [esp+8] = EFLAGS
+    ;   [esp+12] = ESP (user stack)
+    ;   [esp+16] = SS (0x23 user stack segment)
+
+    ; Load user data segment into all segment registers
+    mov ax, 0x23                    ; User data segment
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+
+    ; Pop EIP, CS, EFLAGS, ESP, SS
+    ; CPU sees CS RPL=3 and switches to ring 3
+    iret

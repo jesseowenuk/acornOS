@@ -10,4 +10,6 @@
 void enter_usermode(uint32_t entry, uint32_t stack);
 void jump_to_usermode(void (*entry)());
 
+void iret_to_usermode();
+
 #endif
