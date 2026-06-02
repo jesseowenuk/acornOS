@@ -135,9 +135,6 @@ void syscall_handler(registers_t* regs)
         return;
     }
 
-    // Log the syscall for debugging
-    kserial_printf("Syscall: %d called.\n", syscall_num);
-
     // Dispatch to the appropriate handler
     // Call the handler
     // This may modify regs->eax as the return value

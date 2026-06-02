@@ -1,6 +1,5 @@
 #include "mem.h"
 #include "vga.h"        // For mem_print_stats() output
-#include "serial.h"
 #include "kprintf.h"
 
 // --- Block header --------------------------------------

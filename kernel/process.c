@@ -2,7 +2,6 @@
 #include "mem.h"                // For kmalloc - allocating PCB structs
 #include "pmm.h"                // For pmm_alloc - allocating process stacks
 #include "paging.h"             // For page directory management
-#include "serial.h"             // For debug logging
 #include "vga.h"                // For process_print_all output
 #include "kprintf.h"
 #include "tss.h"
@@ -126,7 +125,7 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
     if(!proc->stack)
     {
         kserial_printf("process_create: failed to allocate stack!\n");
-        kmalloc(0);             // TODO: free PCB
+        // TODO: implement kfree for PCB when allocator supports it
         return 0;
     }
 

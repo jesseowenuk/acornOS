@@ -1,8 +1,6 @@
 #include "scheduler.h"
 #include "process.h"        // For process_t, current_process
-#include "timer.h"          // For timer_get_ticks
 #include "serial.h"         // For debug logging
-#include "vga.h"            // For vga_set_colour
 #include "kprintf.h"
 #include "tss.h"
 
@@ -82,26 +80,6 @@ void scheduler_tick(registers_t* regs)
 
     // Decrement the current process's remaining time slice
     current_process->ticks_remaining--;
-
-    // DEBUG ///////////////////////////////////////////////////////////////////////////
-    static uint32_t tick_count = 0;
-    tick_count++;
-
-    if(tick_count % 100 == 0)
-    {
-        kserial_printf("tick: current=%s state=%d ticks_left=%d\n", current_process->name, current_process->state, current_process->ticks_remaining);
-    
-        // Print ALL processes
-        for(int i = 0; i < MAX_PROCESSES; i++)
-        {
-            if(process_table[i])
-            {
-                kserial_printf("   proc[%d]: %s state=%d\n", i, process_table[i]->name, process_table[i]->state);
-            }
-        }
-    }
-    // DEBUG ///////////////////////////////////////////////////////////////////////////
-
 
     // If the process still has time left - let it continue
     if(current_process->ticks_remaining > 0 && current_process->pid != 0)
