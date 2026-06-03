@@ -66,6 +66,10 @@ typedef struct process
     struct process*     next;               // Used by scheduler
     uint32_t            user_esp;           // User ESP at last syscall
     uint32_t            user_eip;           // User EIP at least syscall
+    pid_t               parent_pid;         // PID of parent process
+                                            // 0 = kernel (kernel process)
+    int                 exit_code;          // Exit code when process dies
+                                            // Set by sys_exit, read by wait()
 } process_t;
 
 // --- Process table --------------------------------------

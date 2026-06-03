@@ -110,6 +110,7 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
 
     // Step 3: zero out the PCB - clean slate
     kmemset(proc, 0, sizeof(process_t));
+    proc->parent_pid = 0;                       // Kernel processes have no parent
 
     // Step 4: fill in the PCB fields
     proc->pid = next_pid++;                     // Assign next available PID
@@ -301,6 +302,7 @@ process_t* create_user_process(const char* name, void (*entry)())
     }
 
     kmemset(proc, 0, sizeof(process_t));
+    proc->parent_pid = 0;                   // Set properly when forked
 
     // Step 3: fill in the basic details
     proc->pid  = next_pid++;
@@ -440,6 +442,11 @@ pid_t process_fork()
     // Step 4: assign new PID
     child->pid = next_pid++;
 
+    // Child knows who its parent is 
+    // Parent will use this to find
+    // children that have exited
+    child->parent_pid = current_process->pid;
+
     // Step 5: copy process name
     kstrcpy(child->name, current_process->name, 32);
 
@@ -486,8 +493,6 @@ pid_t process_fork()
     *kstack-- = 0x1B;                       // CS - user code segment
     *kstack-- = current_process->user_eip;  // EIP - return after int $0x80
     *kstack-- = 0;                          // EAX = 0 (fork returns 0 to child)
-
-
 
     // Step 11: set up child CPU state
     child->cpu.esp = (uint32_t)kstack + 4;  // Points to top of iret frame
