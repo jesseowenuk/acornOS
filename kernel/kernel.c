@@ -47,60 +47,6 @@ static void idle_process()
     }
 }
 
-// Fork test program
-static const char fork_parent_msg[] = "Hello from parent!\n";
-static const char fork_child_msg[] = "Hello from child!\n";
-
-static void fork_test_program()
-{
-    // Call SYS_FORK
-    uint32_t pid;
-
-    __asm__ volatile (
-        "mov $5, %%eax\n\t"
-        "int $0x80\n\t"
-        "mov %%eax, %0\n\t"
-        : "=r"(pid)
-        :
-        : "eax"
-    );
-
-    if(pid == 0)
-    {
-        // Child process
-        __asm__ volatile(
-            "mov $1, %%eax\n\t"
-            "int $0x80\n\t"
-            :
-            : "b"(fork_child_msg), "c"(19)
-            : "eax"
-        );
-    }
-    else
-    {
-        // Parent process
-        __asm__ volatile(
-            "mov $1, %%eax\n\t"
-            "int $0x80\n\t"
-            :
-            : "b"(fork_parent_msg), "c"(19)
-            : "eax"
-        );
-    }
-
-    // Both exit
-    __asm__ volatile(
-        "mov $0, %%eax\n\t"
-        "mov $0, %%ebx\n\t"
-        "int $0x80\n\t"
-        :
-        :
-        : "eax", "ebx"
-    );
-
-    for(;;);
-}
-
 void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
 {       
     vga_init();                                 // Clear screen, set default colour
@@ -213,12 +159,6 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     // Create and add the shell process
     process_t* shell = process_create("shell", shell_process, 0);
     scheduler_add(shell);
-
-    process_t* fork_test = create_user_process("fork_test", fork_test_program);
-    if(fork_test)
-    {
-        scheduler_add(fork_test);
-    }
 
     scheduler_start();          // start scheduling - never returns
 
