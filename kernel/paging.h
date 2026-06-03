@@ -117,4 +117,9 @@ page_directory_t* paging_clone_directory();
 // Called on every context switch
 void paging_switch_directory(page_directory_t* dir);
 
+// Deep copy a page directory - used by fork()
+// Every user space page is copied to a new physical page
+// Kernel pages are shared (read only - safe to share)
+page_directory_t* paging_deep_copy_directory(page_directory_t* src);
+
 #endif

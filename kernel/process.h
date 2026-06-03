@@ -64,6 +64,8 @@ typedef struct process
                                             // before being preempted
     int32_t             ticks_remaining;    // Ticks left in current time slice
     struct process*     next;               // Used by scheduler
+    uint32_t            user_esp;           // User ESP at last syscall
+    uint32_t            user_eip;           // User EIP at least syscall
 } process_t;
 
 // --- Process table --------------------------------------
@@ -100,5 +102,11 @@ void process_wake(process_t* proc);
 // Create a process that runs in ring 3 (user mode)
 // entry = virtual address where process starts executing
 process_t* create_user_process(const char* name, void (*entry)());
+
+// Fork the current process - returns child PID to parent, 0 to child
+pid_t process_fork();
+
+// Wait for a child process to exit - blocks until child is dead
+void process_wait(pid_t pid);
 
 #endif

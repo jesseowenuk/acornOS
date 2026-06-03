@@ -5,6 +5,7 @@
 #include "vga.h"                // For process_print_all output
 #include "kprintf.h"
 #include "tss.h"
+#include "scheduler.h"
 
 extern void iret_to_usermode();
 
@@ -371,6 +372,7 @@ process_t* create_user_process(const char* name, void (*entry)())
     *kstack-- = 0x200;                              // EFLAGS - interrupts enabled
     *kstack-- = 0x1B;                               // CS - user code segment (RPL=3)
     *kstack-- = (uint32_t)entry;                    // EIP - entry point
+    *kstack-- = 0;                                  // EAX = 0 (initial value)
 
     // Step 9: Set up CPU state to point at our iret frame
     // When switch_context restores this process it will
@@ -389,4 +391,124 @@ process_t* create_user_process(const char* name, void (*entry)())
     kserial_printf("create_user_process: '%s' PID=%d entry=0x%x\n", name, proc->pid, (uint32_t)entry);
 
     return proc;
+}
+
+// --- process_fork -------------------------------------------------
+
+pid_t process_fork()
+{
+    if(!current_process)
+    {
+        // No current process
+        return -1;
+    }
+
+    // Step 1: find a free slot
+    int slot = -1;
+    for(int i = 0; i < MAX_PROCESSES; i++)
+    {
+        if(process_table[i] == 0)
+        {
+            slot = i;
+            break;
+        }
+    }
+
+    if(slot == -1)
+    {
+        kserial_printf("fork: process table full\n");
+        return -1;
+    }
+
+    // Step 2: allocate child PCB
+    process_t* child = (process_t*)kmalloc(sizeof(process_t));
+    if(!child)
+    {
+        kserial_printf("fork: failed to allocate child PCB!\n");
+        return -1;
+    }
+
+    // Step 3: copy parent PCB to child
+    // This copies all fields including cpu state
+    uint8_t* src = (uint8_t*)current_process;
+    uint8_t* dst = (uint8_t*)child;
+    for(uint32_t i = 0; i < sizeof(process_t); i++)
+    {
+        dst[i] = src[i];
+    }
+
+    // Step 4: assign new PID
+    child->pid = next_pid++;
+
+    // Step 5: copy process name
+    kstrcpy(child->name, current_process->name, 32);
+
+    // Step 6: allocate new kernel stack
+    child->stack = (uint32_t)pmm_alloc();
+    if(!child->stack)
+    {
+        kserial_printf("fork: failed to allocate child stack!\n");
+        kfree(child);
+        return -1;
+    }
+
+    // Step 7: copy kernel stack contents
+    uint8_t* parent_stack = (uint8_t*)current_process->stack;
+    uint8_t* child_stack = (uint8_t*)child->stack;
+    for(uint32_t i = 0; i < PAGE_SIZE; i++)
+    {
+        child_stack[i] = parent_stack[i];
+    }
+
+    // Step 8: update stack top
+    child->stack_top = child->stack + PAGE_SIZE - 4;
+
+    // Step 9: deep copy page directory
+    // Child gets its own copy of all user space pages
+    child->page_dir = paging_deep_copy_directory(current_process->page_dir);
+    if(!child->page_dir)
+    {
+        kserial_printf("fork: failed to copy page directory!\n");
+        pmm_free((void*)child->stack);
+        kfree(child);
+        return -1;
+    }
+
+    // Step 10: Set up child's kernel stack with a fresh iret frame
+    // Child resumes at same point in user space as parent
+    // but fork() returns 0 to the child
+    uint32_t* kstack = (uint32_t*)child->stack_top;
+
+    *kstack-- = 0x23;                       // SS - user stack segment
+    *kstack-- = current_process->user_esp;  // ESP - user stack pointer
+    *kstack-- = 0x200;                      // EFLAGS - interrupts enabled only
+                                            // TF deliberatley cleared
+    *kstack-- = 0x1B;                       // CS - user code segment
+    *kstack-- = current_process->user_eip;  // EIP - return after int $0x80
+    *kstack-- = 0;                          // EAX = 0 (fork returns 0 to child)
+
+
+
+    // Step 11: set up child CPU state
+    child->cpu.esp = (uint32_t)kstack + 4;  // Points to top of iret frame
+    child->cpu.eip = (uint32_t)iret_to_usermode;    // child enters via iret
+    child->cpu.eax = 0;
+    child->cpu.eflags = 0x200;              // Clean EFLAGS
+    child->cpu.cs = 0x08;                   // Kernel code for now
+    child->cpu.ds = 0x10;                   // Kernel data
+    child->cpu.ss = 0x10;                   // Kernel stack segment
+
+    // Step 12: set child state to ready
+    child->state = PROCESS_READY;
+    child->ticks_remaining = child->time_slice;
+    child->next = 0;
+
+    // Step 13: add to process table and scheduler
+    process_table[slot] = child;
+    scheduler_add(child);
+
+    kserial_printf("fork: created child PID=%d from parent PID=%d\n", child->pid, current_process->pid);
+
+    // Return child PID to parent
+    return child->pid;
 }

@@ -97,6 +97,17 @@ static void sys_yield(registers_t* regs)
     scheduler_yield();
 }
 
+// --- sys_fork ------------------------------------------
+// Fork the current process
+static void sys_fork(registers_t* regs)
+{
+    pid_t child_pid = process_fork();
+
+    // Return child PID to parent
+    // Child will have EAX=0 from the copied CPU state
+    regs->eax = (uint32_t)child_pid;
+}
+
 // --- Syscall dispatch table ----------------------------
 // Array of function pointers - index = syscall number
 // Makes adding new syscalls as simple as adding an entry here
@@ -109,6 +120,7 @@ static syscall_fn syscall_table[] =
     sys_read,               // 2 = SYS_READ
     sys_getpid,             // 3 = SYS_GETPID
     sys_yield,              // 4 = SYS_YIELD
+    sys_fork,               // 5 - SYS_FORK
 };
 
 // Number of syscalls in the table
@@ -122,6 +134,14 @@ static syscall_fn syscall_table[] =
 
 void syscall_handler(registers_t* regs)
 {
+    // Save user space state before handling syscall
+    // Used by fork() to resume child at correct location
+    if(current_process)
+    {
+        current_process->user_esp = regs->useresp;          // User ESP
+        current_process->user_eip = regs->eip;              // User return address
+    }
+
     // Syscall number is in EAX
     uint32_t syscall_num = regs->eax;
 

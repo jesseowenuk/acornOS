@@ -94,8 +94,6 @@ void scheduler_tick(registers_t* regs)
                                             // Since the list is circular this
                                             // always gives us a valid proces
 
-    kserial_printf("DEBUG switch: old=%s new=%s new_state=%d\n", old->name, new ? new->name : "NULL", new ? (int)new->state : -1);
-
     // Walk the queue looking for a non-dead, preferably non-idle process
     int checked = 0;
     while(checked < MAX_PROCESSES)

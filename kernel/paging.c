@@ -449,3 +449,111 @@ void paging_switch_directory(page_directory_t* dir)
     // Loading CR3 automatically flushes the entire TLB - all cached tranlations
     // are invalidated so the CPU uses the new directory immediatley.
 }
+
+// --- paging_deep_copy_directory -----------------------------------------------
+// Creates a complete independent copy of a page directory
+// Used by fork() to give child its own address space
+
+page_directory_t* paging_deep_copy_directory(page_directory_t* src)
+{
+    // Allocate new page directory
+    page_directory_t* dst = (page_directory_t*)pmm_alloc();
+    if(!dst)
+    {
+        kserial_printf("paging_deep_copy: out of memory!\n");
+        return 0;
+    }
+
+    // Zero the new directory
+    uint32_t* raw = (uint32_t*)dst;
+    for(int i = 0; i < 1024; i++)
+    {   
+        raw[i] = 0;
+    }
+
+    // Walk every entry in the source directory
+    for(int i = 0; i < 1024; i++)
+    {
+        if(!src->entries[i].present)
+        {
+            // Skip non-present entries
+            continue;
+        }
+
+        // Get the source page table
+        page_table_t* src_table = (page_table_t*)(src->entries[i].frame << 12);
+
+        // Check if this is a kernel mapping
+        // Kernel pages are in the first entry (first 4MB)
+        // We share these so no need to copy
+        if(i == 0)
+        {
+            // Share kernel mapping directly
+            dst->entries[i] = src->entries[i];
+            continue;
+        }
+
+        // User space page table - deep copy it
+        // Allocate a new page table
+        page_table_t* dst_table = (page_table_t*)pmm_alloc();
+        if(!dst_table)
+        {
+            // TODO: free allocated pages
+            kserial_printf("paging_deep_copy: out of memory for table!\n");
+            return 0;
+        }
+
+        // Zero the new table
+        uint32_t* t = (uint32_t*)dst_table;
+        for(int j = 0; j < 1024; j++)
+        {   
+            t[j] = 0;
+        }
+
+        // Walk every entry in the source page table
+        for(int j = 0; j < 1024; j++)
+        {
+            if(!src_table->entries[j].present)
+            {
+                // skip non-present entries
+                continue;
+            }
+
+            // Allocate a new physical page for the child
+            uint32_t new_page = (uint32_t)pmm_alloc();
+            if(!new_page)
+            {
+                kserial_printf("paging_deep_copy: out of memory for page!\n");
+                return 0;
+            }
+
+            // Copy contents of source page to new page
+            uint8_t* src_data = (uint8_t*)(src_table->entries[j].frame << 12);
+            uint8_t* dst_data = (uint8_t*)new_page;
+
+            for(int k = 0; k < PAGE_SIZE; k++)
+            {
+                // Copy every byte
+                dst_data[k] = src_data[k];
+            }
+
+            // Set up the new page table entry
+            // Same flags as source but pointing to new physical page
+            pte_set(
+                (pte_t*)&dst_table->entries[j],
+                new_page,
+                PAGE_PRESENT | PAGE_WRITABLE | (src_table->entries[j].user ? PAGE_USER : 0)
+            );
+        }
+
+        // Install new page table into destination directory
+        pde_set(
+            (pde_t*)&dst->entries[i],
+            (uint32_t)dst_table,
+            PAGE_PRESENT | PAGE_WRITABLE | (src->entries[i].user ? PAGE_USER : 0)
+        );
+    }
+
+    kserial_printf("paging: deep copied directory to 0x%x\n", (uint32_t)dst);
+    return dst;
+}

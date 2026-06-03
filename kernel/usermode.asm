@@ -66,6 +66,10 @@ iret_to_usermode:
     mov fs, ax
     mov gs, ax
 
+    pop eax                         ; Restore EAX - fork return value
+                                    ; For child this is 0
+                                    ; For create_user_process this is whatever was pushed
+
     ; Pop EIP, CS, EFLAGS, ESP, SS
     ; CPU sees CS RPL=3 and switches to ring 3
     iret
