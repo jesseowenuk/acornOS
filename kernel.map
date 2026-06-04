@@ -10,102 +10,102 @@ Linker script and memory map
 
                 0x00001000                        . = 0x1000
 
-.text           0x00001000     0x3abe
+.text           0x00001000     0x3cfe
  start.o(.text)
  .text          0x00001000       0x19 start.o
                 0x00001000                _start
  kernel.o(.text)
  *fill*         0x00001019        0x7 
- .text          0x00001020      0x45f kernel.o
-                0x000010d0                kernel_main
+ .text          0x00001020      0x47f kernel.o
+                0x000010f0                kernel_main
  *(.text)
- *fill*         0x0000147f        0x1 
- .text          0x00001480      0x231 vga.o
-                0x00001480                vga_set_colour
-                0x000014a0                vga_clear
-                0x000014f0                vga_putchar
-                0x00001620                vga_print
-                0x00001660                vga_init
- *fill*         0x000016b1        0xf 
- .text          0x000016c0       0xf9 gdt.o
-                0x000016c0                gdt_init
-                0x00001770                gdt_set_tss_entry
- *fill*         0x000017b9        0x7 
- .text          0x000017c0       0x1d gdt_flush.o
-                0x000017c0                gdt_flush
- *fill*         0x000017dd        0x3 
- .text          0x000017e0      0x25a idt.o
-                0x000017e0                idt_set_entry
-                0x00001820                idt_init
-                0x00001940                isr_handler
-                0x000019d0                irq_handler
- *fill*         0x00001a3a        0x6 
- .text          0x00001a40       0x87 isr.o
-                0x00001a40                isr0
-                0x00001a47                isr1
-                0x00001a4e                isr2
-                0x00001a55                isr3
-                0x00001a5c                isr128
-                0x00001a8d                irq0
-                0x00001a94                irq1
-                0x00001a9b                isr14
- *fill*         0x00001ac7        0x9 
- .text          0x00001ad0        0x8 idt_flush.o
-                0x00001ad0                idt_flush
- *fill*         0x00001ad8        0x8 
- .text          0x00001ae0       0xef pic.o
-                0x00001ae0                pic_init
-                0x00001b60                pic_send_eoi
-                0x00001b80                pic_mask
-                0x00001bb0                pic_unmask
- *fill*         0x00001bcf        0x1 
- .text          0x00001bd0       0xf9 keyboard.o
-                0x00001bd0                keyboard_handler
-                0x00001c20                keyboard_getchar
-                0x00001c90                keyboard_init
-                0x00001ca0                keyboard_wait
- *fill*         0x00001cc9       0x17 
- .text          0x00001ce0      0x5c6 shell.o
-                0x00001ce0                shell_handle_key
-                0x00002240                shell_init
- *fill*         0x000022a6       0x1a 
- .text          0x000022c0      0x146 timer.o
-                0x000022c0                timer_handler
-                0x000023c0                timer_get_ticks
-                0x000023d0                timer_get_seconds
-                0x000023f0                timer_init
- *fill*         0x00002406       0x1a 
- .text          0x00002420      0x1ee mem.o
-                0x00002420                mem_init
-                0x00002450                kmalloc
-                0x000024f0                kfree
-                0x00002560                mem_print_stats
- *fill*         0x0000260e        0x2 
- .text          0x00002610      0x2a9 serial.o
-                0x00002610                serial_init
-                0x00002790                serial_putchar
-                0x000027b0                serial_print
-                0x00002820                serial_println
- *fill*         0x000028b9        0x7 
- .text          0x000028c0      0x407 pmm.o
-                0x000028c0                pmm_init
-                0x00002b80                pmm_alloc
-                0x00002bf0                pmm_free
-                0x00002c20                pmm_free_pages
-                0x00002c30                pmm_used_pages
-                0x00002c40                pmm_print_stats
- *fill*         0x00002cc7       0x39 
- .text          0x00002d00      0x6e0 paging.o
-                0x00002d00                paging_init
-                0x00002e20                page_fault_handler
-                0x00002ec0                map_page
-                0x00002fc0                map_page_in
-                0x000030c0                unmap_page
-                0x00003100                get_physical
-                0x00003150                paging_clone_directory
-                0x000031f0                paging_switch_directory
+ *fill*         0x0000149f        0x1 
+ .text          0x000014a0      0x231 vga.o
+                0x000014a0                vga_set_colour
+                0x000014c0                vga_clear
+                0x00001510                vga_putchar
+                0x00001640                vga_print
+                0x00001680                vga_init
+ *fill*         0x000016d1        0xf 
+ .text          0x000016e0       0xf9 gdt.o
+                0x000016e0                gdt_init
+                0x00001790                gdt_set_tss_entry
+ *fill*         0x000017d9        0x7 
+ .text          0x000017e0       0x1d gdt_flush.o
+                0x000017e0                gdt_flush
+ *fill*         0x000017fd        0x3 
+ .text          0x00001800      0x25a idt.o
+                0x00001800                idt_set_entry
+                0x00001840                idt_init
+                0x00001960                isr_handler
+                0x000019f0                irq_handler
+ *fill*         0x00001a5a        0x6 
+ .text          0x00001a60       0x87 isr.o
+                0x00001a60                isr0
+                0x00001a67                isr1
+                0x00001a6e                isr2
+                0x00001a75                isr3
+                0x00001a7c                isr128
+                0x00001aad                irq0
+                0x00001ab4                irq1
+                0x00001abb                isr14
+ *fill*         0x00001ae7        0x9 
+ .text          0x00001af0        0x8 idt_flush.o
+                0x00001af0                idt_flush
+ *fill*         0x00001af8        0x8 
+ .text          0x00001b00       0xef pic.o
+                0x00001b00                pic_init
+                0x00001b80                pic_send_eoi
+                0x00001ba0                pic_mask
+                0x00001bd0                pic_unmask
+ *fill*         0x00001bef        0x1 
+ .text          0x00001bf0       0xf9 keyboard.o
+                0x00001bf0                keyboard_handler
+                0x00001c40                keyboard_getchar
+                0x00001cb0                keyboard_init
+                0x00001cc0                keyboard_wait
+ *fill*         0x00001ce9       0x17 
+ .text          0x00001d00      0x5c6 shell.o
+                0x00001d00                shell_handle_key
+                0x00002260                shell_init
+ *fill*         0x000022c6       0x1a 
+ .text          0x000022e0      0x146 timer.o
+                0x000022e0                timer_handler
+                0x000023e0                timer_get_ticks
+                0x000023f0                timer_get_seconds
+                0x00002410                timer_init
+ *fill*         0x00002426       0x1a 
+ .text          0x00002440      0x1ee mem.o
+                0x00002440                mem_init
+                0x00002470                kmalloc
+                0x00002510                kfree
+                0x00002580                mem_print_stats
+ *fill*         0x0000262e        0x2 
+ .text          0x00002630      0x2a9 serial.o
+                0x00002630                serial_init
+                0x000027b0                serial_putchar
+                0x000027d0                serial_print
+                0x00002840                serial_println
+ *fill*         0x000028d9       0x27 
+ .text          0x00002900      0x407 pmm.o
+                0x00002900                pmm_init
+                0x00002bc0                pmm_alloc
+                0x00002c30                pmm_free
+                0x00002c60                pmm_free_pages
+                0x00002c70                pmm_used_pages
+                0x00002c80                pmm_print_stats
+ *fill*         0x00002d07       0x39 
+ .text          0x00002d40      0x6a0 paging.o
+                0x00002d40                paging_init
+                0x00002e60                page_fault_handler
+                0x00002f00                map_page
+                0x00003000                map_page_in
+                0x00003100                unmap_page
+                0x00003140                get_physical
+                0x00003190                paging_clone_directory
+                0x00003210                paging_switch_directory
                 0x00003220                paging_deep_copy_directory
- .text          0x000033e0      0xa5b process.o
+ .text          0x000033e0      0xc77 process.o
                 0x00003469                process_init
                 0x000034b7                process_create
                 0x00003704                process_exit
@@ -114,89 +114,90 @@ Linker script and memory map
                 0x00003808                process_wake
                 0x0000382e                create_user_process
                 0x00003b25                process_fork
- *fill*         0x00003e3b        0x5 
- .text          0x00003e40       0x79 switch.o
-                0x00003e40                switch_context
- *fill*         0x00003eb9        0x7 
- .text          0x00003ec0      0x1ea scheduler.o
-                0x00003ec0                scheduler_init
-                0x00003ef0                scheduler_add
-                0x00003f50                scheduler_tick
-                0x00004020                scheduler_yield
-                0x00004050                scheduler_start
- *fill*         0x000040aa       0x16 
- .text          0x000040c0      0x375 syscall.o
-                0x000043c0                syscall_handler
-                0x00004420                syscall_init
- *fill*         0x00004435        0xb 
- .text          0x00004440      0x55f kprintf.o
-                0x00004440                kvsnprintf
-                0x000048e0                kprintf
-                0x00004930                kserial_printf
- *fill*         0x0000499f        0x1 
- .text          0x000049a0       0xad tss.o
-                0x000049a0                tss_init
-                0x00004a40                tss_set_kernel_stack
- *fill*         0x00004a4d        0x3 
- .text          0x00004a50       0x36 usermode.o
-                0x00004a50                jump_to_usermode
- *fill*         0x00004a86        0xa 
- .text          0x00004a90       0x2e usermode_asm.o
-                0x00004a90                enter_usermode
-                0x00004ab0                iret_to_usermode
+                0x00003e3b                process_exec
+ *fill*         0x00004057        0x9 
+ .text          0x00004060       0x79 switch.o
+                0x00004060                switch_context
+ *fill*         0x000040d9        0x7 
+ .text          0x000040e0      0x1ea scheduler.o
+                0x000040e0                scheduler_init
+                0x00004110                scheduler_add
+                0x00004170                scheduler_tick
+                0x00004240                scheduler_yield
+                0x00004270                scheduler_start
+ *fill*         0x000042ca       0x16 
+ .text          0x000042e0      0x395 syscall.o
+                0x00004600                syscall_handler
+                0x00004660                syscall_init
+ *fill*         0x00004675        0xb 
+ .text          0x00004680      0x55f kprintf.o
+                0x00004680                kvsnprintf
+                0x00004b20                kprintf
+                0x00004b70                kserial_printf
+ *fill*         0x00004bdf        0x1 
+ .text          0x00004be0       0xad tss.o
+                0x00004be0                tss_init
+                0x00004c80                tss_set_kernel_stack
+ *fill*         0x00004c8d        0x3 
+ .text          0x00004c90       0x36 usermode.o
+                0x00004c90                jump_to_usermode
+ *fill*         0x00004cc6        0xa 
+ .text          0x00004cd0       0x2e usermode_asm.o
+                0x00004cd0                enter_usermode
+                0x00004cf0                iret_to_usermode
 
-.rodata         0x00004ac0     0x103c
+.rodata         0x00004d00     0x1128
  *(.rodata)
- .rodata        0x00004ac0       0x40 kernel.o
- .rodata        0x00004b00       0x3b keyboard.o
- *fill*         0x00004b3b        0x1 
- .rodata        0x00004b3c      0x363 process.o
- *fill*         0x00004e9f        0x1 
- .rodata        0x00004ea0       0x1c syscall.o
- .rodata        0x00004ebc       0x58 kprintf.o
+ .rodata        0x00004d00       0x48 kernel.o
+ *fill*         0x00004d48       0x18 
+ .rodata        0x00004d60       0x3b keyboard.o
+ *fill*         0x00004d9b        0x1 
+ .rodata        0x00004d9c      0x440 process.o
+ *fill*         0x000051dc        0x4 
+ .rodata        0x000051e0       0x20 syscall.o
+ .rodata        0x00005200       0x58 kprintf.o
  *(.rodata.*)
  .rodata.str1.1
-                0x00004f14      0x2ef kernel.o
- *fill*         0x00005203        0x1 
+                0x00005258      0x2ef kernel.o
+ *fill*         0x00005547        0x1 
  .rodata.str1.4
-                0x00005204       0x6c kernel.o
+                0x00005548       0x6c kernel.o
  .rodata.str1.1
-                0x00005270       0x5e idt.o
+                0x000055b4       0x5e idt.o
  .rodata.str1.1
-                0x000052ce       0xb0 shell.o
- *fill*         0x0000537e        0x2 
+                0x00005612       0xb0 shell.o
+ *fill*         0x000056c2        0x2 
  .rodata.str1.4
-                0x00005380      0x158 shell.o
+                0x000056c4      0x158 shell.o
  .rodata.str1.1
-                0x000054d8       0x89 mem.o
+                0x0000581c       0x89 mem.o
  .rodata.str1.1
-                0x00005561       0x3c serial.o
- *fill*         0x0000559d        0x3 
+                0x000058a5       0x3c serial.o
+ *fill*         0x000058e1        0x3 
  .rodata.str1.4
-                0x000055a0       0x24 pmm.o
+                0x000058e4       0x24 pmm.o
  .rodata.str1.1
-                0x000055c4       0x6a pmm.o
- *fill*         0x0000562e        0x2 
+                0x00005908       0x6a pmm.o
+ *fill*         0x00005972        0x2 
  .rodata.str1.4
-                0x00005630      0x1e3 paging.o
+                0x00005974      0x1e3 paging.o
  .rodata.str1.1
-                0x00005813       0xb7 paging.o
+                0x00005b57       0xa0 paging.o
  .rodata.str1.1
-                0x000058ca       0x19 scheduler.o
- *fill*         0x000058e3        0x1 
+                0x00005bf7       0x19 scheduler.o
  .rodata.str1.4
-                0x000058e4       0x77 scheduler.o
- *fill*         0x0000595b        0x1 
+                0x00005c10       0x77 scheduler.o
+ *fill*         0x00005c87        0x1 
  .rodata.str1.4
-                0x0000595c       0x72 syscall.o
+                0x00005c88       0x72 syscall.o
  .rodata.str1.1
-                0x000059ce       0xbc syscall.o
+                0x00005cfa       0xbc syscall.o
  .rodata.str1.1
-                0x00005a8a       0x18 kprintf.o
+                0x00005db6       0x18 kprintf.o
  .rodata.str1.1
-                0x00005aa2       0x32 tss.o
+                0x00005dce       0x32 tss.o
  .rodata.str1.4
-                0x00005ad4       0x28 usermode.o
+                0x00005e00       0x28 usermode.o
 
 .data           0x00006000     0x5000
                 0x00006000                        __bss_start = .

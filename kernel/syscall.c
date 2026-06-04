@@ -199,6 +199,20 @@ static void sys_wait(registers_t* regs)
     regs->eax = -1;
 }
 
+// --- sys_exec ------------------------------------------
+static void sys_exec(registers_t* regs)
+{
+    // EBX = entry point address
+    void (*entry)() = (void(*)())regs->ebx;
+
+    // Replace current process
+    // Never returns on success
+    process_exec(entry);
+
+    // Only reached on failure
+    regs->eax = -1;
+}
+
 // --- Syscall dispatch table ----------------------------
 // Array of function pointers - index = syscall number
 // Makes adding new syscalls as simple as adding an entry here
@@ -213,6 +227,7 @@ static syscall_fn syscall_table[] =
     sys_yield,              // 4 = SYS_YIELD
     sys_fork,               // 5 - SYS_FORK
     sys_wait,               // 6 - SYS_WAIT
+    sys_exec,               // 7 - SYS_EXEC
 };
 
 // Number of syscalls in the table

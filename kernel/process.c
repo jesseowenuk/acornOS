@@ -517,3 +517,101 @@ pid_t process_fork()
     // Return child PID to parent
     return child->pid;
 }
+
+// --- process_exec -----------------------------------------
+
+int process_exec(void (*entry)())
+{
+    if(!entry)
+    {
+        kserial_printf("exec: null entry point!\n");
+        return -1;
+    }
+
+    kserial_printf("exec: PID=%d replacing with entry=0x%x\n", current_process->pid, (uint32_t)entry);
+
+    // Step 1: allocate user stack first
+    uint32_t new_stack = (uint32_t)pmm_alloc();
+    if(!new_stack)
+    {
+        kserial_printf("exec: failed to allocate user stack!\n");
+        return -1;
+    }
+
+    // Step 2: Allocate a fresh kernel stack
+    uint32_t new_kstack = (uint32_t)pmm_alloc();
+    if(!new_kstack)
+    {
+        kserial_printf("exec: failed to allocate kernel_stack!\n");
+        return -1;
+    }
+    uint32_t new_kstack_top = new_kstack + PAGE_SIZE - 4;
+
+    // Step 3: allocate a new page directory
+    // We need a fresh address space for the new program
+    // Clone kernel mappings
+    // User space starts empty
+    page_directory_t* new_dir = paging_clone_directory();
+
+    if(!new_dir)
+    {
+        kserial_printf("exec: failed to allocate page directory!\n");
+        pmm_free((void*)new_stack);
+        pmm_free((void*)new_kstack);
+        return -1;
+    }
+
+
+    // Step 4: map user stack into new page directory
+    uint32_t user_stack_virt = 0xBFFFF000;
+    map_page_in(
+        new_dir,
+        user_stack_virt,
+        new_stack,
+        PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER
+    );
+
+    // Step 5: set up iret frame on new kernel stack
+    uint32_t* kstack = (uint32_t*)new_kstack_top;
+    *kstack-- = 0x23;                                   // SS - user stack segment
+    *kstack-- = user_stack_virt + PAGE_SIZE - 4;        // ESP - top of the user stack
+    *kstack-- = 0x200;                                  // EFLAGS - interrupts enabled
+    *kstack-- = 0x1B;                                   // CS - user code segment
+    *kstack-- = (uint32_t)entry;                        // EIP - new entry point
+    *kstack-- = 0;                                      // EAX - return value
+
+    // Step 6: update process fields
+    current_process->stack = new_kstack;
+    current_process->stack_top = new_kstack_top;
+    current_process->page_dir = new_dir;
+
+    // Step 7: Update TSS with new kernel stack
+    tss_set_kernel_stack(new_kstack_top);
+
+    // Step 8: update CPU state to use new stack and entry point
+    uint32_t new_esp = (uint32_t)kstack + 4;
+    current_process->cpu.esp = new_esp;
+    current_process->cpu.eip = (uint32_t)iret_to_usermode;
+    current_process->cpu.eflags = 0x200;
+    current_process->cpu.cs = 0x08;
+    current_process->cpu.ds = 0x10;
+    current_process->cpu.ss = 0x10;
+    current_process->cpu.eax = 0;
+
+    kserial_printf("exec: switching to new program\n");
+
+    // Step 9: Switch to new directory and jump
+    paging_switch_directory(new_dir);
+
+    // Switch to new kernel stack and jump
+    __asm__ volatile(
+        "mov %0, %%esp\n\t"             // Switch to new kernel stack (%0 = first input operand (2nd : below))
+        "jmp iret_to_usermode\n\t"      // Jump to user mode entry
+        :
+        : "r"(new_esp)
+        : "memory"
+    );
+
+    // Never reached
+    return -1;
+}

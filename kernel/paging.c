@@ -387,35 +387,25 @@ page_directory_t* paging_clone_directory()
 
     // Zero out the entire new directory
     // All entries start as not present
-    uint32_t* raw = (uint32_t*)new_dir;
-    
-    for(int i = 0; i < 1024; i++)
-    {
-        // Not present - no mappings yet
-        raw[i] = 0;
-    }
-
     // Copy kernel page directory entries into the new directory
     // We share kernel mappings between all processes
     // Entry 0 covers 0x00000000 - 0x003FFFFF (first 4MB - our kernel)
     // We copy this entry so the new process can still access kernel code
+    uint32_t* raw = (uint32_t*)new_dir;
     uint32_t* kernel_raw = (uint32_t*)&kernel_directory;
-
+    
     for(int i = 0; i < 1024; i++)
     {
         if(kernel_raw[i] & PAGE_PRESENT)
         {
-            // This entry is present in kernel directory
-
-            // SO... share it - point to same page table
-            // Both directories now reference the same
-            // physical page table.
-            // Changes to kernel pages visible to all.
+            // Share ALL present kernel entries
             raw[i] = kernel_raw[i];
         }
-
-        // Non present entries stay zero
-        // User space starts empty
+        else
+        {
+            // Not present - no mappings yet
+            raw[i] = 0;
+        }
     }
 
     kserial_printf("paging: cloned directory at 0x%x\n", (uint32_t)new_dir);
@@ -434,7 +424,7 @@ void paging_switch_directory(page_directory_t* dir)
         return;
     }
 
-    kserial_printf("switching CR3 to 0x%x\n", (uint32_t)dir);
+    //kserial_printf("switching CR3 to 0x%x\n", (uint32_t)dir);
 
     // Load the physical address of the page directory into CR3
     // CR3 = Page Directory Base Register

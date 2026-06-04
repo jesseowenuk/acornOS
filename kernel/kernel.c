@@ -47,7 +47,33 @@ static void idle_process()
     }
 }
 
-// Test
+// Test //////////////////////////////////////////////////
+
+// The program that exec() will load
+static const char exec_msg[] = "Hello from exec'd program!\n";
+
+static void exec_program()
+{
+    __asm__ volatile(
+        "mov $1, %%eax\n\t"             // SYS_WRITE
+        "int $0x80\n\t"
+        :
+        : "b"(exec_msg), "c"(27)
+        : "eax"
+    );
+
+    __asm__ volatile(
+        "mov $0, %%eax\n\t"             // SYS_EXIT
+        "mov $0, %%ebx\n\t"
+        "int $0x80\n\t"
+        :
+        :
+        : "eax", "ebx"
+    );
+
+    for(;;);
+}
+
 static const char wait_parent_msg[] = "Parent: forking...\n";
 static const char wait_child_msg[] = "Child: running!\n";
 static const char wait_done_msg[] = "Parent: child done!\n";
@@ -76,24 +102,17 @@ static void wait_test_program()
 
     if(pid == 0)
     {
-        // Child
+        // Child - exec a new program
         __asm__ volatile(
-            "mov $1, %%eax\n\t"
+            "mov $7, %%eax\n\t"             // SYS_EXEC
             "int $0x80\n\t"
             :
-            : "b"(wait_child_msg), "c"(16)
+            : "b"(exec_program)             // Address of new program
             : "eax"
         );
 
-        // Exit with code 42
-        __asm__ volatile(
-            "mov $0, %%eax\n\t"             // SYS_EXIT
-            "mov $42, %%ebx\n\t"
-            "int $0x80\n\t"
-            :
-            :
-            : "eax", "ebx"
-        );
+        // Should never reach here
+        for(;;);
     }
     else
     {

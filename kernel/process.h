@@ -113,4 +113,9 @@ pid_t process_fork();
 // Wait for a child process to exit - blocks until child is dead
 void process_wait(pid_t pid);
 
+// Replace current process image with a new program
+// entry = address of new program to run
+// Returns -1 on failure, never returns on success
+int process_exec(void (*entry)());
+
 #endif
