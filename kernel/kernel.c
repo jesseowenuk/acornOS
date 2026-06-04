@@ -47,6 +47,88 @@ static void idle_process()
     }
 }
 
+// Test
+static const char wait_parent_msg[] = "Parent: forking...\n";
+static const char wait_child_msg[] = "Child: running!\n";
+static const char wait_done_msg[] = "Parent: child done!\n";
+
+static void wait_test_program()
+{
+    // Print parent message
+    __asm__ volatile(
+        "mov $1, %%eax\n\t"
+        "int $0x80\n\t"
+        :
+        : "b"(wait_parent_msg), "c"(19)
+        : "eax"
+    );
+
+    // Fork
+    uint32_t pid;
+    __asm__ volatile(
+        "mov $5, %%eax\n\t"
+        "int $0x80\n\t"
+        "mov %%eax, %0\n\t"
+        : "=r"(pid)
+        :
+        : "eax"
+    );
+
+    if(pid == 0)
+    {
+        // Child
+        __asm__ volatile(
+            "mov $1, %%eax\n\t"
+            "int $0x80\n\t"
+            :
+            : "b"(wait_child_msg), "c"(16)
+            : "eax"
+        );
+
+        // Exit with code 42
+        __asm__ volatile(
+            "mov $0, %%eax\n\t"             // SYS_EXIT
+            "mov $42, %%ebx\n\t"
+            "int $0x80\n\t"
+            :
+            :
+            : "eax", "ebx"
+        );
+    }
+    else
+    {
+        // Parent waits for child
+        __asm__ volatile(
+            "mov $6, %%eax\n\t"             // SYS_WAIT
+            "int $0x80\n\t"
+            :
+            :
+            : "eax"
+        );
+
+        // Child is done
+        __asm__ volatile(
+            "mov $1, %%eax\n\t"
+            "int $0x80\n\t"
+            :
+            : "b"(wait_done_msg), "c"(20)
+            : "eax"
+        );
+
+        // Parent exits
+        __asm__ volatile(
+            "mov $0, %%eax\n\t"
+            "mov $0, %%ebx\n\t"
+            "int $0x80\n\t"
+            :
+            :
+            : "eax", "ebx"
+        );
+    }
+
+    for(;;);
+}
+
 void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
 {       
     vga_init();                                 // Clear screen, set default colour
@@ -159,6 +241,12 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     // Create and add the shell process
     process_t* shell = process_create("shell", shell_process, 0);
     scheduler_add(shell);
+
+    process_t* wait_test = create_user_process("wait_test", wait_test_program);
+    if(wait_test)
+    {
+        scheduler_add(wait_test);
+    }
 
     scheduler_start();          // start scheduling - never returns
 

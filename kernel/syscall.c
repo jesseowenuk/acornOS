@@ -4,6 +4,7 @@
 #include "keyboard.h"           // For keyboard_getchar
 #include "serial.h"             // For debug logging
 #include "kprintf.h"
+#include "pic.h"
 
 // --- sys_exit ---------------------------------------------------
 // Terminate the current process
@@ -12,7 +13,26 @@ static void sys_exit(registers_t* regs)
 {
     int exit_code = (int)regs->ebx;         // Get exit code from EBX
 
-    kserial_printf("Syscall: exit(%d)\n", exit_code);
+    kserial_printf("Syscall: exit(%d) PID=%d\n", exit_code, current_process->pid);
+
+    // Save exit code for parent to read
+    current_process->exit_code = exit_code;
+
+    // Wake parent if it's waiting
+    if(current_process->parent_pid > 0)
+    {
+        // Find current process
+        for(int i = 0; i < MAX_PROCESSES; i++)
+        {
+            if(process_table[i] && process_table[i]->pid == current_process->parent_pid && process_table[i]->state == PROCESS_BLOCKED)
+            {
+                // Parent is blocked - so lets wake it up!
+                process_wake(process_table[i]);
+                kserial_printf("exit: woke parent PID=%d\n", current_process->parent_pid);
+                break;
+            }
+        }
+    }
 
     // Mark process as dead
     process_exit(current_process);   
@@ -108,6 +128,77 @@ static void sys_fork(registers_t* regs)
     regs->eax = (uint32_t)child_pid;
 }
 
+// --- sys_wait ------------------------------------------
+
+static void sys_wait(registers_t* regs)
+{
+    (void)regs;
+
+    kserial_printf("wait: PID=%d waiting for children\n", current_process->pid);
+
+    // Look for any dead children first
+    // If child already exited before we called wait - no need to block
+    for(int i = 0; i < MAX_PROCESSES; i++)
+    {
+        if(process_table[i] && process_table[i]->parent_pid == current_process->pid && process_table[i]->state == PROCESS_DEAD)
+        {
+            // Found a dead child - collect its exit code
+            int exit_code = process_table[i]->exit_code;
+            kserial_printf("wait: child PID=%d already dead exit=%d\n", process_table[i]->pid, exit_code);
+
+            // Clean up the child
+
+            // Remove from the process table
+            process_table[i] = 0;
+
+            // Return exit code to parent
+            regs->eax = exit_code;
+
+            return;
+        }
+    }
+
+    // No dead children yet - check if we have any children at all
+    int has_children = 0;
+    for(int i = 0; i < MAX_PROCESSES;  i++)
+    {
+        if(process_table[i] && process_table[i]->parent_pid == current_process->pid)
+        {
+            has_children = 1;
+            break;
+        }
+    }
+
+    if(!has_children)
+    {
+        // No children - return error
+        kserial_printf("wait: no children!\n");
+        regs->eax = -1;
+        return;
+    }
+
+    // Block until a child exits
+    // sys_exit will wake us up when a child dies
+    kserial_printf("wait: blocking until child exits\n");
+    process_block(current_process);
+    scheduler_yield();
+
+    // When we wake up a child has exited - find it
+    for(int i = 0; i < MAX_PROCESSES; i++)
+    {
+        if(process_table[i] && process_table[i]->parent_pid == current_process->pid && process_table[i]->state == PROCESS_DEAD)
+        {
+            int exit_code = process_table[i]->exit_code;
+            kserial_printf("wait: child PID=%d exited=%d\n", process_table[i]->pid, exit_code);
+            regs->eax = exit_code;
+            return;
+        }
+    }
+
+    // Something went wrong
+    regs->eax = -1;
+}
+
 // --- Syscall dispatch table ----------------------------
 // Array of function pointers - index = syscall number
 // Makes adding new syscalls as simple as adding an entry here
@@ -121,6 +212,7 @@ static syscall_fn syscall_table[] =
     sys_getpid,             // 3 = SYS_GETPID
     sys_yield,              // 4 = SYS_YIELD
     sys_fork,               // 5 - SYS_FORK
+    sys_wait,               // 6 - SYS_WAIT
 };
 
 // Number of syscalls in the table
