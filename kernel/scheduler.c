@@ -82,8 +82,10 @@ void scheduler_tick(registers_t* regs)
     current_process->ticks_remaining--;
 
     // If the process still has time left - let it continue
-    if(current_process->ticks_remaining > 0 && current_process->pid != 0)
+    if(current_process->ticks_remaining > 0 && current_process->pid != 0 && current_process->state == PROCESS_RUNNING)
     {
+        // Only continue if actually running and has time left.
+        // Blocked processes must switch away!
         return;
     }
 
@@ -134,7 +136,10 @@ void scheduler_tick(registers_t* regs)
     new->ticks_remaining = new->time_slice;
 
     // Update states
-    old->state = (old->state == PROCESS_READY) ? PROCESS_READY : old->state;             
+    // if was RUNNING mark as READY
+    // if was BLOCKED keep as BLOCKED
+    // if was DEAD keep as DEAD
+    old->state = (old->state == PROCESS_RUNNING) ? PROCESS_READY : old->state;             
     new->state = PROCESS_RUNNING;           // Incoming process is now running
 
     // Update current process pointer

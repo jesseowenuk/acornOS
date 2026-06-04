@@ -118,17 +118,17 @@ Linker script and memory map
  .text          0x00003e40       0x79 switch.o
                 0x00003e40                switch_context
  *fill*         0x00003eb9        0x7 
- .text          0x00003ec0      0x1ca scheduler.o
+ .text          0x00003ec0      0x1ea scheduler.o
                 0x00003ec0                scheduler_init
                 0x00003ef0                scheduler_add
                 0x00003f50                scheduler_tick
-                0x00004000                scheduler_yield
-                0x00004030                scheduler_start
- *fill*         0x0000408a       0x16 
- .text          0x000040a0      0x375 syscall.o
-                0x000043a0                syscall_handler
-                0x00004400                syscall_init
- *fill*         0x00004415       0x2b 
+                0x00004020                scheduler_yield
+                0x00004050                scheduler_start
+ *fill*         0x000040aa       0x16 
+ .text          0x000040c0      0x375 syscall.o
+                0x000043c0                syscall_handler
+                0x00004420                syscall_init
+ *fill*         0x00004435        0xb 
  .text          0x00004440      0x55f kprintf.o
                 0x00004440                kvsnprintf
                 0x000048e0                kprintf
