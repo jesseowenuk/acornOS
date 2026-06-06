@@ -14,6 +14,7 @@
 #include "syscall.h"
 #include "kprintf.h"
 #include "tss.h"
+#include "vfs.h"
 
 // The shell runs as a kernel process
 static void shell_process()
@@ -242,6 +243,12 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     kserial_printf("Syscalls initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf("Syscalls online.\n");
+
+    vga_set_colour(WHITE, BLACK);
+    kprintf("Initialising VFS...\n");
+    vfs_init();
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf("VFS online.\n");
 
     kserial_printf("All subsystems online. Starting shell.\n");
 
