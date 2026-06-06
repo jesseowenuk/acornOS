@@ -104,3 +104,48 @@ int vfs_mount(const char* path, fs_ops_t* ops, void* private_data)
     // Success
     return 0;
 }
+
+// --- vfs_find_mount --------------------------------------------------
+
+superblock_t* vfs_find_mount(const char* path)
+{
+    // Best matching mount point so far
+    superblock_t* best = 0;
+
+    // Length of best match so far
+    int best_len = -1;
+
+    for(int i = 0; i < mount_count; i++)
+    {
+        const char* mount = mount_table[i].mount_point;
+        int mlen = kstrlen(mount);
+
+        // Check if this mount point is a prefix of our path
+        // e.g. "/home" is a prefix of "/home/jesse/notes.txt"
+        int match = 1;
+
+        for(int j = 0; j < mlen; j++)
+        {
+            if(mount[j] != path[j])
+            {
+                // Mismatch - not a prefix
+                match = 0;
+
+                break;
+            }
+        }
+
+        if(match && mlen > best_len)
+        {
+            // This is a better match
+            best = &mount_table[i];
+
+            // Update best match length
+            best_len = mlen;
+        }
+    }
+
+    // Return longest matching mount point
+    // NULL if no filesystem owns this path
+    return best;
+}
