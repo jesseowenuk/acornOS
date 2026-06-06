@@ -1,5 +1,6 @@
 #include "vfs.h"
 #include "kprintf.h"
+#include "string.h"
 
 // --- Mount table ------------------------------------------------------
 // Fixed array of mounted filesystems
@@ -45,4 +46,61 @@ void vfs_init()
     mount_count = 0;
 
     kserial_printf("VFS: initialised.\n");
+}
+
+// --- vfs_mount -----------------------------------------------------------
+
+int vfs_mount(const char* path, fs_ops_t* ops, void* private_data)
+{
+    // Check we haven't hit the mount limit
+    if(mount_count >= VFS_MAX_MOUNTS)
+    {
+        kserial_printf("VFS: mount table full!\n");
+        return -1;
+    }
+
+    // Check for duplicate mount point
+    for(int i = 0; i < mount_count; i++)
+    {
+        if(kstrcmp(mount_table[i].mount_point, path) == 0)
+        {
+            kserial_printf("VFS: %s is already mounted!\n", path);
+            return -1;
+        }
+    }
+
+    // Fill in the mount table entry
+    superblock_t* sb = &mount_table[mount_count];
+
+    // Copy mount point path
+    kstrcpy(sb->mount_point, path, VFS_MAX_PATH);
+
+    // Filesystem operations table
+    sb->ops = ops;
+
+    // Filesystem specific data
+    sb->private_data = private_data;
+
+    // Root inode set by filesystem init
+    sb->root = 0;
+
+    // Default flags
+    sb->flags = 0;
+
+    // Ask the filesystem for its root inode
+    // Every filesystem must provide a lookup operation
+    // We use it to get the root directory inode
+    if(ops && ops->lookup)
+    {
+        // NULL parent = ask for root
+        // Filesystem returns its root inode
+        sb->root = ops->lookup(0, "/");
+    }
+
+    mount_count++;
+
+    kserial_printf("VFS: mounted %s\n", path);
+
+    // Success
+    return 0;
 }

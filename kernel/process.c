@@ -6,6 +6,7 @@
 #include "kprintf.h"
 #include "tss.h"
 #include "scheduler.h"
+#include "string.h"
 
 extern void iret_to_usermode();
 
@@ -23,31 +24,6 @@ process_t* current_process = 0;
 // PID 0 = kernel idle process
 // PID 1 = first real process
 uint32_t next_pid = 0;
-
-// --- String helpers --------------------------------------
-// We don't have a standard library so we implement what we need.
-
-static void kstrcpy(char* dst, const char* src, int max)
-{
-    int i = 0;
-    while(src[i] && i < max - 1)
-    {
-        // Copy until null or max reached
-        dst[i] = src[i];
-        i++;
-    }
-    dst[i] = 0;
-}
-
-static void kmemset(void* ptr, uint8_t value, uint32_t size)
-{
-    uint8_t* p = (uint8_t*)ptr;
-    for(uint32_t i = 0; i < size; i++)
-    {
-        // Set each byte to value
-        p[i] = value;
-    }
-}
 
 // --- Init -----------------------------------------------
 // Creates a new process and adds it to the process table

@@ -5,29 +5,7 @@
 #include "pmm.h"
 #include "process.h"
 #include "kprintf.h"
-
-// -- String helpers ----------------------------------------------------
-// We have no standard library so we write our own minimal helpers
-
-// Compare two strings - returns 1 if equal, 0 if not
-static int streq(const char* a, const char* b)
-{
-    // Walk through both strings simultaneously
-    while(*a && *b)
-    {
-        if(*a != *b)
-        {
-            // Mismatch found - not equal
-            return 0;
-        }
-
-        a++;
-        b++;
-    }
-
-    // Both must be at null terminator to be equal
-    return *a == *b;
-}
+#include "string.h"
 
 // Check if a string starts with a given prefix
 // Returns pointer to the character after the prefix, or 0 if no match
@@ -188,29 +166,29 @@ static void process_command()
     // Move to a new line first
     kprintf("\n");
 
-    if(streq(buffer, "help"))
+    if(kstreq(buffer, "help"))
     {
         cmd_help();
     }
-    else if(streq(buffer, "clear"))
+    else if(kstreq(buffer, "clear"))
     {
         cmd_clear();
     }
-    else if(streq(buffer, "about"))
+    else if(kstreq(buffer, "about"))
     {
         cmd_about();
     }
-    else if(streq(buffer, "uptime"))
+    else if(kstreq(buffer, "uptime"))
     {
         // Show uptime since boot
         cmd_uptime();
     }
-    else if(streq(buffer, "mem"))
+    else if(kstreq(buffer, "mem"))
     {
         // Show memory stats
         cmd_mem();
     }
-    else if(streq(buffer, "ps"))
+    else if(kstreq(buffer, "ps"))
     {
         cmd_ps();
     }
