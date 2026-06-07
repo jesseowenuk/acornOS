@@ -577,3 +577,78 @@ int vfs_write(int fd, const void* buf, uint32_t size)
 
     return bytes;
 }
+
+// --- vfs_mkdir -----------------------------------------------------------
+
+int vfs_mkdir(const char* path)
+{
+    // Step 1: find the parent directory
+    char parent_path[VFS_MAX_PATH];
+    char dirname[VFS_MAX_NAME];
+
+    // Split path into parent and new directory name
+    int last_slash = -1;
+    int plen = kstrlen(path);
+
+    for(int i = plen - 1; i >= 0; i--)
+    {
+        if(path[i] == '/')
+        {
+            last_slash = i;
+            break;
+        }
+    }
+
+    if(last_slash <= 0)
+    {
+        // Directory is in root
+        parent_path[0] = '/';
+        parent_path[1] = 0;
+        kstrcpy(dirname, path + 1, VFS_MAX_NAME);
+    }
+    else
+    {
+        // Copy parent path
+        for(int i = 0; i < last_slash; i++)
+        {
+            parent_path[i] = path[i];
+        }
+
+        parent_path[last_slash] = 0;
+        kstrcpy(dirname, path + last_slash + 1, VFS_MAX_NAME);
+    }
+
+    // Step 2: find the parent inode
+    inode_t* parent = vfs_resolve_path(parent_path);
+
+    if(!parent)
+    {
+        kserial_printf("VFS: mkdir() parent not found: %s\n", parent_path);
+        return -1;
+    }
+
+    // Step 3: check parent is a directory
+    if(parent->type != VFS_TYPE_DIR)
+    {
+        kserial_printf("VFS: mkdir() parent is not a directory!\n");
+        return -1;
+    }
+
+    // Step 4: call the filesystem mkdir
+    if(parent->ops || parent->ops->mkdir == 0)
+    {
+        kserial_printf("VFS: filesystem doesn't support mkdir!\n");
+        return -1;
+    }
+
+    int result = parent->ops->mkdir(parent, dirname);
+
+    if(result < 0)
+    {
+        kserial_printf("VFS: mkdir() failed for %s\n", path);
+        return -1;
+    }
+
+    kserial_printf("VFS: created directory %s\n", path);
+    return 0;
+}
