@@ -459,3 +459,46 @@ int vfs_open(const char* path, uint32_t flags)
     // Return file descriptor to caller
     return fd;
 }
+
+// --- vfs_close ------------------------------------------------
+
+int vfs_close(int fd)
+{
+    // Step 1: get the file struct for this fd
+    file_t* file = vfs_get_file(fd);
+
+    if(!file)   
+    {
+        kserial_printf("VFS: close() invalid fd=%d\n", fd);
+
+        // Invalid fd
+        return -1;
+    }
+
+    // Step 2: call filesystem's close() if it has one
+    // Some filesystems need to flush data on close
+    if(file->inode &&
+       file->inode->ops &&
+       file->inode->ops->close != 0)
+    {
+        file->inode->ops->close(file->inode, file);
+    }
+
+    // Step 3: decrement reference count
+    file->ref_count--;
+
+    // Step 4: if no more refences - free the file struct
+    if(file->ref_count == 0)
+    {
+        // Free the file struct
+        kfree(file);
+    }
+
+    // Step 5: free the file descriptor slot
+    vfs_free_fd(fd);
+
+    kserial_printf("VFS: closed fd=%d\n", fd);
+
+    // Success
+    return 0;
+}
