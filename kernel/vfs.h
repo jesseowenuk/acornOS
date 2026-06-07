@@ -211,7 +211,7 @@ int vfs_read(int fd, void* buf, uint32_t size);
 
 // Write to open file
 // Returns bytes written, -1 on error
-int vfs_write(int fd, const char* buf, uint32_t size);
+int vfs_write(int fd, const void* buf, uint32_t size);
 
 // Move file position
 // Returns new position -1 on error

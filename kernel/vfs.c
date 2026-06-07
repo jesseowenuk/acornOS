@@ -539,3 +539,41 @@ int vfs_read(int fd, void* buf, uint32_t size)
     // Returns bytes read, -1 on error
     return bytes;
 }
+
+// --- vfs_write ------------------------------------------------------
+
+int vfs_write(int fd, const void* buf, uint32_t size)
+{
+    // Step 1: get the file  struct
+    file_t* file = vfs_get_file(fd);
+
+    if(!file)
+    {
+        kserial_printf("VFS: write() invalid fd=%d\n", fd);
+        return -1;
+    }
+
+    // Step 2: check file is open for writing
+    if(file->flags == O_RDONLY)
+    {
+        kserial_printf("VFS: write() fd=%d not open for writing!\n", fd);
+        return -1;
+    }
+
+    // Step 3: check filesystem supports write
+    if(!file->inode ||
+       !file->inode->ops ||
+       file->inode->ops->write == 0)
+    {
+        kserial_printf("VFS: filesystem doesn't support write!\n");
+        return -1;
+    }
+
+    // Step 4: delegate to filesystem
+    // Filesystem updates file->position after writing
+
+    // Returns bytes written, -1 on error
+    int bytes = file->inode->ops->write(file, buf, size);
+
+    return bytes;
+}

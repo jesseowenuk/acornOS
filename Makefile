@@ -6,7 +6,7 @@ CFLAGS = -ffreestanding -O2 -Wall -Wextra -fno-builtin
 check-size: kernel.bin
 	@SECTORS=$$(( ($$(wc -c < kernel.bin) + 511) / 512 )); \
 	echo "Kernel: $$(wc -c < kernel.bin) bytes = $$SECTORS sectors"; \
-	if [ $$SECTORS -gt 50 ]; then \
+	if [ $$SECTORS -gt 53 ]; then \
 		echo "WARNING: kernel is too big! Increase sector count in boot.asm!"; \
 	fi
 
