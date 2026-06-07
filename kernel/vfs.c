@@ -246,3 +246,58 @@ inode_t* vfs_resolve_path(const char* path)
     // Found it!
     return current;
 }
+
+// --- vfs_alloc_fd ---------------------------------------------------------
+
+int vfs_alloc_fd(file_t* file)
+{
+    // File descriptors 0, 1, 2 are reserved
+    // 0 = stdin, 1 = stdout, 2 = stderr
+    // Start searching from 3
+    for(int fd = 3; fd < VFS_MAX_FDS; fd++)
+    {
+        if(file_table[fd] == 0)
+        {
+            // Empty slot found
+
+            // Store file pointer
+            file_table[fd] = file;
+
+            // Return the fd number
+            return fd;
+        }
+    }
+
+    kserial_printf("VFS: file descriptor table full!\n");
+
+    // Return the fd number
+    return -1;
+}
+
+// --- vfs_free_fd ----------------------------------------
+
+void vfs_free_fd(int fd)
+{
+    if(fd < 0 || fd >= VFS_MAX_FDS)
+    {
+        // Invalid fd - do nothing
+        return;
+    }
+
+    // Mark slot as free
+    file_table[fd] = 0;
+}
+
+// --- vfs_get_file ----------------------------------------
+
+file_t* vfs_get_file(int fd)
+{
+    if(fd < 0 || fd >= VFS_MAX_FDS)
+    {
+        // Invalid fd
+        return 0;
+    }
+
+    // Return file pointer (may be NULL)
+    return file_table[fd];
+}
