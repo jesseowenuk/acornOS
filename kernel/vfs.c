@@ -652,3 +652,94 @@ int vfs_mkdir(const char* path)
     kserial_printf("VFS: created directory %s\n", path);
     return 0;
 }
+
+// --- vfs_readdir ------------------------------------------------------------
+
+int vfs_readdir(int fd, dentry_t* dentry)
+{
+    // Step 1: get the file struct
+    file_t* file = vfs_get_file(fd);
+
+    if(!file)
+    {
+        kserial_printf("VFS: readdir() invalid fd=%d\n", fd);
+        return -1;
+    }
+
+    // Step 2: Check this is actually a directory
+    if(!file->inode || file->inode->type != VFS_TYPE_DIR)
+    {
+        kserial_printf("VFS: readdir() fd=%d is not a directory!\n", fd);
+        return -1;
+    }
+
+    // Step 3: Check filesystem supports readdir
+    if(!file->inode->ops || file->inode->ops->readdir == 0)
+    {
+        kserial_printf("VFS: filesystem doesn't support readdir!\n");
+        return -1;
+    }
+
+    // Step 4: delegate to filesystem
+    // Filesystem fills in dentry with next entry
+    // file->position tracks which entry we're on
+    // Returns 1 if entry found, 0 if end of directory, -1 on error
+    return file->inode->ops->readdir(file, dentry);
+}
+
+// --- vfs_delete ----------------------------------------------------
+
+int vfs_delete(const char* path)
+{
+    // Step 1: find parent directory and filename
+    char parent_path[VFS_MAX_PATH];
+    char filename[VFS_MAX_NAME];
+
+    int last_slash = -1;
+    int plen = kstrlen(path);
+
+    for(int i = plen - 1; i >= 0; i--)
+    {
+        if(path[i] == '/')
+        {
+            last_slash = i;
+            break;
+        }
+    }
+
+    if(last_slash <= 0)
+    {
+        parent_path[0] = '/';
+        parent_path[1] = 0;
+        kstrcpy(filename, path + 1, VFS_MAX_NAME);
+    }
+    else
+    {
+        for(int i = 0; i < last_slash; i++)
+        {
+            parent_path[i] = path[i];
+        }
+
+        parent_path[last_slash] = 0;
+        kstrcpy(filename, path + last_slash + 1, VFS_MAX_NAME);
+    }
+
+    // Step 2: find parent inode
+    inode_t* parent = vfs_resolve_path(parent_path);
+
+    if(!parent)
+    {
+        kserial_printf("VFS: delete() parent not found: %s\n", parent_path);
+        return -1;
+    }
+
+    // Step 3: call filesystem delete
+    if(!parent->ops || parent->ops->delete == 0)
+    {
+        kserial_printf("VFS: filesystem doesn't support delete!\n");
+        return -1;
+    }
+
+    kserial_printf("VFS: deleted %s\n", path);
+    return 0;
+}
