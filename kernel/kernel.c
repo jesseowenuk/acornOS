@@ -15,6 +15,7 @@
 #include "kprintf.h"
 #include "tss.h"
 #include "vfs.h"
+#include "shadowfs.h"
 
 // The shell runs as a kernel process
 static void shell_process()
@@ -249,6 +250,12 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     vfs_init();
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf("VFS online.\n");
+
+    vga_set_colour(WHITE, BLACK);
+    kprintf("Mounting shadowFS...\n");
+    shadowfs_mount("/temp", 8 * 1024 * 1024);       // 8MB for temp files
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf("shadowFS mounted.\n");
 
     kserial_printf("All subsystems online. Starting shell.\n");
 

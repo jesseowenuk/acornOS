@@ -87,17 +87,6 @@ int vfs_mount(const char* path, fs_ops_t* ops, void* private_data)
 
     // Default flags
     sb->flags = 0;
-
-    // Ask the filesystem for its root inode
-    // Every filesystem must provide a lookup operation
-    // We use it to get the root directory inode
-    if(ops && ops->lookup)
-    {
-        // NULL parent = ask for root
-        // Filesystem returns its root inode
-        sb->root = ops->lookup(0, "/");
-    }
-
     mount_count++;
 
     kserial_printf("VFS: mounted %s\n", path);
