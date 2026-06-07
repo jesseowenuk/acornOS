@@ -3,6 +3,7 @@
 #include "pmm.h"            // For PAGE_SIZE
 #include "kprintf.h"        // For kserial_printf
 #include "string.h"         // For kmemset, kstrcpy etc.
+#include "serial.h"
 
 // --- Forward declarations ---------------------------------------------
 // Internal functions declared here, defined below
@@ -205,11 +206,43 @@ int shadowfs_mount(const char* path, uint32_t quota)
 
 }
 
+// --- shadowfs_lookup ------------------------------------------------------
 static inode_t* shadowfs_lookup(inode_t* dir, const char* name)
 {
-    // TODO:
-    (void)dir;
-    (void)name;
+    // If dir is NULL - return root inode
+    // This is called by vfs_resolve_path when looking up "/"
+    if(!dir)
+    {
+        // Find our superblock and return root
+        // We can't do this without a superblock reference
+        // so return NULL for now - handled by vfs_mount directly
+        return 0;
+    }
+
+    // Get private data for this directory
+    shadowfs_inode_t* priv = (shadowfs_inode_t*)dir->private_data;
+
+    if(!priv)
+    {
+        return 0;
+    }
+
+    // Walk the linked list of directory entries
+    shadowfs_dentry_t* entry = priv->dir.entries;
+
+    while(entry)
+    {
+        if(kstreq(entry->name, name))
+        {
+            // Found it
+            return entry->inode;
+        }
+
+        // Next entry
+        entry = entry->next;
+    }
+
+    // Not found
     return 0;
 }
 

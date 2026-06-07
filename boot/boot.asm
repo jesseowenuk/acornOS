@@ -98,40 +98,94 @@ load_kernel:
     mov si, msg_disk            ; Print the loading message 
     call print
 
-    ; Read track 0, head 0, sectors 2-18 (17 sectors)
-    mov ah, 0x02                ; BIOS read sectors function
-    mov al, 17                  ; Number of sectors to read
-    mov ch, 0                   ; Cylinder number 0
-    mov cl, 2                   ; Start from sector 2 (sector 1 is our bootloader)
-    mov dh, 0                   ; Head number 0
-    mov dl, [boot_drive]        ; Use the saved drive number
-    mov bx, KERNEL_OFFSET       ; Load into memory at 0x1000
-    int 0x13                    ; Call BIOS disk interrupt
-    jc disk_error               ; Jump if carry flag set (error)
+    ; Explicitly ensure DS = 0 before LBA operations
+    xor ax, ax
+    mov ds, ax
 
-    ; Read track 0, head 1, sectors 1-18 (18 sectors)
-    mov ah, 0x02                ; BIOS read sectors function
-    mov al, 18                  ; Number of sectors to read
-    mov ch, 0                   ; Cylinder number 0
-    mov cl, 1                   ; Start from sector 1 (sector 1 is our bootloader)
-    mov dh, 1                   ; Head number 1
-    mov dl, [boot_drive]        ; Use the saved drive number
-    mov bx, KERNEL_OFFSET + (17 * 512)       ; Load after first batch
-    int 0x13                    ; Call BIOS disk interrupt
-    jc disk_error               ; Jump if carry flag set (error)
+    ; Check if LBA extensions are available
+    mov ah, 0x41
+    mov bx, 0x55AA
+    mov dl, [boot_drive]
+    int 0x13
+    jc .no_lba                  ; Carry = no LBA support
 
-    ; Read track 1 head 0 sectors 1 - 18 (next 18 sectors)
-    mov ah, 0x02                ; BIOS read sectors function
-    mov al, 18                  ; Number of sectors to read
-    mov ch, 1                   ; Cylinder number 0
-    mov cl, 1                   ; Start from sector 1 (sector 1 is our bootloader)
-    mov dh, 0                   ; Head number 0
-    mov dl, [boot_drive]        ; Use the saved drive number
-    mov bx, KERNEL_OFFSET + (35 * 512)       ; Load after first batch
-    int 0x13                    ; Call BIOS disk interrupt
-    jc disk_error               ; Jump if carry flag set (error)
+    cmp bx, 0xAA55
+    jne .no_lba
+
+    test cx, 1
+    jz .no_lba
+
+    ; First read: 
+    mov ah, 0x42
+    mov dl, [boot_drive]
+    mov si, packet1
+    int 0x13
+    jc disk_error
+
+    ; Second read: 
+    mov ah, 0x42
+    mov dl, [boot_drive]
+    mov si, packet2
+    int 0x13
+    jc disk_error
+
+    ; Third read: 
+    mov ah, 0x42
+    mov dl, [boot_drive]
+    mov si, packet3
+    int 0x13
+    jc disk_error
+
+    ; Fourth read: 
+    mov ah, 0x42
+    mov dl, [boot_drive]
+    mov si, packet4
+    int 0x13
+    jc disk_error
 
     ret
+
+.no_lba:
+    mov si, msg_no_lba
+    call print
+    jmp $
+
+; --- Disk Address Packet for LBA read ------------------------------
+align 4
+packet1:
+    db 0x10                     ; Packet size (16 bytes)
+    db 0x00                     ; Reserved
+    dw 50                       ; Number of sectors to read
+    dw KERNEL_OFFSET            ; Destination offset
+    dw 0x0000                   ; Destination segment
+    dq 1                        ; LBA start (64-bit) - sector 1
+
+align 4
+packet2:
+    db 0x10                     ; Packet size (16 bytes)
+    db 0x00                     ; Reserved
+    dw 50                       ; Number of sectors to read
+    dw (KERNEL_OFFSET + (50 * 512)) & 0xFFFF ; Destination offset - after first batch
+    dw (KERNEL_OFFSET + (50 * 512)) >> 4                   ; Destination segment
+    dq 51                       ; LBA start - sector 128
+
+align 4
+packet3:
+    db 0x10                     ; Packet size (16 bytes)
+    db 0x00                     ; Reserved
+    dw 50                       ; Number of sectors to read
+    dw (KERNEL_OFFSET + (100 * 512)) & 0xFFFF ; Destination offset - after first batch
+    dw (KERNEL_OFFSET + (100 * 512)) >> 4                   ; Destination segment
+    dq 51                       ; LBA start - sector 128
+
+align 4
+packet4:
+    db 0x10                     ; Packet size (16 bytes)
+    db 0x00                     ; Reserved
+    dw 50                       ; Number of sectors to read
+    dw (KERNEL_OFFSET + (150 * 512)) & 0xFFFF ; Destination offset - after first batch
+    dw (KERNEL_OFFSET + (150 * 512)) >> 4                   ; Destination segment
+    dq 51                       ; LBA start - sector 128
 
 disk_error:
     mov si, msg_error           ; Print the error message
@@ -143,6 +197,7 @@ boot_drive db 0                 ; 1 byte to store the drive
 msg_load db 'acornOS booting...', 13, 10, 0
 msg_disk db 'Loading kernel from disk...', 13, 10, 0
 msg_error db 'Disk read error!', 13, 10, 0
+msg_no_lba db 'No LBA support!', 13, 10, 0
 ; 13 = carriage return, 10 = newline, 0 = null terminator
 
 ; --- GDT -----------------------------------------------------

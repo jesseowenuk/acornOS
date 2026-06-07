@@ -6,7 +6,7 @@ CFLAGS = -ffreestanding -O2 -Wall -Wextra -fno-builtin
 check-size: kernel.bin
 	@SECTORS=$$(( ($$(wc -c < kernel.bin) + 511) / 512 )); \
 	echo "Kernel: $$(wc -c < kernel.bin) bytes = $$SECTORS sectors"; \
-	if [ $$SECTORS -gt 53 ]; then \
+	if [ $$SECTORS -gt 120 ]; then \
 		echo "WARNING: kernel is too big! Increase sector count in boot.asm!"; \
 	fi
 
@@ -61,10 +61,10 @@ kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gd
 
 os.img: boot.bin kernel.bin
 	cat boot.bin kernel.bin > os.img
-	truncate -s 1440k os.img
+	truncate -s 10M os.img
 
 run: os.img check-size
-	qemu-system-i386 -drive format=raw,file=os.img,if=floppy -serial stdio
+	qemu-system-i386 -drive file=os.img,format=raw,index=0,media=disk -serial stdio
 
 clean:
 	rm -f *.bin *.o *.img

@@ -4,8 +4,7 @@
 #include <stdint.h>
 
 // Start of the heap - 1MB mark, safely above kernel and stack
-// Start above PMM bitmap at 0x40000
-#define HEAP_START 0x50000
+#define HEAP_START 0x200000
 
 // Total heap size - 256KB enough for now
 #define HEAP_SIZE 0x40000

@@ -87,6 +87,7 @@ int vfs_mount(const char* path, fs_ops_t* ops, void* private_data)
 
     // Default flags
     sb->flags = 0;
+
     mount_count++;
 
     kserial_printf("VFS: mounted %s\n", path);
@@ -162,10 +163,17 @@ inode_t* vfs_resolve_path(const char* path)
         return 0;
     }
 
+    // If path exactly matches mount point return root
+    if(kstrcmp(path, sb->mount_point) == 0)
+    {
+        return current;
+    }
+
     // If path is just "/" return root immediatley
     if(path[0] == '/' && path[1] == 0)
     {
         // Just the root - return it directly
+        kserial_printf("VFS: returning root\n");
         return current;
     }
 

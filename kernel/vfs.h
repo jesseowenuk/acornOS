@@ -7,8 +7,8 @@
 
 #define VFS_MAX_MOUNTS          16                  // Maximum number of mounted file systems
 #define VFS_MAX_FDS             256                 // Maximum open files per process
-#define VFS_MAX_PATH            256                 // Maximum path length
-#define VFS_MAX_NAME            256                 // Maximum filename length
+#define VFS_MAX_PATH            64
+#define VFS_MAX_NAME            64                  // Maximum filename length
 
 // --- File types -------------------------------------------------
 
@@ -233,7 +233,7 @@ int vfs_delete(const char* path);
 
 // Walk the directory tree to find an inode
 // Returns inode or NULLif not found
-inode_t* vfs_resolution_path(const char* path);
+inode_t* vfs_resolve_path(const char* path);
 
 // Find which filesystem owns this path
 // Returns superblock or NULL if not found

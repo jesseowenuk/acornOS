@@ -9,7 +9,7 @@
 
 // The bitmap lives at a fixed address just above our heap
 // Each bit represents one 4KB page of physcial memory
-#define PMM_BITMAP_ADDRESS 0x40000  // 256KB mark - safely above kernel and stack
+#define PMM_BITMAP_ADDRESS 0x100000  // 1MB mark
 
 // Structure of a single E820 memory map entry
 // Must match exactly what the BIOS wrote during boot
