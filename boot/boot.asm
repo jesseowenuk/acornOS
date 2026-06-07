@@ -98,8 +98,9 @@ load_kernel:
     mov si, msg_disk            ; Print the loading message 
     call print
 
+    ; Read track 0, head 0, sectors 2-18 (17 sectors)
     mov ah, 0x02                ; BIOS read sectors function
-    mov al, 50                  ; Number of sectors to read
+    mov al, 17                  ; Number of sectors to read
     mov ch, 0                   ; Cylinder number 0
     mov cl, 2                   ; Start from sector 2 (sector 1 is our bootloader)
     mov dh, 0                   ; Head number 0
@@ -107,6 +108,29 @@ load_kernel:
     mov bx, KERNEL_OFFSET       ; Load into memory at 0x1000
     int 0x13                    ; Call BIOS disk interrupt
     jc disk_error               ; Jump if carry flag set (error)
+
+    ; Read track 0, head 1, sectors 1-18 (18 sectors)
+    mov ah, 0x02                ; BIOS read sectors function
+    mov al, 18                  ; Number of sectors to read
+    mov ch, 0                   ; Cylinder number 0
+    mov cl, 1                   ; Start from sector 1 (sector 1 is our bootloader)
+    mov dh, 1                   ; Head number 1
+    mov dl, [boot_drive]        ; Use the saved drive number
+    mov bx, KERNEL_OFFSET + (17 * 512)       ; Load after first batch
+    int 0x13                    ; Call BIOS disk interrupt
+    jc disk_error               ; Jump if carry flag set (error)
+
+    ; Read track 1 head 0 sectors 1 - 18 (next 18 sectors)
+    mov ah, 0x02                ; BIOS read sectors function
+    mov al, 18                  ; Number of sectors to read
+    mov ch, 1                   ; Cylinder number 0
+    mov cl, 1                   ; Start from sector 1 (sector 1 is our bootloader)
+    mov dh, 0                   ; Head number 0
+    mov dl, [boot_drive]        ; Use the saved drive number
+    mov bx, KERNEL_OFFSET + (35 * 512)       ; Load after first batch
+    int 0x13                    ; Call BIOS disk interrupt
+    jc disk_error               ; Jump if carry flag set (error)
+
     ret
 
 disk_error:
