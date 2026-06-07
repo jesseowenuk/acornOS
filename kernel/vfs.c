@@ -502,3 +502,40 @@ int vfs_close(int fd)
     // Success
     return 0;
 }
+
+// --- vfs_read --------------------------------------------------
+
+int vfs_read(int fd, void* buf, uint32_t size)
+{
+    // Step 1: get the file struct
+    file_t* file = vfs_get_file(fd);
+
+    if(!file)
+    {
+        kserial_printf("VFS: read() invalid fd=%d\n", fd);
+        return -1;
+    }
+
+    // Step 2: Check file is open for reading
+    if(file->flags == O_WRONLY)
+    {
+        kserial_printf("VFS: read() fd=%d not open for reading!\n", fd);
+        return -1;
+    }
+
+    // Step 3: Check filesystem supports read
+    if(!file->inode ||
+       !file->inode->ops ||
+       file->inode->ops->read == 0)
+    {
+        kserial_printf("VFS: filesystem doesn't support read!\n");
+        return -1;
+    }
+
+    // Step 4: delegate to filesystem
+    // Filesystem updates file->position after reading
+    int bytes = file->inode->ops->read(file, buf, size);
+
+    // Returns bytes read, -1 on error
+    return bytes;
+}
