@@ -120,7 +120,7 @@ typedef struct inode
     uint32_t            modified;                   // Last modification timestamp
     uint32_t            accessed;                   // Last access timestamp
     uint32_t            link_count;                 // Number of directory entries pointing here
-    fs_ops_t            ops;                        // Operations for this filesystem type
+    fs_ops_t*           ops;                        // Operations for this filesystem type
     struct superblock*  sb;                         // Which filesystem this inode belongs to
     void*               private_data;               // Filesystem specific data
                                                     // ramfs stores linked list of blocks here

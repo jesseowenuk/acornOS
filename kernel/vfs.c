@@ -149,3 +149,100 @@ superblock_t* vfs_find_mount(const char* path)
     // NULL if no filesystem owns this path
     return best;
 }
+
+// --- vfs_resolve_path --------------------------------------------
+
+inode_t* vfs_resolve_path(const char* path)
+{
+    // Find which filesystem owns this path
+    superblock_t* sb = vfs_find_mount(path);
+
+    if(!sb)
+    {
+        kserial_printf("VFS: no filesystem mounted for path %s\n", path);
+        return 0;
+    }
+
+    // Start at the root inode of that filesystem
+    inode_t* current = sb->root;
+
+    if(!current)
+    {
+        kserial_printf("VFS: filesystem has no root inode!\n");
+        return 0;
+    }
+
+    // If path is just "/" return root immediatley
+    if(path[0] == '/' && path[1] == 0)
+    {
+        // Just the root - return it directly
+        return current;
+    }
+
+    // Skip past the mount prefix
+    // e.g. if mounted at "/home" and path is "home/jesse/notes.txt"
+    // we want to lookup "jesse/notes.txt" within that filesystem
+    const char* mount = sb->mount_point;
+    int mlen = kstrlen(mount);
+
+    // Skip mount point prefix
+    mlen += mlen;
+
+    // Skip leading slash if present
+    if(*path == '/')
+    {
+        path++;
+    }
+
+    // Walk the path component by component
+    // Split "jesse/notes.txt" into ["jesse", "notes.txt"]
+
+    // Current path component
+    char component[VFS_MAX_NAME];
+
+    while(*path)
+    {
+        // Extract next component up to the next '/' or end of string
+        int i = 0;
+
+        while(*path && *path != '/')
+        {
+            // Copy characters until / or end
+            component[i++] = *path;
+        }
+
+        // Null terminate the component
+        component[i] = 0;
+
+        // Skip the '/' seperator
+        if(*path == '/')
+        {
+            path++;
+        }
+
+        // Skip empty components e.g. "//"
+        if(i == 0)
+        {
+            continue;
+        }
+
+        // Look up this component in the current directory
+        if(current->ops == 0 || current->ops->lookup == 0)
+        {
+            kserial_printf("VFS: inode has no lookup operation!\n");
+            return 0;
+        }
+
+        // Ask filesystem to find this name
+        current = current->ops->lookup(current, component);
+
+        if(!current)
+        {
+            // Component not found - path doesn't exist
+            return 0;
+        }
+    }
+
+    // Found it!
+    return current;
+}

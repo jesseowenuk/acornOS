@@ -10,7 +10,7 @@ Linker script and memory map
 
                 0x00001000                        . = 0x1000
 
-.text           0x00001000     0x406c
+.text           0x00001000     0x40f2
  start.o(.text)
  .text          0x00001000       0x19 start.o
                 0x00001000                _start
@@ -146,65 +146,69 @@ Linker script and memory map
                 0x00004d50                enter_usermode
                 0x00004d70                iret_to_usermode
  *fill*         0x00004d7e        0x2 
- .text          0x00004d80      0x2ec vfs.o
+ .text          0x00004d80      0x372 vfs.o
                 0x00004d80                vfs_init
                 0x00004e00                vfs_mount
                 0x00004f90                vfs_find_mount
+                0x00005070                vfs_resolve_path
 
-.rodata         0x00005080     0x11a7
+.rodata         0x00005100     0x11f4
  *(.rodata)
- .rodata        0x00005080       0x48 kernel.o
- *fill*         0x000050c8       0x18 
- .rodata        0x000050e0       0x3b keyboard.o
- *fill*         0x0000511b        0x1 
- .rodata        0x0000511c      0x440 process.o
- *fill*         0x0000555c        0x4 
- .rodata        0x00005560       0x20 syscall.o
- .rodata        0x00005580       0x58 kprintf.o
+ .rodata        0x00005100       0x48 kernel.o
+ *fill*         0x00005148       0x18 
+ .rodata        0x00005160       0x3b keyboard.o
+ *fill*         0x0000519b        0x1 
+ .rodata        0x0000519c      0x440 process.o
+ *fill*         0x000055dc        0x4 
+ .rodata        0x000055e0       0x20 syscall.o
+ .rodata        0x00005600       0x58 kprintf.o
  *(.rodata.*)
  .rodata.str1.1
-                0x000055d8      0x311 kernel.o
- *fill*         0x000058e9        0x3 
+                0x00005658      0x311 kernel.o
+ *fill*         0x00005969        0x3 
  .rodata.str1.4
-                0x000058ec       0x6c kernel.o
+                0x0000596c       0x6c kernel.o
  .rodata.str1.1
-                0x00005958       0x5e idt.o
+                0x000059d8       0x5e idt.o
  .rodata.str1.1
-                0x000059b6       0xb0 shell.o
- *fill*         0x00005a66        0x2 
+                0x00005a36       0xb0 shell.o
+ *fill*         0x00005ae6        0x2 
  .rodata.str1.4
-                0x00005a68      0x158 shell.o
+                0x00005ae8      0x158 shell.o
  .rodata.str1.1
-                0x00005bc0       0x89 mem.o
+                0x00005c40       0x89 mem.o
  .rodata.str1.1
-                0x00005c49       0x3c serial.o
- *fill*         0x00005c85        0x3 
+                0x00005cc9       0x3c serial.o
+ *fill*         0x00005d05        0x3 
  .rodata.str1.4
-                0x00005c88       0x24 pmm.o
+                0x00005d08       0x24 pmm.o
  .rodata.str1.1
-                0x00005cac       0x6a pmm.o
- *fill*         0x00005d16        0x2 
+                0x00005d2c       0x6a pmm.o
+ *fill*         0x00005d96        0x2 
  .rodata.str1.4
-                0x00005d18      0x1e3 paging.o
+                0x00005d98      0x1e3 paging.o
  .rodata.str1.1
-                0x00005efb       0xa0 paging.o
+                0x00005f7b       0xa0 paging.o
  .rodata.str1.1
-                0x00005f9b       0x19 scheduler.o
+                0x0000601b       0x19 scheduler.o
  .rodata.str1.4
-                0x00005fb4       0x77 scheduler.o
- *fill*         0x0000602b        0x1 
+                0x00006034       0x77 scheduler.o
+ *fill*         0x000060ab        0x1 
  .rodata.str1.4
-                0x0000602c       0x72 syscall.o
+                0x000060ac       0x72 syscall.o
  .rodata.str1.1
-                0x0000609e       0xbc syscall.o
+                0x0000611e       0xbc syscall.o
  .rodata.str1.1
-                0x0000615a       0x18 kprintf.o
+                0x000061da       0x18 kprintf.o
  .rodata.str1.1
-                0x00006172       0x32 tss.o
+                0x000061f2       0x32 tss.o
  .rodata.str1.4
-                0x000061a4       0x28 usermode.o
+                0x00006224       0x28 usermode.o
  .rodata.str1.1
-                0x000061cc       0x5b vfs.o
+                0x0000624c       0x5b vfs.o
+ *fill*         0x000062a7        0x1 
+ .rodata.str1.4
+                0x000062a8       0x4c vfs.o
 
 .data           0x00007000     0x6120
                 0x00007000                        __bss_start = .
