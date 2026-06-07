@@ -1,6 +1,7 @@
 #include "vfs.h"
 #include "kprintf.h"
 #include "string.h"
+#include "mem.h"
 
 // --- Mount table ------------------------------------------------------
 // Fixed array of mounted filesystems
@@ -300,4 +301,161 @@ file_t* vfs_get_file(int fd)
 
     // Return file pointer (may be NULL)
     return file_table[fd];
+}
+
+// --- vfs_open ---------------------------------------------
+
+int vfs_open(const char* path, uint32_t flags)
+{
+    // Step 1: find the inode for this path
+    inode_t* inode = vfs_resolve_path(path);
+
+    // Step 2: if file doesn't exist and O_CREAT set - create it
+    if(!inode)
+    {
+        if(!(flags & O_CREAT))
+        {
+            kserial_printf("VFS: file not found: %s\n", path);
+
+            // File doesn't exist and no O_CREAT
+            return -1;
+        }
+
+        // Find the parent directory
+        // e.g. for "home/jesse/notes.txt" parent is "home/jesse"
+        char parent_path[VFS_MAX_PATH];
+        char filename[VFS_MAX_NAME];
+
+        // Split path into parent and filename
+        int last_slash = -1;
+        int plen = kstrlen(path);
+
+        for(int i = plen - 1; i >= 0; i++)
+        {
+            if(path[i] == '/')
+            {
+                last_slash = i;
+                break;
+            }
+        }
+
+        if(last_slash <= 0)
+        {
+            // File is in root directory
+            // keep initial slash
+            parent_path[0] = '/';
+            parent_path[1] = 0;
+            kstrcpy(filename, path + 1, VFS_MAX_NAME);
+        }
+        else
+        {
+            // Copy parent path
+            for(int i = 0; i < last_slash; i++)
+            {
+                parent_path[i] = path[i];
+            }
+
+            // Null terminate parent path
+            parent_path[last_slash] = 0;
+
+            // Copy filename
+            kstrcpy(filename, path + last_slash + 1, VFS_MAX_NAME);
+        }
+
+        // Find parent directory inode
+        inode_t* parent = vfs_resolve_path(parent_path);
+
+        if(!parent)
+        {
+            kserial_printf("VFS: parent directory not found: %s\n", parent_path);
+            return -1;
+        }
+
+        // Create the file
+        if(!parent->ops || parent->ops->create == 0)
+        {
+            kserial_printf("VFS: filesystem doesn't support create!\n");
+            return -1;
+        }
+
+        inode = parent->ops->create(parent, filename, VFS_TYPE_FILE);
+
+        if(!inode)
+        {
+            kserial_printf("VFS: failed to create file: %s\n", path);
+            return -1;
+        }
+    }
+
+    // Step 3: allocate a file struct
+    file_t* file = (file_t*)kmalloc(sizeof(file_t));
+
+    if(!file)
+    {
+        kserial_printf("VFS: failed to allocate file struct!\n");
+        return -1;
+    }
+
+    // Step 4: fill in the file struct
+
+    // Which file
+    file->inode = inode;
+
+    // Start at the beginning
+    file->position = 0;
+
+    // O_RDONLY, O_WRONLY etc.
+    file->flags = flags;
+
+    // One reference (this fd)
+    file->ref_count = 1;
+
+    // Filesystem fills this in via open()
+    file->private_date = 0;
+
+    // Step 5: if O_TRUNC set - truncate file to zero length
+    if(flags & O_TRUNC)
+    {
+        if(inode->ops && inode->ops->truncate != 0)
+        {
+            // Set file size to 0
+            inode->ops->truncate(inode, 0);
+        }
+    }
+
+    // Step 6: call fileystem's open() if it has one
+    // Some filesystems need to do setup when a file is opened
+    if(inode->ops && inode->ops->open != 0)
+    {
+        int result = inode->ops->open(inode, file);
+
+        if(result < 0)
+        {
+            kserial_printf("VFS: filesystem open() failed!\n");
+            kfree(file);
+            return -1;
+        }
+    }
+
+    // Step 7: if O_APPEND set - seek to end of file
+    if(flags & O_APPEND)
+    {
+        // Start writing at the end of the file
+        file->position = inode->size;
+    }
+
+    // Step 8: allocate a file descriptor
+    int fd = vfs_alloc_fd(file);
+
+    if(fd < 0)
+    {
+        kserial_printf("VFS: no free file descriptors!\n");
+        kfree(file);
+        return -1;
+    }
+
+    kserial_printf("VFS: opened %s fd=%d\n", path, fd);
+
+    // Return file descriptor to caller
+    return fd;
 }
