@@ -246,13 +246,90 @@ static inode_t* shadowfs_lookup(inode_t* dir, const char* name)
     return 0;
 }
 
+// --- shadowfs_create --------------------------------------------------
 static inode_t* shadowfs_create(inode_t* dir, const char* name, uint32_t type)
 {
-    // TODO:
-    (void)dir;
-    (void)name;
-    (void)type;
-    return 0;
+    // Step 1: get mount data so we can check quota
+    shadowfs_mount_t* mount = (shadowfs_mount_t*)dir->sb->private_data;
+
+    // Step 2: check quota
+    if(mount->used >= mount->quota)
+    {
+        kserial_printf("shadowFS: quota exceeded!\n");
+        return 0;
+    }
+
+    // Step 3: get directory private data
+    shadowfs_inode_t* dir_priv = (shadowfs_inode_t*)dir->private_data;
+
+    if(!dir_priv)
+    {
+        return 0;
+    }
+
+    // Step 4: check name doesn't already exist
+    shadowfs_dentry_t* entry = dir_priv->dir.entries;
+
+    while(entry)
+    {
+        if(kstreq(entry->name, name))
+        {
+            kserial_printf("shadowFS: %s already exists!\n", name);
+            return 0;
+        }
+        
+        entry = entry->next;
+    }
+
+    // Step 5: create new inode
+    inode_t* inode = shadowfs_create_inode(dir->sb, type);
+
+    if(!inode)
+    {
+        return 0;
+    }
+
+    // Step 6: allocate directory entry
+    shadowfs_dentry_t* dentry = (shadowfs_dentry_t*)kmalloc(sizeof(shadowfs_dentry_t));
+
+    if(!dentry)
+    {
+        kfree(inode->private_data);
+        kfree(inode);
+        return 0;
+    }
+
+    // Step 7: fill in the directory entry
+    kstrcpy(dentry->name, name, VFS_MAX_NAME);
+    dentry->inode = inode;
+    dentry->next = 0;
+
+    // Step 8: Add to directory linked list
+    if(!dir_priv->dir.entries)
+    {
+        // First entry
+        dir_priv->dir.entries = dentry;
+    }
+    else
+    {
+        // Walk to the end of the list
+        shadowfs_dentry_t* last = dir_priv->dir.entries;
+
+        while(last->next)
+        {
+            last = last->next;
+        }
+
+        last->next = dentry;
+    }
+
+    dir_priv->dir.count++;
+
+    // Step 9: update quota usage
+    mount->used += sizeof(shadowfs_dentry_t) + sizeof(inode_t);
+
+    kserial_printf("shadowFS: created %s\n", name);
+    return inode;
 }
 
 static int      shadowfs_delete(inode_t* dir, const char* name)
