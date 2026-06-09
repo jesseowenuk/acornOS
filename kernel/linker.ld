@@ -14,7 +14,7 @@ SECTIONS {
         *(.rodata.*)        /* Compiler sometimes splits rodata into subsections */
     }
 
-    .data : {               /* Initialised global variables
+    .data : {               /* Initialised global variables */
         *(.data)
     }
 

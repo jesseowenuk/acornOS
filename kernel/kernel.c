@@ -257,6 +257,17 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf("shadowFS mounted.\n");
 
+    int fd = vfs_open("/temp/test.txt", O_CREAT | O_WRONLY);
+
+    if(fd >= 0)
+    {
+        kserial_printf("shadowFS: created /temp/test.txt fd=%d\n", fd);
+    }
+    else
+    {
+        kserial_printf("shadowFS: FAILED to create /temp/test.txt\n");
+    }
+
     kserial_printf("All subsystems online. Starting shell.\n");
 
     // Enable hardware interrupts.

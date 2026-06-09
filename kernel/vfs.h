@@ -139,7 +139,7 @@ typedef struct file
     uint32_t        flags;                          // O_RDOLY, O_WRONLY, O_RDWR etc.
     uint32_t        ref_count;                      // How many fds point to this file
                                                     // Incremented by dup(), decremented by close()
-    void*           private_date;                   // Filesystem specific per-open-file data
+    void*           private_data;                   // Filesystem specific per-open-file data
 } file_t;
 
 // --- Directory entry ---------------------------------------

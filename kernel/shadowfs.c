@@ -137,7 +137,7 @@ int shadowfs_mount(const char* path, uint32_t quota)
     {
         // Refuse if quota > 50% of free RAM
         // Protects the rest of the system
-        kserial_printf("shadowFS: quota %u exceeds 50% of free RAM!\n", quota);
+        kserial_printf("shadowFS: quota %u exceeds 50%% of free RAM!\n", quota);
         return -1;
     }
 
@@ -203,7 +203,6 @@ int shadowfs_mount(const char* path, uint32_t quota)
 
     kserial_printf("shadowFS: mounted at %s quota=%uKB\n", path, quota / 1024);
     return 0;
-
 }
 
 // --- shadowfs_lookup ------------------------------------------------------

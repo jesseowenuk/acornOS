@@ -1,7 +1,7 @@
 .PHONY: all run clean
 
 CC = i686-elf-gcc
-CFLAGS = -ffreestanding -O2 -Wall -Wextra -fno-builtin
+CFLAGS = -ffreestanding -O1 -Wall -Wextra -fno-builtin
 
 check-size: kernel.bin
 	@SECTORS=$$(( ($$(wc -c < kernel.bin) + 511) / 512 )); \
@@ -43,7 +43,7 @@ kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gd
 	$(CC) $(CFLAGS) -c kernel/usermode.c -o usermode.o
 	$(CC) $(CFLAGS) -c kernel/vfs.c -o vfs.o
 	$(CC) $(CFLAGS) -c kernel/shadowfs.c -o shadowfs.o
-	$(CC) $(CFLAGS) -ffreestanding -O0 -Wall -fno-builtin -c kernel/process.c -o process.o
+	$(CC) $(CFLAGS) -c kernel/process.c -o process.o
 	nasm -f elf kernel/start.asm -o start.o
 	nasm -f elf kernel/gdt_flush.asm -o gdt_flush.o
 	nasm -f elf kernel/isr.asm -o isr.o

@@ -147,7 +147,7 @@ inode_t* vfs_resolve_path(const char* path)
 {
     // Find which filesystem owns this path
     superblock_t* sb = vfs_find_mount(path);
-
+    
     if(!sb)
     {
         kserial_printf("VFS: no filesystem mounted for path %s\n", path);
@@ -184,7 +184,7 @@ inode_t* vfs_resolve_path(const char* path)
     int mlen = kstrlen(mount);
 
     // Skip mount point prefix
-    mlen += mlen;
+    path += mlen;
 
     // Skip leading slash if present
     if(*path == '/')
@@ -206,7 +206,7 @@ inode_t* vfs_resolve_path(const char* path)
         while(*path && *path != '/')
         {
             // Copy characters until / or end
-            component[i++] = *path;
+            component[i++] = *path++;
         }
 
         // Null terminate the component
@@ -306,7 +306,7 @@ int vfs_open(const char* path, uint32_t flags)
 {
     // Step 1: find the inode for this path
     inode_t* inode = vfs_resolve_path(path);
-
+    
     // Step 2: if file doesn't exist and O_CREAT set - create it
     if(!inode)
     {
@@ -327,7 +327,7 @@ int vfs_open(const char* path, uint32_t flags)
         int last_slash = -1;
         int plen = kstrlen(path);
 
-        for(int i = plen - 1; i >= 0; i++)
+        for(int i = plen - 1; i >= 0; i--)
         {
             if(path[i] == '/')
             {
@@ -408,7 +408,7 @@ int vfs_open(const char* path, uint32_t flags)
     file->ref_count = 1;
 
     // Filesystem fills this in via open()
-    file->private_date = 0;
+    file->private_data = 0;
 
     // Step 5: if O_TRUNC set - truncate file to zero length
     if(flags & O_TRUNC)
