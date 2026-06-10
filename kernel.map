@@ -90,41 +90,41 @@ Linker script and memory map
                 0x000028d6                pmm_used_pages
                 0x000028dc                pmm_print_stats
  *fill*         0x00002964       0x1c 
- .text          0x00002980      0x5e3 paging.o
+ .text          0x00002980      0x603 paging.o
                 0x000029c6                paging_init
                 0x00002a9f                page_fault_handler
                 0x00002b40                map_page
                 0x00002c06                map_page_in
-                0x00002cc0                unmap_page
-                0x00002cfe                get_physical
-                0x00002d4c                paging_clone_directory
-                0x00002dc6                paging_switch_directory
-                0x00002dd5                paging_deep_copy_directory
- *fill*         0x00002f63       0x1d 
- .text          0x00002f80      0x981 process.o
-                0x00002f80                process_init
-                0x00002fd9                process_create
-                0x000031c6                process_exit
-                0x000031f0                process_print_all
-                0x00003294                process_block
-                0x000032a7                process_wake
-                0x000032c0                create_user_process
-                0x0000353f                process_fork
-                0x00003793                process_exec
- *fill*         0x00003901        0xf 
- .text          0x00003910       0x79 switch.o
-                0x00003910                switch_context
- .text          0x00003989      0x1bf scheduler.o
-                0x00003989                scheduler_init
-                0x000039b2                scheduler_add
-                0x00003a0d                scheduler_tick
-                0x00003ad0                scheduler_yield
-                0x00003af3                scheduler_start
- *fill*         0x00003b48       0x18 
- .text          0x00003b60      0x362 syscall.o
-                0x00003e59                syscall_handler
-                0x00003ead                syscall_init
- *fill*         0x00003ec2       0x3e 
+                0x00002ce1                unmap_page
+                0x00002d1f                get_physical
+                0x00002d6d                paging_clone_directory
+                0x00002de6                paging_switch_directory
+                0x00002df5                paging_deep_copy_directory
+ *fill*         0x00002f83       0x1d 
+ .text          0x00002fa0      0x981 process.o
+                0x00002fa0                process_init
+                0x00002ff9                process_create
+                0x000031e6                process_exit
+                0x00003210                process_print_all
+                0x000032b4                process_block
+                0x000032c7                process_wake
+                0x000032e0                create_user_process
+                0x0000355f                process_fork
+                0x000037b3                process_exec
+ *fill*         0x00003921        0xf 
+ .text          0x00003930       0x79 switch.o
+                0x00003930                switch_context
+ .text          0x000039a9      0x1bf scheduler.o
+                0x000039a9                scheduler_init
+                0x000039d2                scheduler_add
+                0x00003a2d                scheduler_tick
+                0x00003af0                scheduler_yield
+                0x00003b13                scheduler_start
+ *fill*         0x00003b68       0x18 
+ .text          0x00003b80      0x362 syscall.o
+                0x00003e79                syscall_handler
+                0x00003ecd                syscall_init
+ *fill*         0x00003ee2       0x1e 
  .text          0x00003f00      0x41b kprintf.o
                 0x00003fa7                kvsnprintf
                 0x0000425a                kprintf
@@ -162,7 +162,7 @@ Linker script and memory map
  .text          0x000055e2       0x56 panic.o
                 0x000055e2                kpanic
 
-.rodata         0x00005640     0x18d5
+.rodata         0x00005640     0x18f9
  *(.rodata)
  .rodata        0x00005640       0x48 kernel.o
  *fill*         0x00005688       0x18 
@@ -196,65 +196,65 @@ Linker script and memory map
                 0x00005f1b       0x6a pmm.o
  *fill*         0x00005f85        0x3 
  .rodata.str1.4
-                0x00005f88      0x1e3 paging.o
+                0x00005f88      0x1e7 paging.o
  .rodata.str1.1
-                0x0000616b       0xa0 paging.o
- *fill*         0x0000620b        0x1 
+                0x0000616f       0xbe paging.o
+ *fill*         0x0000622d        0x3 
  .rodata.str1.4
-                0x0000620c      0x3a4 process.o
+                0x00006230      0x3a4 process.o
  .rodata.str1.1
-                0x000065b0       0x9f process.o
+                0x000065d4       0x9f process.o
  .rodata.str1.1
-                0x0000664f       0x19 scheduler.o
+                0x00006673       0x19 scheduler.o
  .rodata.str1.4
-                0x00006668       0x77 scheduler.o
- *fill*         0x000066df        0x1 
+                0x0000668c       0x77 scheduler.o
+ *fill*         0x00006703        0x1 
  .rodata.str1.4
-                0x000066e0       0x72 syscall.o
+                0x00006704       0x72 syscall.o
  .rodata.str1.1
-                0x00006752       0xbc syscall.o
+                0x00006776       0xbc syscall.o
  .rodata.str1.1
-                0x0000680e       0x18 kprintf.o
+                0x00006832       0x18 kprintf.o
  .rodata.str1.1
-                0x00006826       0x32 tss.o
+                0x0000684a       0x32 tss.o
  .rodata.str1.4
-                0x00006858       0x28 usermode.o
+                0x0000687c       0x28 usermode.o
  .rodata.str1.1
-                0x00006880      0x169 vfs.o
- *fill*         0x000069e9        0x3 
+                0x000068a4      0x169 vfs.o
+ *fill*         0x00006a0d        0x3 
  .rodata.str1.4
-                0x000069ec      0x339 vfs.o
- *fill*         0x00006d25        0x3 
+                0x00006a10      0x339 vfs.o
+ *fill*         0x00006d49        0x3 
  .rodata.str1.4
-                0x00006d28      0x12c shadowfs.o
+                0x00006d4c      0x12c shadowfs.o
  .rodata.str1.1
-                0x00006e54       0x6c shadowfs.o
+                0x00006e78       0x6c shadowfs.o
  .rodata.str1.1
-                0x00006ec0       0x55 panic.o
+                0x00006ee4       0x55 panic.o
 
-.data           0x00006f20       0x30
+.data           0x00006f40       0x30
  *(.data)
- .data          0x00006f20        0x0 kernel.o
- .data          0x00006f20        0x0 vga.o
- .data          0x00006f20        0x0 gdt.o
- .data          0x00006f20        0x0 idt.o
- .data          0x00006f20        0x0 pic.o
- .data          0x00006f20        0x0 keyboard.o
- .data          0x00006f20        0x0 shell.o
- .data          0x00006f20        0x0 timer.o
- .data          0x00006f20        0x0 mem.o
- .data          0x00006f20        0x0 serial.o
- .data          0x00006f20        0x0 pmm.o
- .data          0x00006f20        0x0 paging.o
- .data          0x00006f20        0x0 process.o
- .data          0x00006f20        0x0 scheduler.o
- .data          0x00006f20        0x0 syscall.o
- .data          0x00006f20        0x0 kprintf.o
- .data          0x00006f20        0x0 tss.o
- .data          0x00006f20        0x0 usermode.o
- .data          0x00006f20        0x0 vfs.o
- .data          0x00006f20       0x30 shadowfs.o
- .data          0x00006f50        0x0 panic.o
+ .data          0x00006f40        0x0 kernel.o
+ .data          0x00006f40        0x0 vga.o
+ .data          0x00006f40        0x0 gdt.o
+ .data          0x00006f40        0x0 idt.o
+ .data          0x00006f40        0x0 pic.o
+ .data          0x00006f40        0x0 keyboard.o
+ .data          0x00006f40        0x0 shell.o
+ .data          0x00006f40        0x0 timer.o
+ .data          0x00006f40        0x0 mem.o
+ .data          0x00006f40        0x0 serial.o
+ .data          0x00006f40        0x0 pmm.o
+ .data          0x00006f40        0x0 paging.o
+ .data          0x00006f40        0x0 process.o
+ .data          0x00006f40        0x0 scheduler.o
+ .data          0x00006f40        0x0 syscall.o
+ .data          0x00006f40        0x0 kprintf.o
+ .data          0x00006f40        0x0 tss.o
+ .data          0x00006f40        0x0 usermode.o
+ .data          0x00006f40        0x0 vfs.o
+ .data          0x00006f40       0x30 shadowfs.o
+ .data          0x00006f70        0x0 panic.o
 
 .bss            0x00007000     0x5920
                 0x00007000                        __bss_start = .

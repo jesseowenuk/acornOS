@@ -2,6 +2,7 @@
 #include "pmm.h"            // For PAGE_SIZE
 #include "vga.h"
 #include "kprintf.h"
+#include "panic.h"
 
 // --- Page directory -----------------------------------
 // We declare this statically so it lives in the kernel's BSS segment
@@ -224,7 +225,7 @@ void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags)
 
         if(!new_table)
         {
-            kserial_printf("map page: out of page tables!\n");
+            kpanic("map page: out of page tables!");
             return;
         }
 
@@ -265,6 +266,12 @@ void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags)
 // Map a page in a SPECIFIC page directory
 void map_page_in(page_directory_t* dir, uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags)
 {
+    // Guard against null directory
+    if(!dir)
+    {
+        kpanic("map_page_in: null page directory!");
+    }
+
     virtual_addr &= ~0xFFF;
     physical_addr &= ~0xFFF;
 
