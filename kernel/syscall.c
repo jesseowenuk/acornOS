@@ -5,12 +5,18 @@
 #include "serial.h"             // For debug logging
 #include "kprintf.h"
 #include "pic.h"
+#include "panic.h"
 
 // --- sys_exit ---------------------------------------------------
 // Terminate the current process
 // arg1 (ebx) = exit code
 static void sys_exit(registers_t* regs)
 {
+    if(!current_process)
+    {
+        kpanic("sys_exit: no current process!");
+    }
+
     int exit_code = (int)regs->ebx;         // Get exit code from EBX
 
     kserial_printf("Syscall: exit(%d) PID=%d\n", exit_code, current_process->pid);
@@ -62,6 +68,14 @@ static void sys_write(registers_t* regs)
         regs->eax = -1;
 
         // return error
+        return;
+    }
+
+    // Guard against absurdly large writes
+    if(len > 4096)
+    {
+        kserial_printf("sys_write: suspicous length %d\n", len);
+        regs->eax = -1;
         return;
     }
 
@@ -121,6 +135,11 @@ static void sys_yield(registers_t* regs)
 // Fork the current process
 static void sys_fork(registers_t* regs)
 {
+    if(!current_process)
+    {
+        kpanic("sys_fork: no current process!");
+    }
+
     pid_t child_pid = process_fork();
 
     // Return child PID to parent
@@ -205,6 +224,13 @@ static void sys_exec(registers_t* regs)
     // EBX = entry point address
     void (*entry)() = (void(*)())regs->ebx;
 
+    if(!entry)
+    {
+        kserial_printf("sys_exec: null entry point!\n");
+        regs->eax = -1;
+        return;
+    }
+
     // Replace current process
     // Never returns on success
     process_exec(entry);
@@ -241,6 +267,11 @@ static syscall_fn syscall_table[] =
 
 void syscall_handler(registers_t* regs)
 {
+    if(!regs)
+    {
+        kpanic("syscall_handler: null registers!");
+    }
+
     // Save user space state before handling syscall
     // Used by fork() to resume child at correct location
     if(current_process)
@@ -255,7 +286,7 @@ void syscall_handler(registers_t* regs)
     if(syscall_num >= SYSCALL_COUNT)
     {
         // Invalid syscall number
-        kserial_printf("Syscall: unknown syscall %d\n.", syscall_num);
+        kserial_printf("Syscall: unknown syscall %d\n", syscall_num);
 
         // return error
         regs->eax = -1;
