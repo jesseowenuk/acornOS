@@ -360,6 +360,7 @@ pid_t process_fork()
     if(!current_process)
     {
         // No current process
+        kpanic("fork: no current process!");
         return -1;
     }
 
@@ -376,7 +377,7 @@ pid_t process_fork()
 
     if(slot == -1)
     {
-        kserial_printf("fork: process table full\n");
+        kpanic("fork: process table full");
         return -1;
     }
 
@@ -433,9 +434,7 @@ pid_t process_fork()
     child->page_dir = paging_deep_copy_directory(current_process->page_dir);
     if(!child->page_dir)
     {
-        kserial_printf("fork: failed to copy page directory!\n");
-        pmm_free((void*)child->stack);
-        kfree(child);
+        kpanic("fork: failed to deep copy page directory!");
         return -1;
     }
 
