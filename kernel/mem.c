@@ -1,6 +1,7 @@
 #include "mem.h"
 #include "vga.h"        // For mem_print_stats() output
 #include "kprintf.h"
+#include "panic.h"
 
 // --- Block header --------------------------------------
 // Every allocation is preceded by this header in memory
@@ -48,6 +49,7 @@ void* kmalloc(uint32_t size)
     // Allocating zero bytes makes no sense
     if(size == 0)
     {
+        kpanic("kmalloc: requested zero bytes!");
         return 0;
     }
     
@@ -109,6 +111,7 @@ void* kmalloc(uint32_t size)
     }
 
     // No block found - out of memory
+    kpanic("kmalloc: out of heap memory!");
     return 0;
 }
 

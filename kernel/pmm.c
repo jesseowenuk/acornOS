@@ -2,6 +2,7 @@
 #include "vga.h"
 #include "serial.h"
 #include "kprintf.h"
+#include "panic.h"
 
 // --- Bitmap ---------------------------------------------
 // The bitmap is stored at PMM_BITMAP_ADDRESS
@@ -162,10 +163,10 @@ void* pmm_alloc()
     // Walk the bitmap looking for a free page
     for(uint32_t i = 0; i < total_pages; i++)
     {
-        // Is this page free
+        // If page free
         if(bitmap_test(i))
         {
-            // No - mark it as used
+            // mark it as used
             bitmap_set(i);
 
             // Update counter
@@ -177,6 +178,7 @@ void* pmm_alloc()
     }
 
     // No free pages - out of memory
+    kpanic("pmm_alloc: out of physical memory!");
     return 0;
 }
 
