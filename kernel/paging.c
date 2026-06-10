@@ -180,12 +180,6 @@ static page_table_t* alloc_table()
 {
     // PMM gives us a free 4KB physical page - exactly the right size
     page_table_t* table = (page_table_t*)pmm_alloc();
-    
-    if(!table)
-    {
-        kserial_printf("alloc_table: PMM out of memory!\n");
-        return 0;
-    }
 
     // Zero out every entry - all pages start out as not present
     uint32_t* t = (uint32_t*)table;
@@ -285,7 +279,7 @@ void map_page_in(page_directory_t* dir, uint32_t virtual_addr, uint32_t physical
 
         if(!new_table)
         {
-            kserial_printf("map_page_in: out of page tables!\n");
+            kpanic("map_page_in: out of page tables!");
             return;
         }
 
@@ -386,12 +380,6 @@ page_directory_t* paging_clone_directory()
     // Must be page aligned - PMM always returns page aligned memory
     page_directory_t* new_dir = (page_directory_t*)pmm_alloc();
 
-    if(!new_dir)
-    {
-        kserial_printf("paging_clone_directory: out of memory!\n");
-        return 0;
-    }
-
     // Zero out the entire new directory
     // All entries start as not present
     // Copy kernel page directory entries into the new directory
@@ -428,6 +416,7 @@ void paging_switch_directory(page_directory_t* dir)
     if(!dir)
     {
         // Safety check - never load null directory
+        kpanic("paging_switch_directory: null directory!");
         return;
     }
 
@@ -453,13 +442,13 @@ void paging_switch_directory(page_directory_t* dir)
 
 page_directory_t* paging_deep_copy_directory(page_directory_t* src)
 {
+    if(!src)
+    {
+        kpanic("paging_deep_copy: null source directory!");
+    }
+
     // Allocate new page directory
     page_directory_t* dst = (page_directory_t*)pmm_alloc();
-    if(!dst)
-    {
-        kserial_printf("paging_deep_copy: out of memory!\n");
-        return 0;
-    }
 
     // Zero the new directory
     uint32_t* raw = (uint32_t*)dst;

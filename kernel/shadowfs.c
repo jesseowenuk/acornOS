@@ -4,6 +4,7 @@
 #include "kprintf.h"        // For kserial_printf
 #include "string.h"         // For kmemset, kstrcpy etc.
 #include "serial.h"
+#include "panic.h"
 
 // --- Forward declarations ---------------------------------------------
 // Internal functions declared here, defined below
@@ -55,35 +56,30 @@ fs_ops_t* shadowfs_get_ops()
 // sb = superblock this inode belongs to
 static inode_t* shadowfs_create_inode(superblock_t* sb, uint32_t type)
 {
+    // Guard against null superblock
+    if(!sb)
+    {
+        kpanic("shadowfs_create_inode: null superblock!");
+    }
+
+    if(!sb->private_data)
+    {
+        kpanic("shadowfs_create_inode: null mount data!");
+    }
+
     // Get mount private data so we can check quota and assign inode numbers
     shadowfs_mount_t* mount = (shadowfs_mount_t*)sb->private_data;
 
     // Step 1: allocate the VFS inode struct
     inode_t* inode = (inode_t*)kmalloc(sizeof(inode_t));
-
-    if(!inode)
-    {
-        kserial_printf("shadowFS: failed to allocate inode!\n");
-        return 0;
-    }
-
-    // Step 2: zero it out
     kmemset(inode, 0, sizeof(inode_t));
 
-    // Step 3: allocate private data
+    // Step 2: allocate private data
     // Files and directories have different private data layouts
     shadowfs_inode_t* priv = (shadowfs_inode_t*)kmalloc(sizeof(shadowfs_inode_t));
-
-    if(!priv)
-    {
-        kserial_printf("shadowFS: failed to allocate inode private data!\n");
-        kfree(inode);
-        return 0;
-    }
-
     kmemset(priv, 0, sizeof(shadowfs_inode_t));
 
-    // Step 4: fill in the VFS inode fields
+    // Step 3: fill in the VFS inode fields
 
     // Assign a unique inode number
     inode->inode_num = mount->next_inode_num++;
@@ -109,7 +105,7 @@ static inode_t* shadowfs_create_inode(superblock_t* sb, uint32_t type)
     // Our private data
     inode->private_data = priv;
 
-    // Step 5: - initialise private data based on type
+    // Step 4: - initialise private data based on type
     if(type == VFS_TYPE_FILE)
     {
         // No blocks yet - file is empty
@@ -121,6 +117,10 @@ static inode_t* shadowfs_create_inode(superblock_t* sb, uint32_t type)
         // No entries yet - empty directory
         priv->dir.entries = 0;
         priv->dir.count = 0;
+    }
+    else
+    {
+        kpanic("shadowfs_create_inode: unknown inode type!");
     }
 
     // Return the inode
