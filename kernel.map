@@ -10,7 +10,7 @@ Linker script and memory map
 
                 0x00001000                        . = 0x1000
 
-.text           0x00001000     0x45a2
+.text           0x00001000     0x45f8
  start.o(.text)
  .text          0x00001000       0x32 start.o
                 0x00001000                _start
@@ -159,95 +159,100 @@ Linker script and memory map
  .text          0x00005120      0x482 shadowfs.o
                 0x0000543e                shadowfs_get_ops
                 0x00005444                shadowfs_mount
+ .text          0x000055a2       0x56 panic.o
+                0x000055a2                kpanic
 
-.rodata         0x000055c0     0x1820
+.rodata         0x00005600     0x1875
  *(.rodata)
- .rodata        0x000055c0       0x48 kernel.o
- *fill*         0x00005608       0x18 
- .rodata        0x00005620       0x3b keyboard.o
- *fill*         0x0000565b        0x5 
- .rodata        0x00005660       0x20 syscall.o
- .rodata        0x00005680       0x58 kprintf.o
+ .rodata        0x00005600       0x48 kernel.o
+ *fill*         0x00005648       0x18 
+ .rodata        0x00005660       0x3b keyboard.o
+ *fill*         0x0000569b        0x5 
+ .rodata        0x000056a0       0x20 syscall.o
+ .rodata        0x000056c0       0x58 kprintf.o
  *(.rodata.*)
  .rodata.str1.1
-                0x000056d8      0x34f kernel.o
- *fill*         0x00005a27        0x1 
+                0x00005718      0x34f kernel.o
+ *fill*         0x00005a67        0x1 
  .rodata.str1.4
-                0x00005a28       0xc0 kernel.o
+                0x00005a68       0xc0 kernel.o
  .rodata.str1.1
-                0x00005ae8       0x5e idt.o
+                0x00005b28       0x5e idt.o
  .rodata.str1.1
-                0x00005b46       0xb0 shell.o
- *fill*         0x00005bf6        0x2 
+                0x00005b86       0xb0 shell.o
+ *fill*         0x00005c36        0x2 
  .rodata.str1.4
-                0x00005bf8      0x158 shell.o
+                0x00005c38      0x158 shell.o
  .rodata.str1.1
-                0x00005d50       0x89 mem.o
+                0x00005d90       0x89 mem.o
  .rodata.str1.1
-                0x00005dd9       0x3e serial.o
- *fill*         0x00005e17        0x1 
+                0x00005e19       0x3e serial.o
+ *fill*         0x00005e57        0x1 
  .rodata.str1.4
-                0x00005e18       0x24 pmm.o
+                0x00005e58       0x24 pmm.o
  .rodata.str1.1
-                0x00005e3c       0x6a pmm.o
- *fill*         0x00005ea6        0x2 
+                0x00005e7c       0x6a pmm.o
+ *fill*         0x00005ee6        0x2 
  .rodata.str1.4
-                0x00005ea8      0x1e3 paging.o
+                0x00005ee8      0x1e3 paging.o
  .rodata.str1.1
-                0x0000608b       0xa0 paging.o
- *fill*         0x0000612b        0x1 
+                0x000060cb       0xa0 paging.o
+ *fill*         0x0000616b        0x1 
  .rodata.str1.4
-                0x0000612c      0x3a4 process.o
+                0x0000616c      0x3a4 process.o
  .rodata.str1.1
-                0x000064d0       0x9f process.o
+                0x00006510       0x9f process.o
  .rodata.str1.1
-                0x0000656f       0x19 scheduler.o
+                0x000065af       0x19 scheduler.o
  .rodata.str1.4
-                0x00006588       0x77 scheduler.o
- *fill*         0x000065ff        0x1 
+                0x000065c8       0x77 scheduler.o
+ *fill*         0x0000663f        0x1 
  .rodata.str1.4
-                0x00006600       0x72 syscall.o
+                0x00006640       0x72 syscall.o
  .rodata.str1.1
-                0x00006672       0xbc syscall.o
+                0x000066b2       0xbc syscall.o
  .rodata.str1.1
-                0x0000672e       0x18 kprintf.o
+                0x0000676e       0x18 kprintf.o
  .rodata.str1.1
-                0x00006746       0x32 tss.o
+                0x00006786       0x32 tss.o
  .rodata.str1.4
-                0x00006778       0x28 usermode.o
+                0x000067b8       0x28 usermode.o
  .rodata.str1.1
-                0x000067a0      0x169 vfs.o
- *fill*         0x00006909        0x3 
+                0x000067e0      0x169 vfs.o
+ *fill*         0x00006949        0x3 
  .rodata.str1.4
-                0x0000690c      0x339 vfs.o
- *fill*         0x00006c45        0x3 
+                0x0000694c      0x339 vfs.o
+ *fill*         0x00006c85        0x3 
  .rodata.str1.4
-                0x00006c48      0x12c shadowfs.o
+                0x00006c88      0x12c shadowfs.o
  .rodata.str1.1
-                0x00006d74       0x6c shadowfs.o
+                0x00006db4       0x6c shadowfs.o
+ .rodata.str1.1
+                0x00006e20       0x55 panic.o
 
-.data           0x00006de0       0x30
+.data           0x00006e80       0x30
  *(.data)
- .data          0x00006de0        0x0 kernel.o
- .data          0x00006de0        0x0 vga.o
- .data          0x00006de0        0x0 gdt.o
- .data          0x00006de0        0x0 idt.o
- .data          0x00006de0        0x0 pic.o
- .data          0x00006de0        0x0 keyboard.o
- .data          0x00006de0        0x0 shell.o
- .data          0x00006de0        0x0 timer.o
- .data          0x00006de0        0x0 mem.o
- .data          0x00006de0        0x0 serial.o
- .data          0x00006de0        0x0 pmm.o
- .data          0x00006de0        0x0 paging.o
- .data          0x00006de0        0x0 process.o
- .data          0x00006de0        0x0 scheduler.o
- .data          0x00006de0        0x0 syscall.o
- .data          0x00006de0        0x0 kprintf.o
- .data          0x00006de0        0x0 tss.o
- .data          0x00006de0        0x0 usermode.o
- .data          0x00006de0        0x0 vfs.o
- .data          0x00006de0       0x30 shadowfs.o
+ .data          0x00006e80        0x0 kernel.o
+ .data          0x00006e80        0x0 vga.o
+ .data          0x00006e80        0x0 gdt.o
+ .data          0x00006e80        0x0 idt.o
+ .data          0x00006e80        0x0 pic.o
+ .data          0x00006e80        0x0 keyboard.o
+ .data          0x00006e80        0x0 shell.o
+ .data          0x00006e80        0x0 timer.o
+ .data          0x00006e80        0x0 mem.o
+ .data          0x00006e80        0x0 serial.o
+ .data          0x00006e80        0x0 pmm.o
+ .data          0x00006e80        0x0 paging.o
+ .data          0x00006e80        0x0 process.o
+ .data          0x00006e80        0x0 scheduler.o
+ .data          0x00006e80        0x0 syscall.o
+ .data          0x00006e80        0x0 kprintf.o
+ .data          0x00006e80        0x0 tss.o
+ .data          0x00006e80        0x0 usermode.o
+ .data          0x00006e80        0x0 vfs.o
+ .data          0x00006e80       0x30 shadowfs.o
+ .data          0x00006eb0        0x0 panic.o
 
 .bss            0x00007000     0x5920
                 0x00007000                        __bss_start = .
@@ -283,6 +288,7 @@ Linker script and memory map
  .bss           0x0000b000     0x1000 usermode.o
  .bss           0x0000c000      0x920 vfs.o
  .bss           0x0000c920        0x0 shadowfs.o
+ .bss           0x0000c920        0x0 panic.o
  *(COMMON)
                 0x0000c920                        __bss_end = .
 LOAD start.o
@@ -311,9 +317,10 @@ LOAD usermode.o
 LOAD usermode_asm.o
 LOAD vfs.o
 LOAD shadowfs.o
+LOAD panic.o
 OUTPUT(kernel.bin binary)
 
-.comment        0x00000000      0x17c
+.comment        0x00000000      0x18f
  .comment       0x00000000       0x13 kernel.o
  .comment       0x00000013       0x13 vga.o
  .comment       0x00000026       0x13 gdt.o
@@ -334,3 +341,4 @@ OUTPUT(kernel.bin binary)
  .comment       0x00000143       0x13 usermode.o
  .comment       0x00000156       0x13 vfs.o
  .comment       0x00000169       0x13 shadowfs.o
+ .comment       0x0000017c       0x13 panic.o

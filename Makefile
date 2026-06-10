@@ -23,7 +23,7 @@ kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gd
 			kernel/shell.c kernel/timer.c kernel/mem.c kernel/serial.c kernel/pmm.c \
 			kernel/paging.c kernel/process.c kernel/switch.asm kernel/scheduler.c \
 			kernel/syscall.c kernel/kprintf.c kernel/tss.c kernel/usermode.asm \
-			kernel/usermode.c kernel/vfs.c kernel/shadowfs.c
+			kernel/usermode.c kernel/vfs.c kernel/shadowfs.c kernel/panic.c
 	$(CC) $(CFLAGS) -c kernel/kernel.c -o kernel.o
 	$(CC) $(CFLAGS) -c kernel/vga.c -o vga.o
 	$(CC) $(CFLAGS) -c kernel/gdt.c -o gdt.o
@@ -44,6 +44,7 @@ kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gd
 	$(CC) $(CFLAGS) -c kernel/vfs.c -o vfs.o
 	$(CC) $(CFLAGS) -c kernel/shadowfs.c -o shadowfs.o
 	$(CC) $(CFLAGS) -c kernel/process.c -o process.o
+	$(CC) $(CFLAGS) -c kernel/panic.c -o panic.o
 	nasm -f elf kernel/start.asm -o start.o
 	nasm -f elf kernel/gdt_flush.asm -o gdt_flush.o
 	nasm -f elf kernel/isr.asm -o isr.o
@@ -57,7 +58,7 @@ kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gd
 		start.o kernel.o vga.o gdt.o gdt_flush.o idt.o isr.o idt_flush.o \
 		pic.o keyboard.o shell.o timer.o mem.o serial.o pmm.o paging.o \
 		process.o switch.o scheduler.o syscall.o kprintf.o tss.o \
-		usermode.o usermode_asm.o vfs.o shadowfs.o
+		usermode.o usermode_asm.o vfs.o shadowfs.o panic.o
 
 os.img: boot.bin kernel.bin
 	cat boot.bin kernel.bin > os.img
