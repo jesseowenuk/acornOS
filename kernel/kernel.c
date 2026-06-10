@@ -16,6 +16,7 @@
 #include "tss.h"
 #include "vfs.h"
 #include "shadowfs.h"
+#include "panic.h"
 
 // The shell runs as a kernel process
 static void shell_process()
@@ -253,7 +254,10 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
 
     vga_set_colour(WHITE, BLACK);
     kprintf("Mounting shadowFS...\n");
-    shadowfs_mount("/temp", 8 * 1024 * 1024);       // 8MB for temp files
+    if(shadowfs_mount("/temp", 8 * 1024 * 1024) < 0)       // 8MB for temp files
+    {
+        kpanic("kernel: failed to mount shadowFS at /temp!");
+    }
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf("shadowFS mounted.\n");
 
@@ -262,10 +266,11 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     if(fd >= 0)
     {
         kserial_printf("shadowFS: created /temp/test.txt fd=%d\n", fd);
+        vfs_close(fd);
     }
     else
     {
-        kserial_printf("shadowFS: FAILED to create /temp/test.txt\n");
+        kpanic("kernel: FAILED to create test file in shadowFS!");
     }
 
     kserial_printf("All subsystems online. Starting shell.\n");
@@ -278,19 +283,32 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     // PID 0 is always the idle process by convention
     // Idle runs when nothing else wants to
     process_t* idle = process_create("idle", idle_process, 0);
+
+    if(!idle)
+    {
+        kpanic("kernel: failed to create idle process!");
+    }
+
     idle->time_slice = 1;       // Minimum time slice
     idle->ticks_remaining = 1;
     scheduler_add(idle);
 
     // Create and add the shell process
     process_t* shell = process_create("shell", shell_process, 0);
+
+    if(!shell)
+    {
+        kpanic("kernel: failed to create shell process!");
+    }
     scheduler_add(shell);
 
     process_t* wait_test = create_user_process("wait_test", wait_test_program);
-    if(wait_test)
+    if(!wait_test)
     {
-        scheduler_add(wait_test);
+        kpanic("kernel: failed to create wait_test process!");
     }
+    scheduler_add(wait_test);
+    
 
     scheduler_start();          // start scheduling - never returns
 
