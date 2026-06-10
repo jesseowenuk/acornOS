@@ -481,7 +481,13 @@ int process_exec(void (*entry)())
 {
     if(!entry)
     {
-        kserial_printf("exec: null entry point!\n");
+        kpanic("exec: null entry point!");
+        return -1;
+    }
+
+    if(!current_process)
+    {
+        kpanic("exec: no current process!");
         return -1;
     }
 
@@ -489,19 +495,9 @@ int process_exec(void (*entry)())
 
     // Step 1: allocate user stack first
     uint32_t new_stack = (uint32_t)pmm_alloc();
-    if(!new_stack)
-    {
-        kserial_printf("exec: failed to allocate user stack!\n");
-        return -1;
-    }
 
     // Step 2: Allocate a fresh kernel stack
     uint32_t new_kstack = (uint32_t)pmm_alloc();
-    if(!new_kstack)
-    {
-        kserial_printf("exec: failed to allocate kernel_stack!\n");
-        return -1;
-    }
     uint32_t new_kstack_top = new_kstack + PAGE_SIZE - 4;
 
     // Step 3: allocate a new page directory
@@ -512,9 +508,7 @@ int process_exec(void (*entry)())
 
     if(!new_dir)
     {
-        kserial_printf("exec: failed to allocate page directory!\n");
-        pmm_free((void*)new_stack);
-        pmm_free((void*)new_kstack);
+        kpanic("exec: failed to allocate page directory!");
         return -1;
     }
 
