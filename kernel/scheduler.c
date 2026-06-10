@@ -3,6 +3,7 @@
 #include "serial.h"         // For debug logging
 #include "kprintf.h"
 #include "tss.h"
+#include "panic.h"
 
 // --- Forward declarations ---------------------------------
 // switch_context is defined in switch.asm
@@ -33,6 +34,7 @@ void scheduler_add(process_t* proc)
 {
     if(!proc)
     {
+        kpanic("scheduler: null process!");
         return;
     }
 
@@ -95,6 +97,11 @@ void scheduler_tick(registers_t* regs)
     process_t* new = old->next;             // Pick the next process in the queue
                                             // Since the list is circular this
                                             // always gives us a valid proces
+
+    if(!new)
+    {
+        kpanic("scheduler_tick: corrupted run queue - null next pointer!");
+    }
 
     // Walk the queue looking for a non-dead, preferably non-idle process
     int checked = 0;
@@ -177,7 +184,7 @@ void scheduler_start()
 {
     if(!run_queue_head)
     {
-        kserial_printf("Scheduler: no process to run!\n");
+        kpanic("Scheduler: no process to run!");
         return;
     }
     
