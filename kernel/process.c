@@ -7,6 +7,7 @@
 #include "tss.h"
 #include "scheduler.h"
 #include "string.h"
+#include "panic.h"
 
 extern void iret_to_usermode();
 
@@ -52,6 +53,18 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
 {
     (void)flags;                    // Not used yet - will be for ring 3
 
+    // Guard against null entry point
+    if(!entry)
+    {
+        kpanic("process_create: null entry point!");
+    }
+
+    // Guard against null name
+    if(!name)
+    {
+        kpanic("process_create: null process name!");
+    }
+
     // Step 1: find a free slot in the process table
     int slot = -1;
     for(int i = 0; i < MAX_PROCESSES; i++)
@@ -67,22 +80,13 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
     if(slot == -1)
     {
         // No more room for processes
-        kserial_printf("process_create: process table full!\n");
+        kpanic("process_create: process table full!");
         return 0;
     }
 
     // Step 2: allocate memory for the PCB itself
     // kmalloc gives us a chunk of heap memory for the struct
     process_t* proc = (process_t*)kmalloc(sizeof(process_t));
-
-    uint32_t eax_val;
-    __asm__ volatile("mov %%eax, %0" : "=r"(eax_val));
-
-    if(proc == 0)
-    {
-        kserial_printf("process_create: failed to allocate PCB!\n");
-        return 0;
-    }
 
     // Step 3: zero out the PCB - clean slate
     kmemset(proc, 0, sizeof(process_t));
@@ -100,12 +104,6 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
     // Step 5: Allocate a stack for this process
     // Each process needs its own stack - we get a fresh page from PMM
     proc->stack = (uint32_t)pmm_alloc();        // Allocate one 4KB page
-    if(!proc->stack)
-    {
-        kserial_printf("process_create: failed to allocate stack!\n");
-        // TODO: implement kfree for PCB when allocator supports it
-        return 0;
-    }
 
     // Stack grows downward - top of stack is at the END of the page
     // We subtract 4 to leave room for the first push
@@ -141,9 +139,7 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
 
     if(!proc->page_dir)
     {
-        kserial_printf("process_create: failed to clone page directory!\n");
-        pmm_free((void*)proc->stack);
-        kfree(proc);
+        kpanic("process_create: failed to clone page directory!");
         return 0;
     }
 
@@ -250,6 +246,17 @@ void process_wake(process_t* proc)
 
 process_t* create_user_process(const char* name, void (*entry)())
 {
+    // Guard against null arguments
+    if(!name)
+    {
+        kpanic("create_user_process: null name!");
+    }
+
+    if(!entry)
+    {
+        kpanic("create_user_process: null entry point!");
+    }
+
     // Step 1: find a free slot in the process table
     int slot = -1;
 
@@ -264,19 +271,12 @@ process_t* create_user_process(const char* name, void (*entry)())
 
     if(slot == -1)
     {
-        kserial_printf("create_user_process: process table full!\n");
+        kpanic("create_user_process: process table full!");
         return 0;
     }
 
     // Step 2: Allocate PCB
     process_t* proc = (process_t*)kmalloc(sizeof(process_t));
-
-    if(!proc)
-    {
-        kserial_printf("create_user_process: failed to allocate PCB!\n");
-        return 0;
-    }
-
     kmemset(proc, 0, sizeof(process_t));
     proc->parent_pid = 0;                   // Set properly when forked
 
@@ -293,13 +293,6 @@ process_t* create_user_process(const char* name, void (*entry)())
     // The CPU switches to this stack automatically via TSS
     proc->stack = (uint32_t)pmm_alloc();
 
-    if(!proc->stack)
-    {
-        kserial_printf("create_user_process: failed to allocate kernel stack!\n");
-        kfree(proc);
-        return 0;
-    }
-
     // Top of kernel stack
     proc->stack_top = proc->stack + PAGE_SIZE - 4;
 
@@ -308,23 +301,12 @@ process_t* create_user_process(const char* name, void (*entry)())
     // Lives in user space - process can read and write it freely
     uint32_t user_stack = (uint32_t)pmm_alloc();
 
-    if(!user_stack)
-    {
-        kserial_printf("create_user_process: failed to allocate user stack!\n");
-        pmm_free((void*)proc->stack);
-        kfree(proc);
-        return 0;
-    }
-
     // Step 6: clone kernel page directory
     proc->page_dir = paging_clone_directory();
 
     if(!proc->page_dir)
     {
-        kserial_printf("create_user_process: failed to clone page directory!\n");
-        pmm_free((void*)user_stack);
-        pmm_free((void*)proc->stack);
-        kfree(proc);
+        kpanic("create_user_process: failed to clone page directory!");
         return 0;
     }
 
