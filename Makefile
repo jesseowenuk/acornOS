@@ -1,29 +1,88 @@
 .PHONY: all run clean
 
-CC = i686-elf-gcc
-CFLAGS = -ffreestanding -O1 -Wall -Wextra -fno-builtin
+# 64-bit cross compiler toolchain
+CC = x86_64-elf-gcc
+LD = x86_64-elf-ld
+AS = nasm
+
+# Compiler flags
+# -ffreestanding	 	- no standard library
+# -mno-red-zone			- disable red zone (required for kernel interrupts)
+# -mno-mmx				- disable MMX (keep it simple)
+# -mno-sse				- disable SSE (kernel doesn't use floating point)
+# -mno-sse2				- disable SSE2
+# -mcmodel=kernel		- generate code for kernel address space
+#						  (addresses above 0xFFFFFFFF80000000)
+# -O1					- optimisation level 1 (safe for kernel)
+CFLAGS =  	-ffreestanding \
+			-mno-red-zone \
+			-mno-mmx \
+			-mno-sse \
+			-mno-sse2 \
+			-mcmodel=kernel \
+			-O1 \
+			-Wall \
+			-Wextra \
+			-fno-builtin \
+			-fno-stack-protector \
+			-fno-pie \
+			-fno-pic 
+
+# Linker flags
+LDFLAGS = 	-T kernel/linker.ld \
+			--oformat binary \
+			-Map kernel.map \
+			-nostdlib \
+			-z max-page-size=0x1000
+
+# NASM flags for 64-bit ELF objects
+ASFLAGS = -f elf64
+
+# NASM flags for flat binary (bootloader)
+ASFLAGS_BIN = -f bin
 
 check-size: kernel.bin
 	@SECTORS=$$(( ($$(wc -c < kernel.bin) + 511) / 512 )); \
 	echo "Kernel: $$(wc -c < kernel.bin) bytes = $$SECTORS sectors"; \
-	if [ $$SECTORS -gt 120 ]; then \
-		echo "WARNING: kernel is too big! Increase sector count in boot.asm!"; \
+	if [ $$SECTORS -gt 500 ]; then \
+		echo "WARNING: kernel is too big!"; \
 	fi
 
 all: os.img
 
-debug: os.img
-	qemu-system-i386 -drive format=raw,file=os.img,if=floppy -d int,cpu_reset -no-reboot 2> debug.log
-
 boot.bin: boot/boot.asm
-	nasm -f bin boot/boot.asm -o boot.bin
+	$(AS) $(ASFLAGS_BIN) boot/boot.asm -o boot.bin
 
-kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gdt_flush.asm kernel/idt.c \
-			kernel/isr.asm kernel/idt_flush.asm kernel/pic.c kernel/keyboard.c \
-			kernel/shell.c kernel/timer.c kernel/mem.c kernel/serial.c kernel/pmm.c \
-			kernel/paging.c kernel/process.c kernel/switch.asm kernel/scheduler.c \
-			kernel/syscall.c kernel/kprintf.c kernel/tss.c kernel/usermode.asm \
-			kernel/usermode.c kernel/vfs.c kernel/shadowfs.c kernel/panic.c
+#stage2.bin: boot/stage2.asm
+#	$(AS) $(ASFLAGS_BIN) boot/stage2.asm -o stage2.bin
+
+kernel.bin: kernel/start.asm \
+		 	kernel/kernel.c \
+			kernel/vga.c \
+			kernel/gdt.c \
+			kernel/gdt_flush.asm \
+			kernel/idt.c \
+			kernel/isr.asm \
+			kernel/idt_flush.asm \
+			kernel/pic.c \
+			kernel/keyboard.c \
+			kernel/shell.c \
+			kernel/timer.c \
+			kernel/mem.c \
+			kernel/serial.c \
+			kernel/pmm.c \
+			kernel/paging.c \
+			kernel/process.c \
+			kernel/switch.asm \
+			kernel/scheduler.c \
+			kernel/syscall.c \
+			kernel/kprintf.c \
+			kernel/tss.c \
+			kernel/usermode.asm \
+			kernel/usermode.c \
+			kernel/vfs.c \
+			kernel/shadowfs.c \
+			kernel/panic.c
 	$(CC) $(CFLAGS) -c kernel/kernel.c -o kernel.o
 	$(CC) $(CFLAGS) -c kernel/vga.c -o vga.o
 	$(CC) $(CFLAGS) -c kernel/gdt.c -o gdt.o
@@ -45,27 +104,37 @@ kernel.bin: kernel/start.asm kernel/kernel.c kernel/vga.c kernel/gdt.c kernel/gd
 	$(CC) $(CFLAGS) -c kernel/shadowfs.c -o shadowfs.o
 	$(CC) $(CFLAGS) -c kernel/process.c -o process.o
 	$(CC) $(CFLAGS) -c kernel/panic.c -o panic.o
-	nasm -f elf kernel/start.asm -o start.o
-	nasm -f elf kernel/gdt_flush.asm -o gdt_flush.o
-	nasm -f elf kernel/isr.asm -o isr.o
-	nasm -f elf kernel/idt_flush.asm -o idt_flush.o
-	nasm -f elf kernel/switch.asm -o switch.o
-	nasm -f elf kernel/usermode.asm -o usermode_asm.o
-	i686-elf-ld -o kernel.bin \
-		-T kernel/linker.ld \
-		--oformat binary \
-		-Map kernel.map \
+	$(AS) -f elf64 kernel/start.asm -o start.o
+	$(AS) -f elf64 kernel/gdt_flush.asm -o gdt_flush.o
+	$(AS) -f elf64 kernel/isr.asm -o isr.o
+	$(AS) -f elf64 kernel/idt_flush.asm -o idt_flush.o
+	$(AS) -f elf64 kernel/switch.asm -o switch.o
+	$(AS) -f elf64 kernel/usermode.asm -o usermode_asm.o
+	$(LD) $(LDFLAGS) \
+	 	-o kernel.bin \
 		start.o kernel.o vga.o gdt.o gdt_flush.o idt.o isr.o idt_flush.o \
 		pic.o keyboard.o shell.o timer.o mem.o serial.o pmm.o paging.o \
 		process.o switch.o scheduler.o syscall.o kprintf.o tss.o \
 		usermode.o usermode_asm.o vfs.o shadowfs.o panic.o
 
-os.img: boot.bin kernel.bin
-	cat boot.bin kernel.bin > os.img
-	truncate -s 10M os.img
+os.img: boot.bin kernel.bin check-size
+	# Create 10MB disk image
+	dd if=/dev/zero of=os.img bs=1M count=10 2>/dev/null
+
+	# Write stage 1 at sector 0
+	dd if=boot.bin of=os.img bs=512 seek=0 conv=notrunc 2>/dev/null
+
+	# Write stage 2 at sector 1
+	#dd if=stage2.bin of=os.img bs=512 seek=1 conv=notrunc 2>/dev/null
+
+	# Write kernel at sector 64
+	dd if=kernel.bin of=os.img bs=512 seek=64 conv=notrunc 2>/dev/null
 
 run: os.img check-size
-	qemu-system-i386 -drive file=os.img,format=raw,index=0,media=disk -serial stdio
+	qemu-system-x86_64 \
+		-drive file=os.img,format=raw,index=0,media=disk \
+		-serial stdio \
+		-m 256M
 
 clean:
 	rm -f *.bin *.o *.img

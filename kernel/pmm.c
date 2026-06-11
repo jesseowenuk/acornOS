@@ -3,6 +3,7 @@
 #include "serial.h"
 #include "kprintf.h"
 #include "panic.h"
+#include "mem.h"
 
 // --- Bitmap ---------------------------------------------
 // The bitmap is stored at PMM_BITMAP_ADDRESS
@@ -145,8 +146,8 @@ void pmm_init(uint32_t mem_map_addr, uint32_t mem_map_count)
         used_pages++;
     }
 
-    // Mark pages covering our heap (0x20000 - 0x80000)
-    for(uint32_t addr = 0x50000; addr < 0x90000; addr += PAGE_SIZE)
+    // Mark pages covering our heap
+    for(uint32_t addr = HEAP_START; addr < HEAP_START + HEAP_SIZE; addr += PAGE_SIZE)
     {
         bitmap_set(addr / PAGE_SIZE);
         used_pages++;

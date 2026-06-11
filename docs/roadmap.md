@@ -134,8 +134,8 @@
 > See docs/memory_map.md for full details.
 
 ### 5a — Toolchain
-- ⬜ Install x86_64-elf-gcc cross compiler
-- ⬜ Install x86_64-elf-ld
+- ✅ Install x86_64-elf-gcc cross compiler
+- ✅ Install x86_64-elf-ld
 - ⬜ Update Makefile for 64-bit targets
 
 ### 5b — Two-Stage Bootloader

@@ -4,10 +4,10 @@
 #include <stdint.h>
 
 // Start of the heap - 1MB mark, safely above kernel and stack
-#define HEAP_START 0x200000
+#define HEAP_START 0x110000
 
-// Total heap size - 256KB enough for now
-#define HEAP_SIZE 0x40000
+// Total heap size - 1MB
+#define HEAP_SIZE 0x100000
 
 // Initialise the heap - must be called before kmalloc/kfree
 void mem_init();

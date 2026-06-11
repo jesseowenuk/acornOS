@@ -49,9 +49,9 @@ void gdt_init()
     set_entry(5, 0, 0, 0, 0);                       // TSS placeholder - filled later
 
     descriptor.limit = sizeof(gdt) - 1;             // Size of GDT minus 1
-    descriptor.base = (uint32_t)&gdt;               // Address of GDT
+    descriptor.base = (uint64_t)&gdt;               // Address of GDT
 
-    gdt_flush((uint32_t)&descriptor);               // Load into CPU and reload segments
+    gdt_flush((uint64_t)&descriptor);               // Load into CPU and reload segments
 }
 
 // --- TSS entry ---------------------------------------------------
@@ -72,5 +72,5 @@ void gdt_set_tss_entry(uint32_t base, uint32_t limit)
     gdt[5].base_high        = (base >> 24) & 0xFF;
 
     // Reload the GDT with the new TSS entry
-    gdt_flush((uint32_t)&descriptor);
+    gdt_flush((uint64_t)&descriptor);
 }

@@ -18,7 +18,7 @@ static page_table_t first_table __attribute__((aligned(4096)));
 
 // --- Helper: Set a page directory entry ------------------------
 // Takes a PTE pointer, physical address of the page table and flags
-static void pte_set(pte_t* entry, uint32_t phsical_addr, uint32_t flags)
+static void pte_set(pte_t* entry, uint64_t phsical_addr, uint64_t flags)
 {
     // Set present bit if PAGE_PRESENT flag given
     entry->present = (flags & PAGE_PRESENT) ? 1 : 0;
@@ -37,7 +37,7 @@ static void pte_set(pte_t* entry, uint32_t phsical_addr, uint32_t flags)
 
 // --- Helper: Set a page directory entry ------------------------
 // Takes a PDE pointer, physical address of the page table and flags
-static void pde_set(pde_t* entry, uint32_t table_phsical_addr, uint32_t flags)
+static void pde_set(pde_t* entry, uint64_t table_phsical_addr, uint64_t flags)
 {
     // Mark this directory entry as valid
     entry->present = (flags & PAGE_PRESENT) ? 1 : 0;
@@ -60,7 +60,7 @@ void paging_init()
     // Step 1: zero out the entire page directory
     // All entries start as not present - any access will page fault
     // until we explicitly map the pages we need.
-    uint32_t* dir = (uint32_t*)&kernel_directory;
+    uint64_t* dir = (uint64_t*)&kernel_directory;
     for(int i = 0; i < 1024; i++)
     {
         // Clear all 1024 directory entries
@@ -74,7 +74,7 @@ void paging_init()
     for(int i = 0; i < 1024; i++)
     {
         // Page 0 = 0x0000, page 1 = 0x1000 etc.
-        uint32_t physical_addr = i * PAGE_SIZE;
+        uint64_t physical_addr = i * PAGE_SIZE;
 
         pte_set(
             (pte_t*)&first_table.entries[i],            // Which PTE to set
@@ -87,12 +87,12 @@ void paging_init()
     // Index 0 covers virtual addresses 0x00000000 - 0x003FFFFF (first 4MB)
     pde_set(
         (pde_t*)&kernel_directory.entries[0],           // First directory entry
-        (uint32_t)&first_table,                 // Physical address of our page table
+        (uint64_t)&first_table,                 // Physical address of our page table
         PAGE_PRESENT | PAGE_WRITABLE            // Present and writable
     );
 
     kprintf("Paging: page directory created.\n");
-    kserial_printf("Paging: kernel directory at 0x%x\n", (uint32_t)&kernel_directory);
+    kserial_printf("Paging: kernel directory at 0x%x\n", (uint64_t)&kernel_directory);
     kserial_printf("Paging: first 4MB identity mapped.\n");
 
     // Step 4: load page directory address into CR3
@@ -110,7 +110,7 @@ void paging_init()
     // we must read CR0 first, set the bit, then write it back
     // Bit 31 = PG (Paging) flag
     // The instant this executes, ALL memory accesses go through page tables
-    uint32_t cr0;
+    uint64_t cr0;
     __asm__ volatile(
         "mov %%cr0, %0"                 // Read current CR0 value
         : "=r"(cr0)                     // Output: store in CR0 variale
@@ -135,7 +135,7 @@ void paging_init()
 void page_fault_handler(registers_t* regs)
 {
     // Read CR2 - the CPU stores the faulting address here automatically
-    uint32_t faulting_addr;
+    uint64_t faulting_addr;
     __asm__ volatile(
         "mov %%cr2, %0"             // Read CR2 into faulting_addr
         : "=r"(faulting_addr)       // Output operand
@@ -167,7 +167,7 @@ void page_fault_handler(registers_t* regs)
         present ? "protection violation" : "page not present",
         write   ? "on write"             : "on read",
         user    ? "from user space"      : "from kernel");
-    kserial_printf("PAGE FAULT at 0x%x\n", faulting_addr);
+    kserial_printf("PAGE FAULT at 0x%lx\n", faulting_addr);
 
     // Hang - we can't safely continue after a page fault
     for(;;);
@@ -182,7 +182,7 @@ static page_table_t* alloc_table()
     page_table_t* table = (page_table_t*)pmm_alloc();
 
     // Zero out every entry - all pages start out as not present
-    uint32_t* t = (uint32_t*)table;
+    uint64_t* t = (uint64_t*)table;
     for(int j = 0; j < 1024; j++)
     {
         // Not present, not writable
@@ -195,7 +195,7 @@ static page_table_t* alloc_table()
 // --- map_page --------------------------------------------
 // Maps a single virtual address to a physical address with fiven flags
 // Both addresses are rounded down to 4KB page boundaries automatically
-void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags)
+void map_page(uint64_t virtual_addr, uint64_t physical_addr, uint64_t flags)
 {
     // Round both addresses down to page boundaries
     // e.g. 0x1234 becomes 0x1000 - we always map whole pages
@@ -205,11 +205,11 @@ void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags)
 
     // Get the page directory index from the virtual address
     // Which entry in the page directory?
-    uint32_t pdi = PD_INDEX(virtual_addr);
+    uint64_t pdi = PD_INDEX(virtual_addr);
 
     // Get the page table index from the virtual address
     // Which entry in the page table?
-    uint32_t pti = PT_INDEX(virtual_addr);
+    uint64_t pti = PT_INDEX(virtual_addr);
 
     // Check if a page table already exists in this direcrory entry
     if(!kernel_directory.entries[pdi].present)
@@ -226,7 +226,7 @@ void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags)
         // Install the new table into the directory
         pde_set(
             (pde_t*)&kernel_directory.entries[pdi],
-            (uint32_t)new_table,                // physical address of the new table
+            (uint64_t)new_table,                // physical address of the new table
             PAGE_PRESENT | PAGE_WRITABLE
         );
     }
@@ -235,7 +235,7 @@ void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags)
     // frame contains the upper 20 bits of the table address
     // shift left 12 to get the full address back
     page_table_t* table = (page_table_t*)(
-        kernel_directory.entries[pdi].frame << 12
+        (uint64_t)kernel_directory.entries[pdi].frame << 12
     );
 
     // Set the page table entry to map virtual -> physical
@@ -258,7 +258,7 @@ void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags)
 
 // --- map_page_in ---------------------------------------------------
 // Map a page in a SPECIFIC page directory
-void map_page_in(page_directory_t* dir, uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags)
+void map_page_in(page_directory_t* dir, uint64_t virtual_addr, uint64_t physical_addr, uint64_t flags)
 {
     // Guard against null directory
     if(!dir)
@@ -269,8 +269,8 @@ void map_page_in(page_directory_t* dir, uint32_t virtual_addr, uint32_t physical
     virtual_addr &= ~0xFFF;
     physical_addr &= ~0xFFF;
 
-    uint32_t pdi = PD_INDEX(virtual_addr);
-    uint32_t pti = PT_INDEX(virtual_addr);
+    uint64_t pdi = PD_INDEX(virtual_addr);
+    uint64_t pti = PT_INDEX(virtual_addr);
 
     // Check if page table exists in THIS directory
     if(!dir->entries[pdi].present)
@@ -283,10 +283,10 @@ void map_page_in(page_directory_t* dir, uint32_t virtual_addr, uint32_t physical
             return;
         }
 
-        pde_set((pde_t*)&dir->entries[pdi], (uint32_t)new_table, PAGE_PRESENT | PAGE_WRITABLE);
+        pde_set((pde_t*)&dir->entries[pdi], (uint64_t)new_table, PAGE_PRESENT | PAGE_WRITABLE);
     }
 
-    page_table_t* table = (page_table_t*)(dir->entries[pdi].frame << 12);
+    page_table_t* table = (page_table_t*)((uint64_t)dir->entries[pdi].frame << 12);
 
     pte_set((pte_t*)&table->entries[pti], physical_addr, flags);
 
@@ -300,12 +300,12 @@ void map_page_in(page_directory_t* dir, uint32_t virtual_addr, uint32_t physical
 
 // --- unmap_page ----------------------------------------------------
 // Remove a virtual address mapping
-void unmap_page(uint32_t virtual_addr)
+void unmap_page(uint64_t virtual_addr)
 {
     virtual_addr &= ~0xFFF;                 // Round to page boundary
 
-    uint32_t pdi = PD_INDEX(virtual_addr);
-    uint32_t pti = PT_INDEX(virtual_addr);
+    uint64_t pdi = PD_INDEX(virtual_addr);
+    uint64_t pti = PT_INDEX(virtual_addr);
 
     // Check directory entry exists
     if(!kernel_directory.entries[pdi].present)
@@ -316,11 +316,11 @@ void unmap_page(uint32_t virtual_addr)
 
     // Get the page table
     page_table_t* table = (page_table_t*)(
-        kernel_directory.entries[pdi].frame << 12
+        (uint64_t)kernel_directory.entries[pdi].frame << 12
     );
     
     // Clear the page table entry
-    uint32_t* entry = (uint32_t*)&table->entries[pti];
+    uint64_t* entry = (uint64_t*)&table->entries[pti];
 
     // Zero = not present
     *entry = 0;
@@ -337,10 +337,10 @@ void unmap_page(uint32_t virtual_addr)
 // --- get_physical -----------------------------------------
 // Walks the page tables to find the physical address for a virtual address
 // Returns 0 if the address is not mapped
-uint32_t get_physical(uint32_t virtual_addr)
+uint64_t get_physical(uint64_t virtual_addr)
 {
-    uint32_t pdi = PD_INDEX(virtual_addr);
-    uint32_t pti = PT_INDEX(virtual_addr);
+    uint64_t pdi = PD_INDEX(virtual_addr);
+    uint64_t pti = PT_INDEX(virtual_addr);
 
     // Check directory entry is present
     if(!kernel_directory.entries[pdi].present)
@@ -351,7 +351,7 @@ uint32_t get_physical(uint32_t virtual_addr)
 
     // Get the page table
     page_table_t* table = (page_table_t*)(
-        kernel_directory.entries[pdi].frame << 12
+        (uint64_t)kernel_directory.entries[pdi].frame << 12
     );
 
     // Check page table entry is present
@@ -362,7 +362,7 @@ uint32_t get_physical(uint32_t virtual_addr)
     }
 
     // Get physical address - frame is upper 20 bits, add back the offset
-    uint32_t physical = table->entries[pti].frame << 12;
+    uint64_t physical = (uint64_t)table->entries[pti].frame << 12;
 
     // Add the byte offset within the page
     physical |= PG_OFFSET(virtual_addr);
@@ -386,8 +386,8 @@ page_directory_t* paging_clone_directory()
     // We share kernel mappings between all processes
     // Entry 0 covers 0x00000000 - 0x003FFFFF (first 4MB - our kernel)
     // We copy this entry so the new process can still access kernel code
-    uint32_t* raw = (uint32_t*)new_dir;
-    uint32_t* kernel_raw = (uint32_t*)&kernel_directory;
+    uint64_t* raw = (uint64_t*)new_dir;
+    uint64_t* kernel_raw = (uint64_t*)&kernel_directory;
     
     for(int i = 0; i < 1024; i++)
     {
@@ -403,7 +403,7 @@ page_directory_t* paging_clone_directory()
         }
     }
 
-    kserial_printf("paging: cloned directory at 0x%x\n", (uint32_t)new_dir);
+    kserial_printf("paging: cloned directory at 0x%x\n", (uint64_t)new_dir);
     return new_dir;
 }
 
@@ -419,8 +419,6 @@ void paging_switch_directory(page_directory_t* dir)
         kpanic("paging_switch_directory: null directory!");
         return;
     }
-
-    //kserial_printf("switching CR3 to 0x%x\n", (uint32_t)dir);
 
     // Load the physical address of the page directory into CR3
     // CR3 = Page Directory Base Register
@@ -451,7 +449,7 @@ page_directory_t* paging_deep_copy_directory(page_directory_t* src)
     page_directory_t* dst = (page_directory_t*)pmm_alloc();
 
     // Zero the new directory
-    uint32_t* raw = (uint32_t*)dst;
+    uint64_t* raw = (uint64_t*)dst;
     for(int i = 0; i < 1024; i++)
     {   
         raw[i] = 0;
@@ -467,7 +465,7 @@ page_directory_t* paging_deep_copy_directory(page_directory_t* src)
         }
 
         // Get the source page table
-        page_table_t* src_table = (page_table_t*)(src->entries[i].frame << 12);
+        page_table_t* src_table = (page_table_t*)((uint64_t)src->entries[i].frame << 12);
 
         // Check if this is a kernel mapping
         // Kernel pages are in the first entry (first 4MB)
@@ -490,7 +488,7 @@ page_directory_t* paging_deep_copy_directory(page_directory_t* src)
         }
 
         // Zero the new table
-        uint32_t* t = (uint32_t*)dst_table;
+        uint64_t* t = (uint64_t*)dst_table;
         for(int j = 0; j < 1024; j++)
         {   
             t[j] = 0;
@@ -506,7 +504,7 @@ page_directory_t* paging_deep_copy_directory(page_directory_t* src)
             }
 
             // Allocate a new physical page for the child
-            uint32_t new_page = (uint32_t)pmm_alloc();
+            uint64_t new_page = (uint64_t)pmm_alloc();
             if(!new_page)
             {
                 kserial_printf("paging_deep_copy: out of memory for page!\n");
@@ -514,7 +512,7 @@ page_directory_t* paging_deep_copy_directory(page_directory_t* src)
             }
 
             // Copy contents of source page to new page
-            uint8_t* src_data = (uint8_t*)(src_table->entries[j].frame << 12);
+            uint8_t* src_data = (uint8_t*)((uint64_t)src_table->entries[j].frame << 12);
             uint8_t* dst_data = (uint8_t*)new_page;
 
             for(int k = 0; k < PAGE_SIZE; k++)
@@ -535,11 +533,11 @@ page_directory_t* paging_deep_copy_directory(page_directory_t* src)
         // Install new page table into destination directory
         pde_set(
             (pde_t*)&dst->entries[i],
-            (uint32_t)dst_table,
+            (uint64_t)dst_table,
             PAGE_PRESENT | PAGE_WRITABLE | (src->entries[i].user ? PAGE_USER : 0)
         );
     }
 
-    kserial_printf("paging: deep copied directory to 0x%x\n", (uint32_t)dst);
+    kserial_printf("paging: deep copied directory to 0x%x\n", (uint64_t)dst);
     return dst;
 }

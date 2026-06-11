@@ -364,13 +364,129 @@ static int      shadowfs_read(file_t* file, void* buf, uint32_t size)
     return 0;
 }
 
-static int      shadowfs_write(file_t* file, const void* buf, uint32_t size)
+// --- shadowsfs_write --------------------------------------------------------
+static int shadowfs_write(file_t* file, const void* buf, uint32_t size)
 {
-    // TODO:
-    (void)file;
-    (void)buf;
-    (void)size;
-    return 0;
+    if(!file)
+    {
+        kpanic("shadowfs_write: null file!");
+    }
+
+    if(!buf)
+    {
+        kpanic("shadowfs_write: null buffer!");
+    }
+
+    if(!file->inode)
+    {
+        kpanic("shadowfs_write: null inode");
+    }
+
+    inode_t* inode = file->inode;
+    shadowfs_inode_t* priv = (shadowfs_inode_t*)inode->private_data;
+
+    if(!priv)
+    {
+        kpanic("shadowfs_write: null private data!");
+    }
+
+    // Get mount data to check quota
+    shadowfs_mount_t* mount = (shadowfs_mount_t*)inode->sb->private_data;
+
+    if(!mount)
+    {
+        kpanic("shadowfs_write: null mount data!");
+    }
+
+    if(size == 0)
+    {
+        // Nothing to write
+        return 0;
+    }
+
+    uint32_t remaining = size;
+    const uint8_t* src = (const uint8_t*)buf;
+    uint32_t written = 0;
+
+    // Find the last block or start from scratch
+    shadowfs_block_t* block = priv->file.blocks;
+    shadowfs_block_t* last = 0;
+
+    // Walk to the last block
+    while(block)
+    {
+        last = block;
+        block = block->next;
+    }
+
+    while(remaining > 0)
+    {
+        // Check quota before allocating
+        if(mount->used >= mount->quota)
+        {
+            kserial_printf("shadowFS: quota exceeded on write!\n");
+
+            // Return what we've written so far
+            break;
+        }
+
+        // Do we need a new block
+        if(!last || last->used == SHADOWFS_BLOCK_SIZE)
+        {
+            // Allocate a new block
+            shadowfs_block_t* new_block = (shadowfs_block_t*)kmalloc(sizeof(shadowfs_block_t));
+
+            // 4KB page from PMM - plenty of those
+            new_block->data = (uint8_t*)pmm_alloc();
+
+            if(!new_block)
+            {
+                kpanic("shadowfs_write: failed to allocate block!");
+            }
+
+            new_block->used = 0;
+            new_block->next = 0;
+
+            // Link into the chain
+            if(!priv->file.blocks)
+            {
+                // First block
+                priv->file.blocks = new_block;
+            }
+            else
+            {
+                // Append to chain
+                last->next = new_block;
+            }
+
+            last = new_block;
+            priv->file.block_count++;
+
+            // Update quota
+            mount->used += sizeof(shadowfs_block_t);
+        }
+
+        // How much space in current block
+        uint32_t space = SHADOWFS_BLOCK_SIZE - last->used;
+        uint32_t to_write = (remaining < space) ? remaining : space;
+
+        // Copy data into block
+        for(uint32_t i = 0; i < to_write; i++)
+        {
+            last->data[last->used + i] = src[i];
+        }
+
+        last->used += to_write;
+        src += to_write;
+        written += to_write;
+        remaining += to_write;
+    }
+
+    // Update inode size and position
+    inode->size += written;
+    file->position += written;
+
+    return (int)written;
 }
 
 static int      shadowfs_readdir(file_t* file, dentry_t* dentry)

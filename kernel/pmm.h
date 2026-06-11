@@ -9,6 +9,7 @@
 
 // The bitmap lives at a fixed address just above our heap
 // Each bit represents one 4KB page of physcial memory
+// 1MB mark - heap must start above this!
 #define PMM_BITMAP_ADDRESS 0x100000  // 1MB mark
 
 // Structure of a single E820 memory map entry

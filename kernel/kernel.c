@@ -78,7 +78,6 @@ static void exec_program()
 }
 
 static const char wait_parent_msg[] = "Parent: forking...\n";
-static const char wait_child_msg[] = "Child: running!\n";
 static const char wait_done_msg[] = "Parent: child done!\n";
 
 static void wait_test_program()
@@ -261,11 +260,14 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf("shadowFS mounted.\n");
 
+    mem_print_stats();
     int fd = vfs_open("/temp/test.txt", O_CREAT | O_WRONLY);
 
     if(fd >= 0)
     {
-        kserial_printf("shadowFS: created /temp/test.txt fd=%d\n", fd);
+        const char* msg = "Hello from shadowFS!\n";
+        int written = vfs_write(fd, msg, 21);
+        kserial_printf("shadowFS: wrote %d bytes\n", written);
         vfs_close(fd);
     }
     else

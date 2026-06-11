@@ -40,6 +40,9 @@ void mem_init()
 
     // No next block - this is the only one
     heap_start->next = 0;
+
+    // Mark heap as used
+    heap_used = 0;
 }
 
 // --- kmalloc --------------------------------------
@@ -111,6 +114,15 @@ void* kmalloc(uint32_t size)
     }
 
     // No block found - out of memory
+    kserial_printf("kmalloc: failed! size=%d used=%d\n", size, heap_used);
+    block_header_t* dbg = heap_start;
+    int count = 0;
+    while(dbg && count < 5) {
+        kserial_printf("  block %d: size=%d free=%d next=0x%x\n",
+            count, dbg->size, dbg->free, (uint32_t)dbg->next);
+        dbg = dbg->next;
+        count++;
+    }
     kpanic("kmalloc: out of heap memory!");
     return 0;
 }

@@ -15,7 +15,7 @@ typedef struct __attribute__((packed))
 typedef struct __attribute__((packed))
 {
     uint16_t limit;
-    uint32_t base;
+    uint64_t base;
 } idt_descriptor_t;
 
 // Registers pushed by our ISR stubs
@@ -28,7 +28,7 @@ typedef struct
 } registers_t;
 
 void idt_init();
-void idt_set_entry(int n, uint32_t base, uint16_t selector, uint8_t flags);
+void idt_set_entry(int n, uint64_t base, uint16_t selector, uint8_t flags);
 void keyboard_handler(registers_t* regs);
 void isr_handler(registers_t* regs);
 void irq_handler(registers_t* regs);

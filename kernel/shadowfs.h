@@ -32,8 +32,9 @@
 
 typedef struct shadowfs_block
 {
-    // The actual file data - 4096 bytes per block
-    uint8_t data[SHADOWFS_BLOCK_SIZE];
+    // The actual file data
+    // Pointer to PMM page - not inline
+    uint8_t* data;
 
     // Bytes used in this block, last block may not be full.
     // 0 = block is empty

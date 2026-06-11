@@ -16,7 +16,7 @@
 static idt_entry_t idt[IDT_ENTRIES];
 static idt_descriptor_t descriptor;
 
-extern void idt_flush(uint32_t);
+extern void idt_flush(uint64_t);
 
 // ISR stubs declared in isr.asm
 extern void isr0();
@@ -29,7 +29,7 @@ extern void isr128();
 extern void irq0();
 extern void irq1();
 
-void idt_set_entry(int n, uint32_t base, uint16_t selector, uint8_t flags)
+void idt_set_entry(int n, uint64_t base, uint16_t selector, uint8_t flags)
 {
     idt[n].base_low = base & 0xFFFF;
     idt[n].base_high = (base >> 16) & 0xFFFF;
@@ -41,20 +41,20 @@ void idt_set_entry(int n, uint32_t base, uint16_t selector, uint8_t flags)
 void idt_init()
 {
     descriptor.limit = sizeof(idt) - 1;
-    descriptor.base = (uint32_t)&idt;
+    descriptor.base = (uint64_t)&idt;
 
     // CPU exception handlers (first 4 for now)
-    idt_set_entry(0, (uint32_t)isr0, 0x08, 0x8E);       // Divide by zero
-    idt_set_entry(1, (uint32_t)isr1, 0x08, 0x8E);       // Debug
-    idt_set_entry(2, (uint32_t)isr2, 0x08, 0x8E);       // Non-maskable interrupt
-    idt_set_entry(3, (uint32_t)isr3, 0x08, 0x8E);       // Breakpoint
-    idt_set_entry(14, (uint32_t)isr14, 0x08, 0x8E);     // Page fault
-    idt_set_entry(32, (uint32_t)irq0, 0x08, 0x8E);      // Timer
-    idt_set_entry(33, (uint32_t)irq1, 0x08, 0x8E);      // Keyboard
-    idt_set_entry(128, (uint32_t)isr128, 0x08, 0xEE);   // 0xEE = present, ring 3 callable, interrupt gate. Ring 3 callable 
+    idt_set_entry(0, (uint64_t)isr0, 0x08, 0x8E);       // Divide by zero
+    idt_set_entry(1, (uint64_t)isr1, 0x08, 0x8E);       // Debug
+    idt_set_entry(2, (uint64_t)isr2, 0x08, 0x8E);       // Non-maskable interrupt
+    idt_set_entry(3, (uint64_t)isr3, 0x08, 0x8E);       // Breakpoint
+    idt_set_entry(14, (uint64_t)isr14, 0x08, 0x8E);     // Page fault
+    idt_set_entry(32, (uint64_t)irq0, 0x08, 0x8E);      // Timer
+    idt_set_entry(33, (uint64_t)irq1, 0x08, 0x8E);      // Keyboard
+    idt_set_entry(128, (uint64_t)isr128, 0x08, 0xEE);   // 0xEE = present, ring 3 callable, interrupt gate. Ring 3 callable 
                                                         // means user programs can trigger it without a GPF
 
-    idt_flush((uint32_t)&descriptor);
+    idt_flush((uint64_t)&descriptor);
 }
 
 // Called from isr_common_stub in isr.asm

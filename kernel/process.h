@@ -22,23 +22,23 @@ typedef enum
 // The order matters - it must match how we push registers in assembly
 typedef struct
 {
-    uint32_t eax;                       // General purpose registers
-    uint32_t ebx; 
-    uint32_t ecx;
-    uint32_t edx;
-    uint32_t esi;
-    uint32_t edi;
-    uint32_t ebp;                       // Base pointer - used for stack frames
-    uint32_t esp;                       // Stack pointer - top of the stack
-    uint32_t eip;                       // Instruction pointer - where to resume execution
-    uint32_t eflags;                    // CPU flags - carry, zero, sign etc.
-    uint32_t cs;                        // Code segment selector
-    uint32_t ds;                        // Data segment selector
-    uint32_t ss;                        // Stack segment selector
+    uint64_t eax;                       // General purpose registers
+    uint64_t ebx; 
+    uint64_t ecx;
+    uint64_t edx;
+    uint64_t esi;
+    uint64_t edi;
+    uint64_t ebp;                       // Base pointer - used for stack frames
+    uint64_t esp;                       // Stack pointer - top of the stack
+    uint64_t eip;                       // Instruction pointer - where to resume execution
+    uint64_t eflags;                    // CPU flags - carry, zero, sign etc.
+    uint64_t cs;                        // Code segment selector
+    uint64_t ds;                        // Data segment selector
+    uint64_t ss;                        // Stack segment selector
 } cpu_state_t;
 
 // --- Process ID ------------------------------------------
-typedef uint32_t pid_t;                 // Process ID type - just a number
+typedef uint64_t pid_t;                 // Process ID type - just a number
 
 // --- Stack size ------------------------------------------
 #define PROCESS_STACK_SIZE 4096         // Each process gets a 4KB kernel stack
@@ -56,16 +56,16 @@ typedef struct process
     char                name[32];           // Human readable name - useful for debugging
     process_state_t     state;              // Current state (ready, running, blocked, dead)
     cpu_state_t         cpu;                // Saved CPU state - restored on context switch
-    uint32_t            stack;              // Physical address of this process's stack
-    uint32_t            stack_top;          // Address of top of stack (stack grows down)
+    uint64_t            stack;              // Physical address of this process's stack
+    uint64_t            stack_top;          // Address of top of stack (stack grows down)
     page_directory_t*   page_dir;           // This process's virtual memory map
                                             // NULL = use kernel page directory
     int32_t             time_slice;         // How many timer ticks this process gets
                                             // before being preempted
     int32_t             ticks_remaining;    // Ticks left in current time slice
     struct process*     next;               // Used by scheduler
-    uint32_t            user_esp;           // User ESP at last syscall
-    uint32_t            user_eip;           // User EIP at least syscall
+    uint64_t            user_esp;           // User ESP at last syscall
+    uint64_t            user_eip;           // User EIP at least syscall
     pid_t               parent_pid;         // PID of parent process
                                             // 0 = kernel (kernel process)
     int                 exit_code;          // Exit code when process dies
@@ -76,7 +76,7 @@ typedef struct process
 // Global array of all processes - index is the PID
 extern process_t* process_table[MAX_PROCESSES];
 extern process_t* current_process;          // Which process is currently running
-extern uint32_t   next_pid;                 // Need PID to assign
+extern uint64_t   next_pid;                 // Need PID to assign
 
 // --- Functions ------------------------------------------
 // Inititalise the process subsystem
@@ -85,7 +85,7 @@ void process_init();
 // Create a new process
 // entry = function to run
 // flags = future use (user/kernel mode etc.)
-process_t* process_create(const char* name, void(*entry)(), uint32_t flags_);
+process_t* process_create(const char* name, void(*entry)(), uint64_t flags_);
 
 // Mark a process as dead
 void process_exit(process_t* process);

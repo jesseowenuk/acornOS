@@ -11,20 +11,20 @@
 // The CPU reads these automatically when translating virtual addresses
 typedef struct __attribute__((packed))
 {
-    uint32_t present            : 1;        // Bit 0 - 1 = this entry is valid
+    uint64_t present            : 1;        // Bit 0 - 1 = this entry is valid
                                             //         0 = accessing this causes a page fault
-    uint32_t writable           : 1;        // Bit 1 - 1 = page table is writable
+    uint64_t writable           : 1;        // Bit 1 - 1 = page table is writable
                                             //         0 = read only
-    uint32_t user               : 1;        // Bit 2 - 1 = user programs can access this
+    uint64_t user               : 1;        // Bit 2 - 1 = user programs can access this
                                             //         0 = kernel only
-    uint32_t write_through      : 1;        // Bit 3 - controls CPU cache write behaviour
-    uint32_t cache_disabled     : 1;        // Bit 4 - 1 = disable CPU cache for this entry
-    uint32_t accessed           : 1;        // Bit 5 - CPU sets this when entry is read
-    uint32_t reserved           : 1;        // Bit 6 - must always be 0
-    uint32_t page_size          : 1;        // Bit 7 - 0 = 4KB pages (what we use)
+    uint64_t write_through      : 1;        // Bit 3 - controls CPU cache write behaviour
+    uint64_t cache_disabled     : 1;        // Bit 4 - 1 = disable CPU cache for this entry
+    uint64_t accessed           : 1;        // Bit 5 - CPU sets this when entry is read
+    uint64_t reserved           : 1;        // Bit 6 - must always be 0
+    uint64_t page_size          : 1;        // Bit 7 - 0 = 4KB pages (what we use)
                                             //         1 = 4MB pages (we don't use this)
-    uint32_t ignored            : 4;        // Bits 8-11 - ignored by CPU, we can use freely
-    uint32_t frame              : 20;       // Bits 12-31 - upper 20 bits of the physical 
+    uint64_t ignored            : 4;        // Bits 8-11 - ignored by CPU, we can use freely
+    uint64_t frame              : 20;       // Bits 12-31 - upper 20 bits of the physical 
                                             //              address of the Page Table
                                             //              lower 12 bits are always 0
                                             //              (page tables are 4KB aligned)
@@ -35,20 +35,20 @@ typedef struct __attribute__((packed))
 // Each entry points to a physical page of memory
 typedef struct __attribute__((packed))
 {
-    uint32_t present            : 1;        // Bit 0 - 1 = this page exists in RAM
-    uint32_t writable           : 1;        // Bit 1 - 1 = page is writable
-    uint32_t user               : 1;        // Bit 2 - 1 = user programs can access
-    uint32_t write_through      : 1;        // Bit 3 - cache write behaviour
-    uint32_t cache_disabled     : 1;        // Bit 4 - disable cache for this page
-    uint32_t accessed           : 1;        // Bit 5 - CPU sets when page is read
-    uint32_t dirty              : 1;        // Bit 6 - CPU sets when page is written to
+    uint64_t present            : 1;        // Bit 0 - 1 = this page exists in RAM
+    uint64_t writable           : 1;        // Bit 1 - 1 = page is writable
+    uint64_t user               : 1;        // Bit 2 - 1 = user programs can access
+    uint64_t write_through      : 1;        // Bit 3 - cache write behaviour
+    uint64_t cache_disabled     : 1;        // Bit 4 - disable cache for this page
+    uint64_t accessed           : 1;        // Bit 5 - CPU sets when page is read
+    uint64_t dirty              : 1;        // Bit 6 - CPU sets when page is written to
                                             //         useful for knowing which pages
                                             //         need writing back to disk
-    uint32_t reserved           : 1;        // Bit 7 - must always be 0
-    uint32_t global             : 1;        // Bit 8 - 1 = don't flush from TLB on
+    uint64_t reserved           : 1;        // Bit 7 - must always be 0
+    uint64_t global             : 1;        // Bit 8 - 1 = don't flush from TLB on
                                             //             CR3 reload (kernel pages use this)
-    uint32_t ignored            : 3;        // Bits 9-11 - ignored by CPU
-    uint32_t frame              : 20;       // Bits 12-31 - upper 20 bits of the physical
+    uint64_t ignored            : 3;        // Bits 9-11 - ignored by CPU
+    uint64_t frame              : 20;       // Bits 12-31 - upper 20 bits of the physical
                                             //              page address this entry maps to.
 } pte_t;
 
@@ -99,15 +99,15 @@ void page_fault_handler(registers_t* regs); // Called on interrupt 14
 #define PG_OFFSET(addr) ((addr) & 0xFFF)
 
 // Map a virtual address to a physical address
-void map_page(uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags);
+void map_page(uint64_t virtual_addr, uint64_t physical_addr, uint64_t flags);
 
-void map_page_in(page_directory_t* dir, uint32_t virtual_addr, uint32_t physical_addr, uint32_t flags);
+void map_page_in(page_directory_t* dir, uint64_t virtual_addr, uint64_t physical_addr, uint64_t flags);
 
 // Remove a mapping
-void unmap_page(uint32_t virtual_addr);
+void unmap_page(uint64_t virtual_addr);
 
 // Look up physical address for a virtual address
-uint32_t get_physical(uint32_t virtual_addr);
+uint64_t get_physical(uint64_t virtual_addr);
 
 // Clone the kernel page directory for a new process
 // Returns a new page directory with kernel mappings shared

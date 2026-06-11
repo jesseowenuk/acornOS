@@ -9,6 +9,8 @@
 #include "string.h"
 #include "panic.h"
 
+#include <stdint.h>
+
 extern void iret_to_usermode();
 
 // --- Global state ----------------------------------------
@@ -24,7 +26,7 @@ process_t* current_process = 0;
 // Next PID to hand out
 // PID 0 = kernel idle process
 // PID 1 = first real process
-uint32_t next_pid = 0;
+uint64_t next_pid = 0;
 
 // --- Init -----------------------------------------------
 // Creates a new process and adds it to the process table
@@ -49,7 +51,7 @@ void process_init()
     kserial_printf("Process: subsystem initialised.\n");
 }
 
-process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
+process_t* process_create(const char* name, void(*entry)(), uint64_t flags)
 {
     (void)flags;                    // Not used yet - will be for ring 3
 
@@ -103,7 +105,7 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
 
     // Step 5: Allocate a stack for this process
     // Each process needs its own stack - we get a fresh page from PMM
-    proc->stack = (uint32_t)pmm_alloc();        // Allocate one 4KB page
+    proc->stack = (uint64_t)pmm_alloc();        // Allocate one 4KB page
 
     // Stack grows downward - top of stack is at the END of the page
     // We subtract 4 to leave room for the first push
@@ -114,7 +116,7 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
     // Zero all the registers first
     kmemset(&proc->cpu, 0, sizeof(cpu_state_t));
 
-    proc->cpu.eip = (uint32_t)entry;            // Start executing at entry function
+    proc->cpu.eip = (uint64_t)entry;            // Start executing at entry function
     proc->cpu.esp = proc->stack_top;            // Stack starts at top and grows down
     proc->cpu.ebp = proc->stack_top;            // Base pointer same as stack top
     proc->cpu.eflags = 0x200;                   // Enable interrupts (IF flag = bit 9)
@@ -127,11 +129,11 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
     // Pre-load the entry point onto the process stack
     // When scheduler_start does 'ret' it pops this address
     // and jumps to the process_entry function
-    uint32_t* stack = (uint32_t*)proc->stack_top;
-    *stack = (uint32_t)entry;                   // Push entry point onto stack
+    uint64_t* stack = (uint64_t*)(uintptr_t)proc->stack_top;
+    *stack = (uint64_t)entry;                   // Push entry point onto stack
 
     proc->cpu.esp = proc->stack_top;            // ESP points to the entry point
-    proc->cpu.eip = (uint32_t)entry;            // EIP also set for direct jump
+    proc->cpu.eip = (uint64_t)entry;            // EIP also set for direct jump
     proc->cpu.ebp = proc->stack_top;            // EBP same as ESP initially 
 
     // Step 7: Each process gets own directory with kernel mappings shared
@@ -147,7 +149,7 @@ process_t* process_create(const char* name, void(*entry)(), uint32_t flags)
     process_table[slot] = proc;
 
     // Log creation
-    kserial_printf("Process: created '%s' PID=%d entry=0x%x\n", name, proc->pid, (uint32_t)entry);
+    kserial_printf("Process: created '%s' PID=%d entry=0x%x\n", name, proc->pid, (uint64_t)entry);
 
     return proc;
 }
@@ -291,7 +293,7 @@ process_t* create_user_process(const char* name, void (*entry)())
     // Step 4: allocate kernel stack
     // Used when this process triggers an interrupt
     // The CPU switches to this stack automatically via TSS
-    proc->stack = (uint32_t)pmm_alloc();
+    proc->stack = (uint64_t)pmm_alloc();
 
     // Top of kernel stack
     proc->stack_top = proc->stack + PAGE_SIZE - 4;
@@ -299,7 +301,7 @@ process_t* create_user_process(const char* name, void (*entry)())
     // Step 5: allocate user stack
     // This is what the process itself uses for function calls
     // Lives in user space - process can read and write it freely
-    uint32_t user_stack = (uint32_t)pmm_alloc();
+    uint64_t user_stack = (uint64_t)pmm_alloc();
 
     // Step 6: clone kernel page directory
     proc->page_dir = paging_clone_directory();
@@ -313,7 +315,7 @@ process_t* create_user_process(const char* name, void (*entry)())
     // Step 7: map user stack into process's virtual address space
     // Must switch to process's page directory to map into it
     // Just below 3GB - top of user space
-    uint32_t user_stack_virt = 0xBFFFF000;
+    uint64_t user_stack_virt = 0xBFFFF000;
 
     // Map user stack - now goes into the current process's own page directory
     map_page_in(proc->page_dir,             // Map into THIS process's directory
@@ -325,21 +327,21 @@ process_t* create_user_process(const char* name, void (*entry)())
     // Step 8: pre-load the kernel stack with an iret frame
     // When switch_context first runs this process it will
     // find this frame and iret into ring 3
-    uint32_t* kstack = (uint32_t*)proc->stack_top;
+    uint64_t* kstack = (uint64_t*)(uintptr_t)proc->stack_top;
 
     *kstack-- = 0x23;                               // SS - user stack segment (RPL=3)
     *kstack-- = user_stack_virt + PAGE_SIZE - 4;    // ESP - top of user stack
     *kstack-- = 0x200;                              // EFLAGS - interrupts enabled
     *kstack-- = 0x1B;                               // CS - user code segment (RPL=3)
-    *kstack-- = (uint32_t)entry;                    // EIP - entry point
+    *kstack-- = (uint64_t)entry;                    // EIP - entry point
     *kstack-- = 0;                                  // EAX = 0 (initial value)
 
     // Step 9: Set up CPU state to point at our iret frame
     // When switch_context restores this process it will
     // restore these registers then ret to our iret stub
     kmemset(&proc->cpu, 0, sizeof(cpu_state_t));
-    proc->cpu.esp = (uint32_t)kstack + 4;           // ESP points to the top of iret frame
-    proc->cpu.eip = (uint32_t)iret_to_usermode;     // First thing we do is iret to ring 3
+    proc->cpu.esp = (uint64_t)kstack + 4;           // ESP points to the top of iret frame
+    proc->cpu.eip = (uint64_t)iret_to_usermode;     // First thing we do is iret to ring 3
     proc->cpu.eflags = 0x200;                       // Interrupts enabled
     proc->cpu.cs = 0x08;                            // Kernel code for now
     proc->cpu.ds = 0x10;                            // Kernel data for now
@@ -348,7 +350,7 @@ process_t* create_user_process(const char* name, void (*entry)())
     // Step 10: add to process table
     process_table[slot] = proc;
 
-    kserial_printf("create_user_process: '%s' PID=%d entry=0x%x\n", name, proc->pid, (uint32_t)entry);
+    kserial_printf("create_user_process: '%s' PID=%d entry=0x%x\n", name, proc->pid, (uint64_t)entry);
 
     return proc;
 }
@@ -393,7 +395,7 @@ pid_t process_fork()
     // This copies all fields including cpu state
     uint8_t* src = (uint8_t*)current_process;
     uint8_t* dst = (uint8_t*)child;
-    for(uint32_t i = 0; i < sizeof(process_t); i++)
+    for(uint64_t i = 0; i < sizeof(process_t); i++)
     {
         dst[i] = src[i];
     }
@@ -410,7 +412,7 @@ pid_t process_fork()
     kstrcpy(child->name, current_process->name, 32);
 
     // Step 6: allocate new kernel stack
-    child->stack = (uint32_t)pmm_alloc();
+    child->stack = (uint64_t)pmm_alloc();
     if(!child->stack)
     {
         kserial_printf("fork: failed to allocate child stack!\n");
@@ -419,9 +421,9 @@ pid_t process_fork()
     }
 
     // Step 7: copy kernel stack contents
-    uint8_t* parent_stack = (uint8_t*)current_process->stack;
-    uint8_t* child_stack = (uint8_t*)child->stack;
-    for(uint32_t i = 0; i < PAGE_SIZE; i++)
+    uint8_t* parent_stack = (uint8_t*)(uintptr_t)current_process->stack;
+    uint8_t* child_stack = (uint8_t*)(uintptr_t)child->stack;
+    for(uint64_t i = 0; i < PAGE_SIZE; i++)
     {
         child_stack[i] = parent_stack[i];
     }
@@ -441,7 +443,7 @@ pid_t process_fork()
     // Step 10: Set up child's kernel stack with a fresh iret frame
     // Child resumes at same point in user space as parent
     // but fork() returns 0 to the child
-    uint32_t* kstack = (uint32_t*)child->stack_top;
+    uint64_t* kstack = (uint64_t*)(uintptr_t)child->stack_top;
 
     *kstack-- = 0x23;                       // SS - user stack segment
     *kstack-- = current_process->user_esp;  // ESP - user stack pointer
@@ -452,8 +454,8 @@ pid_t process_fork()
     *kstack-- = 0;                          // EAX = 0 (fork returns 0 to child)
 
     // Step 11: set up child CPU state
-    child->cpu.esp = (uint32_t)kstack + 4;  // Points to top of iret frame
-    child->cpu.eip = (uint32_t)iret_to_usermode;    // child enters via iret
+    child->cpu.esp = (uint64_t)kstack + 4;  // Points to top of iret frame
+    child->cpu.eip = (uint64_t)iret_to_usermode;    // child enters via iret
     child->cpu.eax = 0;
     child->cpu.eflags = 0x200;              // Clean EFLAGS
     child->cpu.cs = 0x08;                   // Kernel code for now
@@ -491,14 +493,14 @@ int process_exec(void (*entry)())
         return -1;
     }
 
-    kserial_printf("exec: PID=%d replacing with entry=0x%x\n", current_process->pid, (uint32_t)entry);
+    kserial_printf("exec: PID=%d replacing with entry=0x%x\n", current_process->pid, (uint64_t)entry);
 
     // Step 1: allocate user stack first
-    uint32_t new_stack = (uint32_t)pmm_alloc();
+    uint64_t new_stack = (uint64_t)pmm_alloc();
 
     // Step 2: Allocate a fresh kernel stack
-    uint32_t new_kstack = (uint32_t)pmm_alloc();
-    uint32_t new_kstack_top = new_kstack + PAGE_SIZE - 4;
+    uint64_t new_kstack = (uint64_t)pmm_alloc();
+    uint64_t new_kstack_top = new_kstack + PAGE_SIZE - 4;
 
     // Step 3: allocate a new page directory
     // We need a fresh address space for the new program
@@ -514,7 +516,7 @@ int process_exec(void (*entry)())
 
 
     // Step 4: map user stack into new page directory
-    uint32_t user_stack_virt = 0xBFFFF000;
+    uint64_t user_stack_virt = 0xBFFFF000;
     map_page_in(
         new_dir,
         user_stack_virt,
@@ -523,12 +525,12 @@ int process_exec(void (*entry)())
     );
 
     // Step 5: set up iret frame on new kernel stack
-    uint32_t* kstack = (uint32_t*)new_kstack_top;
+    uint64_t* kstack = (uint64_t*)new_kstack_top;
     *kstack-- = 0x23;                                   // SS - user stack segment
     *kstack-- = user_stack_virt + PAGE_SIZE - 4;        // ESP - top of the user stack
     *kstack-- = 0x200;                                  // EFLAGS - interrupts enabled
     *kstack-- = 0x1B;                                   // CS - user code segment
-    *kstack-- = (uint32_t)entry;                        // EIP - new entry point
+    *kstack-- = (uint64_t)entry;                        // EIP - new entry point
     *kstack-- = 0;                                      // EAX - return value
 
     // Step 6: update process fields
@@ -540,9 +542,9 @@ int process_exec(void (*entry)())
     tss_set_kernel_stack(new_kstack_top);
 
     // Step 8: update CPU state to use new stack and entry point
-    uint32_t new_esp = (uint32_t)kstack + 4;
+    uint64_t new_esp = (uint64_t)kstack + 4;
     current_process->cpu.esp = new_esp;
-    current_process->cpu.eip = (uint32_t)iret_to_usermode;
+    current_process->cpu.eip = (uint64_t)iret_to_usermode;
     current_process->cpu.eflags = 0x200;
     current_process->cpu.cs = 0x08;
     current_process->cpu.ds = 0x10;
@@ -556,7 +558,7 @@ int process_exec(void (*entry)())
 
     // Switch to new kernel stack and jump
     __asm__ volatile(
-        "mov %0, %%esp\n\t"             // Switch to new kernel stack (%0 = first input operand (2nd : below))
+        "mov %0, %%rsp\n\t"             // Switch to new kernel stack (%0 = first input operand (2nd : below))
         "jmp iret_to_usermode\n\t"      // Jump to user mode entry
         :
         : "r"(new_esp)
