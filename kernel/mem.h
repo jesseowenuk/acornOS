@@ -14,7 +14,7 @@ void mem_init();
 
 // Allocate 'size' bytes - returns pointer to usable memory
 // Returns 0 (NULL) if no block large enough is available
-void* kmalloc(uint32_t size);
+void* kmalloc(uint64_t size);
 
 // Free a previously allocated block
 // Passing a NULL pointer is safe - it does nothing

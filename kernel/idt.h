@@ -21,10 +21,22 @@ typedef struct __attribute__((packed))
 // Registers pushed by our ISR stubs
 typedef struct
 {
-    uint32_t ds;
-    uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax;
-    uint32_t int_no, err_code;
-    uint32_t eip, cs, eflags, useresp, ss;
+    uint64_t ds;                    // Data segment
+    uint64_t r15, r14, r13, r12; 
+    uint64_t r11, r10, r9, r8;
+    uint64_t rbp, rdi, rsi;
+    uint64_t rdx, rcx, rbx, rax;
+
+    // Pushed by our macros
+    uint64_t int_no;
+    uint64_t err_code;
+
+    // Pushed by CPU automatically
+    uint64_t rip;
+    uint64_t cs;
+    uint64_t rflags;
+    uint64_t rsp;               // User stack pointer
+    uint64_t ss; 
 } registers_t;
 
 void idt_init();

@@ -1,8 +1,7 @@
-[BITS 32]
+[BITS 64]
 
 global idt_flush
 
 idt_flush:
-    mov eax, [esp+4]
-    lidt [eax]
+    lidt [rdi]                  ; Load IDT descriptor
     ret

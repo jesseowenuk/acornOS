@@ -47,7 +47,7 @@ void mem_init()
 
 // --- kmalloc --------------------------------------
 
-void* kmalloc(uint32_t size)
+void* kmalloc(uint64_t size)
 {
     // Allocating zero bytes makes no sense
     if(size == 0)
@@ -119,7 +119,7 @@ void* kmalloc(uint32_t size)
     int count = 0;
     while(dbg && count < 5) {
         kserial_printf("  block %d: size=%d free=%d next=0x%x\n",
-            count, dbg->size, dbg->free, (uint32_t)dbg->next);
+            count, dbg->size, dbg->free, (uint64_t)dbg->next);
         dbg = dbg->next;
         count++;
     }

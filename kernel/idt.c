@@ -84,7 +84,7 @@ void isr_handler(registers_t* regs)
 
     vga_set_colour(RED, BLACK);
     kprintf("\nCPU EXCEPTION: %s\n", exceptions[regs->int_no]);
-    kprintf("EIP=0x%x ESP=0x%x\n", regs->eip, regs->esp);
+    kprintf("EIP=0x%x ESP=0x%x\n", regs->rip, regs->rsp);
 
     for(;;);
 }

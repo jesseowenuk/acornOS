@@ -39,7 +39,7 @@ void tss_init()
     // base = address of our tss_struct
     // limit = size of TSS minus 1
     gdt_set_tss_entry(
-        (uint32_t)&tss,                 // Physical address of TSS
+        (uint64_t)&tss,                 // Physical address of TSS
         sizeof(tss_t) - 1               // Limit = size - 1 (CPU convention)
     );
 
@@ -52,7 +52,7 @@ void tss_init()
         : "a"(0x28)                     // Input: TSS selector = 0x28
     );
 
-    kserial_printf("TSS: initialised at 0x%x\n", (uint32_t)&tss);
+    kserial_printf("TSS: initialised at 0x%x\n", (uint64_t)&tss);
     kserial_printf("TSS: esp=0x%x ss0=0x%x\n", tss.esp0, tss.ss0);
 }
 

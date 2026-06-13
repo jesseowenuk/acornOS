@@ -17,7 +17,7 @@ static void sys_exit(registers_t* regs)
         kpanic("sys_exit: no current process!");
     }
 
-    int exit_code = (int)regs->ebx;         // Get exit code from EBX
+    int exit_code = (int)regs->rbx;         // Get exit code from EBX
 
     kserial_printf("Syscall: exit(%d) PID=%d\n", exit_code, current_process->pid);
 
@@ -55,17 +55,17 @@ static void sys_exit(registers_t* regs)
 static void sys_write(registers_t* regs)
 {
     // EBX = pointer to the string
-    const char* str = (const char*)regs->ebx;
+    const char* str = (const char*)regs->rbx;
 
     // ECX = string length
-    uint32_t len = regs->ecx;
+    uint32_t len = regs->rcx;
 
-    kserial_printf("sys_write: str=0x%x len=%d\n", (uint32_t)str, len);
+    kserial_printf("sys_write: str=0x%x len=%d\n", (uint64_t)str, len);
 
     if(!str)
     {
         // NULL pointer check
-        regs->eax = -1;
+        regs->rax = -1;
 
         // return error
         return;
@@ -75,7 +75,7 @@ static void sys_write(registers_t* regs)
     if(len > 4096)
     {
         kserial_printf("sys_write: suspicous length %d\n", len);
-        regs->eax = -1;
+        regs->rax = -1;
         return;
     }
 
@@ -88,7 +88,7 @@ static void sys_write(registers_t* regs)
     }
 
     // Return number of chars written
-    regs->eax = written;
+    regs->rax = written;
 }
 
 // --- sys_read ----------------------------------------
@@ -100,7 +100,7 @@ static void sys_read(registers_t* regs)
     char c = keyboard_getchar();
 
     // Return character in EAX
-    regs->eax = (uint32_t)c;
+    regs->rax = (uint32_t)c;
 }
 
 // --- sys_pid ------------------------------------------
@@ -111,12 +111,12 @@ static void sys_getpid(registers_t* regs)
     if(current_process)
     {
         // Return PID in EAX
-        regs->eax = current_process->pid;
+        regs->rax = current_process->pid;
     }
     else
     {
         // No current process
-        regs->eax = 0;
+        regs->rax = 0;
     }
 }
 
@@ -144,7 +144,7 @@ static void sys_fork(registers_t* regs)
 
     // Return child PID to parent
     // Child will have EAX=0 from the copied CPU state
-    regs->eax = (uint32_t)child_pid;
+    regs->rax = (uint32_t)child_pid;
 }
 
 // --- sys_wait ------------------------------------------
@@ -171,7 +171,7 @@ static void sys_wait(registers_t* regs)
             process_table[i] = 0;
 
             // Return exit code to parent
-            regs->eax = exit_code;
+            regs->rax = exit_code;
 
             return;
         }
@@ -192,7 +192,7 @@ static void sys_wait(registers_t* regs)
     {
         // No children - return error
         kserial_printf("wait: no children!\n");
-        regs->eax = -1;
+        regs->rax = -1;
         return;
     }
 
@@ -209,25 +209,25 @@ static void sys_wait(registers_t* regs)
         {
             int exit_code = process_table[i]->exit_code;
             kserial_printf("wait: child PID=%d exited=%d\n", process_table[i]->pid, exit_code);
-            regs->eax = exit_code;
+            regs->rax = exit_code;
             return;
         }
     }
 
     // Something went wrong
-    regs->eax = -1;
+    regs->rax = -1;
 }
 
 // --- sys_exec ------------------------------------------
 static void sys_exec(registers_t* regs)
 {
     // EBX = entry point address
-    void (*entry)() = (void(*)())regs->ebx;
+    void (*entry)() = (void(*)())regs->rbx;
 
     if(!entry)
     {
         kserial_printf("sys_exec: null entry point!\n");
-        regs->eax = -1;
+        regs->rax = -1;
         return;
     }
 
@@ -236,7 +236,7 @@ static void sys_exec(registers_t* regs)
     process_exec(entry);
 
     // Only reached on failure
-    regs->eax = -1;
+    regs->rax = -1;
 }
 
 // --- Syscall dispatch table ----------------------------
@@ -276,12 +276,12 @@ void syscall_handler(registers_t* regs)
     // Used by fork() to resume child at correct location
     if(current_process)
     {
-        current_process->user_esp = regs->useresp;          // User ESP
-        current_process->user_eip = regs->eip;              // User return address
+        current_process->user_esp = regs->rsp;          // User ESP
+        current_process->user_eip = regs->rip;              // User return address
     }
 
     // Syscall number is in EAX
-    uint32_t syscall_num = regs->eax;
+    uint32_t syscall_num = regs->rax;
 
     if(syscall_num >= SYSCALL_COUNT)
     {
@@ -289,13 +289,13 @@ void syscall_handler(registers_t* regs)
         kserial_printf("Syscall: unknown syscall %d\n", syscall_num);
 
         // return error
-        regs->eax = -1;
+        regs->rax = -1;
         return;
     }
 
     // Dispatch to the appropriate handler
     // Call the handler
-    // This may modify regs->eax as the return value
+    // This may modify regs->rax as the return value
     syscall_table[syscall_num](regs);
 }
 

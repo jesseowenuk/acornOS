@@ -1,22 +1,15 @@
-[BITS 32]
+[BITS 64]
 
 global enter_usermode                   ; Make visible to C code
 global iret_to_usermode
 
-; enter_usermode(uint32_t entry, uint32_t stack)
+; enter_usermode(uint64_t entry, uint64_t stack)
 ; Arguments (C calling convention):
-;   [esp+4] = entry - address of user program function
-;   [esp+8] = stack - top of user mode stack
+;   RDI = entry - address of user program
+;   RSI = stack - top of user mode stack
 ;
-; To jump to ring 3 we use a carefully crafted iret
-; iret pops: EIP, CS, EFLAGS, ESP, SS (in that order)
-; If CS has RPL=3 the CPU switches to ring 3
 
 enter_usermode:
-    ; Read arguments before we touch the stack
-    mov eax, [esp+4]                ; EAX = entry point address
-    mov ecx, [esp+8]                ; ECX = user stack pointer
-
     ; Load user data segment into all data segment registers
     ; 0x23 = GDT user data selector with RPL=3
     ; We must do this before iret so data accesses work in ring 3
@@ -28,24 +21,24 @@ enter_usermode:
                                     ; SS will be set by iret automatically
 
     ; Build the iret stack frame
-    ; iret in 32-bit protected mode with privilege change pops
-    ;   EIP - where to start executing
+    ; iret in 64-bit pops
+    ;   RIP - where to start executing
     ;   CS - code segment (RPL = 3 triggers ring switch)
-    ;   EFLAGS - CPU flags
-    ;   ESP - user stack pointer (only on privilege change)
+    ;   RFLAGS - CPU flags
+    ;   RSP - user stack pointer (only on privilege change)
     ;   SS - user stack segment (only on privilege change)
     ; We push them in REVERSE order since the stack grows downwards
 
     push 0x23                       ; SS - user stack segment (RPL = 3)
-    push ecx                        ; ESP - user stack pointer
+    push rsi                        ; RSP - user stack pointer
     push 0x200                      ; EFLAGS - IF flag set (interrupts enabled)
                                     ; 0x200 = 0000 0010 0000 0000
                                     ; bit 9 = Interrupt Flag = 1
     push 0x1B                       ; CS - user code segment (RPL = 3)
                                     ; 0x1B = 0x18 | 3 (GDT entry 3 + RPL = 3)
-    push eax                        ; EIP - entry point address
+    push rdi                        ; RIP - entry point address
 
-    iret                            ; Pop all 5 values and jump to ring 3!
+    iretq                           ; Pop all 5 values and jump to ring 3!
                                     ; CPU sees CS RPL=3, switches privilege
                                     ; Loads SS and ESP for user stack
                                     ; Jumps to EIP in ring 3
@@ -53,11 +46,12 @@ enter_usermode:
 
 iret_to_usermode:
     ; At this point the kernel stack has our iret frame
-    ;   [esp+0] = EIP (entry point)
-    ;   [esp+4] = CS (0x1B user code)
-    ;   [esp+8] = EFLAGS
-    ;   [esp+12] = ESP (user stack)
-    ;   [esp+16] = SS (0x23 user stack segment)
+    ;   [rsp+0] = RAX value (fork return value)
+    ;   [rsp+8] = RIP entry point
+    ;   [rsp+16] = CS (0x1B user code)
+    ;   [rsp+24] = RFLAGS
+    ;   [esp+32] = RSP (user stack)
+    ;   [rsp+40] = SS (0x23 user stack segment)
 
     ; Load user data segment into all segment registers
     mov ax, 0x23                    ; User data segment
@@ -66,10 +60,9 @@ iret_to_usermode:
     mov fs, ax
     mov gs, ax
 
-    pop eax                         ; Restore EAX - fork return value
-                                    ; For child this is 0
-                                    ; For create_user_process this is whatever was pushed
+    pop rax                         ; Restore RAX - fork return value
+                                    ; For child this is 0, child PID for parent
 
     ; Pop EIP, CS, EFLAGS, ESP, SS
     ; CPU sees CS RPL=3 and switches to ring 3
-    iret
+    iretq

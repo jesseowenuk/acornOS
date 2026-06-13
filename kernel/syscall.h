@@ -15,11 +15,11 @@
 
 // --- Syscall handler ---------------------------------------------
 // Called from isr_handler when INT 0x80 fires
-// regs->eax    = syscall number
-// regs->ebx    = first argument
-// regs->ecx    = second argument
-// regs->edx    = third argument
-// return value goes into regs->eax
+// regs->rax    = syscall number
+// regs->rbx    = first argument
+// regs->rcx    = second argument
+// regs->rdx    = third argument
+// return value goes into regs->rax
 void syscall_handler(registers_t* regs);
 
 // Register INT 0x80 handler

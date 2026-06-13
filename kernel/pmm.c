@@ -14,15 +14,15 @@
 static uint8_t* bitmap = (uint8_t*)PMM_BITMAP_ADDRESS;
 
 // Total pages in the system
-static uint32_t total_pages = 0;
+static uint64_t total_pages = 0;
 
 // Pages currently allocated
-static uint32_t used_pages = 0;
+static uint64_t used_pages = 0;
 
 // --- Bitmap helpers ---------------------------------------------
 
 // Mark a page as used - set its bit to 1
-static void bitmap_set(uint32_t page)
+static void bitmap_set(uint64_t page)
 {
     // page / 8 gives us which byte this page's bit lives in
     // page % 8 gives us which bit within that byte
@@ -32,7 +32,7 @@ static void bitmap_set(uint32_t page)
 }
 
 // Mark a page as free - clear its bit to 0
-static void bitmap_clear(uint32_t page)
+static void bitmap_clear(uint64_t page)
 {
     // ~(1 << (page % 8)) creates a mask with all bits set EXCEPT that one
     // &= clears just that bit without touching the others
@@ -40,7 +40,7 @@ static void bitmap_clear(uint32_t page)
 }
 
 // Check if a page is free - returns 1 if free, 0 if used
-static int bitmap_test(uint32_t page)
+static int bitmap_test(uint64_t page)
 {
     // & isolates the bit we care about
     // ! inverts it - bit 0 means free so we can return 1 for free
@@ -48,23 +48,23 @@ static int bitmap_test(uint32_t page)
 }
 
 // --- Init ---------------------------------------------
-void pmm_init(uint32_t mem_map_addr, uint32_t mem_map_count)
+void pmm_init(uint64_t mem_map_addr, uint64_t mem_map_count)
 {
     // Step 1: get the total memory size from the E820 map
     // We find the highest usable address to know how many pages we need
 
     // Cast the raw address to our entry struct pointer
-    e820_entry_t* map = (e820_entry_t*)mem_map_addr;
+    e820_entry_t* map = (e820_entry_t*)(uintptr_t)mem_map_addr;
 
     // Highest usable memory address we find
-    uint32_t highest = 0;
+    uint64_t highest = 0;
 
-    for(uint32_t i = 0; i < mem_map_count; i++)
+    for(uint64_t i = 0; i < mem_map_count; i++)
     {
         if(map[i].type == E820_USABLE)
         {
             // Only count usable RAM regions
-            uint32_t end = (uint32_t)(map[i].base + map[i].length);
+            uint64_t end = (uint64_t)(map[i].base + map[i].length);
 
             // End address of this region
             if(end > highest)
@@ -84,9 +84,9 @@ void pmm_init(uint32_t mem_map_addr, uint32_t mem_map_count)
     // This is safer than the reverse - unknown regions stay reserved
 
     // How many bytes the bitmap needs
-    uint32_t bitmap_bytes = total_pages / 8 + 1;
+    uint64_t bitmap_bytes = total_pages / 8 + 1;
 
-    for(uint32_t i = 0; i < bitmap_bytes; i++)
+    for(uint64_t i = 0; i < bitmap_bytes; i++)
     {
         // 0xFF = all bits set = all pages used
         bitmap[i] = 0xFF;
@@ -96,19 +96,19 @@ void pmm_init(uint32_t mem_map_addr, uint32_t mem_map_count)
     used_pages = total_pages;
 
     // Step 4: Walk E820 map again, mark usable regions as free
-    for(uint32_t i = 0; i < mem_map_count; i++)
+    for(uint64_t i = 0; i < mem_map_count; i++)
     {
         if(map[i].type == E820_USABLE)
         {
-            uint32_t base = (uint32_t)map[i].base;
+            uint64_t base = (uint64_t)map[i].base;
 
             // How many full pages fit in this region
-            uint32_t pages = (uint32_t)map[i].length / PAGE_SIZE;
+            uint64_t pages = (uint64_t)map[i].length / PAGE_SIZE;
 
-            for(uint32_t p = 0; p < pages; p++)
+            for(uint64_t p = 0; p < pages; p++)
             {
                 // Page number = address / page size
-                uint32_t page = (base / PAGE_SIZE) + p;
+                uint64_t page = (base / PAGE_SIZE) + p;
 
                 // Mark this page as free
                 bitmap_clear(page);
@@ -132,22 +132,22 @@ void pmm_init(uint32_t mem_map_addr, uint32_t mem_map_count)
     used_pages++;
 
     // Mark pages covering our kernel (0x1000 - 0x20000)
-    for(uint32_t addr = 0x1000; addr < 0x20000; addr += PAGE_SIZE)
+    for(uint64_t addr = 0x1000; addr < 0x20000; addr += PAGE_SIZE)
     {
         bitmap_set(addr / PAGE_SIZE);
         used_pages++;
     }
 
     // Mark pages covering our bitmap itself so we don't allocate over it
-    uint32_t bitmap_pages = bitmap_bytes / PAGE_SIZE + 1;
-    for(uint32_t p = 0; p < bitmap_pages; p++)
+    uint64_t bitmap_pages = bitmap_bytes / PAGE_SIZE + 1;
+    for(uint64_t p = 0; p < bitmap_pages; p++)
     {
         bitmap_set((PMM_BITMAP_ADDRESS / PAGE_SIZE) + p);
         used_pages++;
     }
 
     // Mark pages covering our heap
-    for(uint32_t addr = HEAP_START; addr < HEAP_START + HEAP_SIZE; addr += PAGE_SIZE)
+    for(uint64_t addr = HEAP_START; addr < HEAP_START + HEAP_SIZE; addr += PAGE_SIZE)
     {
         bitmap_set(addr / PAGE_SIZE);
         used_pages++;
@@ -162,7 +162,7 @@ void pmm_init(uint32_t mem_map_addr, uint32_t mem_map_count)
 void* pmm_alloc()
 {
     // Walk the bitmap looking for a free page
-    for(uint32_t i = 0; i < total_pages; i++)
+    for(uint64_t i = 0; i < total_pages; i++)
     {
         // If page free
         if(bitmap_test(i))
@@ -174,7 +174,7 @@ void* pmm_alloc()
             used_pages++;
 
             // Return its physical address
-            return (void*)(i * PAGE_SIZE);
+            return (void*)((uint64_t)i * PAGE_SIZE);
         }
     }
 
@@ -193,7 +193,7 @@ void pmm_free(void* page)
     }
 
     // Convert address back to page number
-    uint32_t page_num= (uint32_t)page / PAGE_SIZE;
+    uint64_t page_num = (uint64_t)page / PAGE_SIZE;
 
     // Mark as free
     bitmap_clear(page_num);
@@ -203,13 +203,13 @@ void pmm_free(void* page)
 }
 
 // --- Stats --------------------------------------------------
-uint32_t pmm_free_pages()
+uint64_t pmm_free_pages()
 {
     // Free = total minus used
     return total_pages - used_pages;
 }
 
-uint32_t pmm_used_pages()
+uint64_t pmm_used_pages()
 {
     return used_pages;
 }

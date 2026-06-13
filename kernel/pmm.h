@@ -18,8 +18,8 @@ typedef struct
 {
     uint64_t base;          // Starting physical address of this region
     uint64_t length;        // Length of this region in bytes
-    uint32_t type;          // 1=usable, 2=reserved, 3=ACPI, 4=ACPI NVS, 5=bad
-    uint32_t acpi;          // ACPI extended attributes - we wrote 1 here in boot.asm
+    uint64_t type;          // 1=usable, 2=reserved, 3=ACPI, 4=ACPI NVS, 5=bad
+    uint64_t acpi;          // ACPI extended attributes - we wrote 1 here in boot.asm
 } __attribute__((packed)) e820_entry_t;
 
 // E820 memory type constants - makes code more readable that raw numbers
@@ -30,7 +30,7 @@ typedef struct
 #define E820_BAD        5   // Faulty RAM - never use
 
 // Reads E820 map and builds the bitmap
-void pmm_init(uint32_t mem_map_addr, uint32_t mem_map_count);
+void pmm_init(uint64_t mem_map_addr, uint64_t mem_map_count);
 
 // Allocate one free page - returns physical address
 void* pmm_alloc();
@@ -39,10 +39,10 @@ void* pmm_alloc();
 void pmm_free(void* page);
 
 // How many free pages remain
-uint32_t pmm_free_pages();
+uint64_t pmm_free_pages();
 
 // How many pages are in use?
-uint32_t pmm_used_pages();
+uint64_t pmm_used_pages();
 
 // Print memory stats to VGA
 void pmm_print_stats();
