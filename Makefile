@@ -50,11 +50,11 @@ check-size: kernel.bin
 
 all: os.img
 
-boot.bin: boot/boot.asm
-	$(AS) $(ASFLAGS_BIN) boot/boot.asm -o boot.bin
+boot.bin: boot/bootsect.asm
+	$(AS) $(ASFLAGS_BIN) boot/bootsect.asm -o boot.bin
 
-#stage2.bin: boot/stage2.asm
-#	$(AS) $(ASFLAGS_BIN) boot/stage2.asm -o stage2.bin
+stage2.bin: boot/stage2.asm
+	$(AS) $(ASFLAGS_BIN) boot/stage2.asm -o stage2.bin
 
 kernel.bin: kernel/start.asm \
 		 	kernel/kernel.c \
@@ -117,7 +117,7 @@ kernel.bin: kernel/start.asm \
 		process.o switch.o scheduler.o syscall.o kprintf.o tss.o \
 		usermode.o usermode_asm.o vfs.o shadowfs.o panic.o
 
-os.img: boot.bin kernel.bin check-size
+os.img: boot.bin stage2.bin kernel.bin check-size
 	# Create 10MB disk image
 	dd if=/dev/zero of=os.img bs=1M count=10 2>/dev/null
 
@@ -125,7 +125,7 @@ os.img: boot.bin kernel.bin check-size
 	dd if=boot.bin of=os.img bs=512 seek=0 conv=notrunc 2>/dev/null
 
 	# Write stage 2 at sector 1
-	#dd if=stage2.bin of=os.img bs=512 seek=1 conv=notrunc 2>/dev/null
+	dd if=stage2.bin of=os.img bs=512 seek=1 conv=notrunc 2>/dev/null
 
 	# Write kernel at sector 64
 	dd if=kernel.bin of=os.img bs=512 seek=64 conv=notrunc 2>/dev/null
