@@ -42,6 +42,11 @@ start:
     mov si, msg_a20
     call print
 
+    ; Detect memory via E820
+    call detect_memory
+    mov si, msg_memory
+    call print
+
     jmp $
 
 ; --- Print routine -----------------------------------------------------
@@ -143,7 +148,45 @@ enable_a20_keyboard:
     jz .wait_data
     ret
 
+;--- E820 Memory Detection ------------------------------------------------
+; Asks BIOS for complete memory map
+; Stores entries at E820_MAP_ADDRESS
+; Stores count at E820_COUNT_ADDRESS
+
+detect_memory:
+    xor ax, ax
+    mov es, ax                          ; ES = 0 for buffer addressing
+    xor ebx, ebx                        ; EBX = 0 to start enumeration
+    mov word [E820_COUNT_ADDRESS], 0    ; Zero the count
+    mov di, E820_MAP_ADDRESS            ; DI points to our buffer
+
+.loop:
+    mov eax, 0xE820                     ; Function code - reset each iteration
+    mov edx, 0x534D4150                 ; 'SMAP' magic - reset each iteration
+    mov ecx, 24                         ; Entry size - reset each iteration
+    mov dword [di+20], 1                ; ACPI extention attribute
+    int 0x15                            ; Call BIOS
+
+    jc .done                            ; Carry = end of list error
+    cmp eax, 0x534D4150                 ; Verify BIOS returned SMAP
+    jne .done                           ; Something went wrong
+
+    test ecx, ecx                       ; Skip zero length entries
+    jz .next
+
+    inc word [E820_COUNT_ADDRESS]       ; Increment entry count
+    jz .next                            ; Advance buffer pointer
+
+.next:
+    test ebx, ebx                       ; EBX = 0 means last entry
+    jz .done
+    jmp .loop
+
+.done:
+    ret
+
 ; --- Data ----------------------------------------------------------------
 boot_drive db 0
 msg_hello db 'Stage 2 running!', 13, 10, 0
 msg_a20 db 'A20 enabled', 13, 10, 0
+msg_memory db 'Memory map detected!', 13, 10, 0
