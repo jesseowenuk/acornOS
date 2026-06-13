@@ -172,6 +172,8 @@ detect_memory:
     xor ebx, ebx                        ; EBX = 0 to start enumeration
     mov word [E820_COUNT_ADDRESS], 0    ; Zero the count
     mov di, E820_MAP_ADDRESS            ; DI points to our buffer
+    mov dword [highest_ram], 0          ; Initialise highest RAM to 0
+    mov dword [highest_ram+4], 0        ; High 32 bits also zero
 
 .loop:
     mov eax, 0xE820                     ; Function code - reset each iteration
@@ -188,8 +190,31 @@ detect_memory:
     jz .next
 
     inc word [E820_COUNT_ADDRESS]       ; Increment entry count
-    add di, 24                          ; Advance buffer pointer
-    jz .next                            
+
+    ; Check if this is a usable RAM entry (type 1)
+    cmp dword [di+16], 1                ; Type field at offset 16
+    jne .skip_highest                   ; Not usable RAM - skip
+
+    ; Calculate end address = base + length
+    ; Both are 64-bit values at [di+0] (base) and [di+8] (length) 
+    mov eax, dword [di+0]               ; Base low 32 bits
+    mov edx, dword [di+4]               ; Base high 32 bits
+    add eax, dword [di+8]               ; Add length low 32 bits
+    adc edx, dword [di+12]              ; Add length high 32 bits with carry     
+
+    ; Is this end address = base + length
+    cmp edx, dword [highest_ram+4]      ; Compare high 32 bits
+    ja .new_highest                     ; Definitley higher
+    jb .skip_highest                    ; Definitiley lower
+    cmp eax, dword [highest_ram]        ; High bits equal - compare low bits
+    jbe .skip_highest                   ; Not higher
+
+.new_highest:
+    mov dword [highest_ram], eax        ; Update highest RAM low 32 bits
+    mov dword [highest_ram], edx        ; Update highest RAM high 32 bits
+
+.skip_highest:
+    add di, 24               
 
 .next:
     test ebx, ebx                       ; EBX = 0 means last entry
@@ -380,6 +405,7 @@ gdt32_descriptor:
 
 ; --- Variables ----------------------------------------------------
 kernel_sectors dd 0                             ; Number of kernel sectors to load
+highest_ram dq 0                                ; Highest physical RAM address (64-bit)
 
 ; --- Messages ----------------------------------------------------
 boot_drive db 0
