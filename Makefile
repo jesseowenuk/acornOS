@@ -130,6 +130,8 @@ os.img: boot.bin stage2.bin kernel.bin check-size
 	# Write kernel at sector 64
 	dd if=kernel.bin of=os.img bs=512 seek=64 conv=notrunc 2>/dev/null
 
+	./tools/write_kernel_size.sh kernel.bin os.img
+
 run: os.img check-size
 	qemu-system-x86_64 \
 		-drive file=os.img,format=raw,index=0,media=disk \
