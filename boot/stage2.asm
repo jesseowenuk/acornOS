@@ -438,7 +438,10 @@ protected_mode_entry:
     mov edx, dword [highest_ram + 4]        ; High 32 bits
     call setup_page_tables
 
-    mov dword [0xB8002], 0x07540750         ; 'PT' = page tables done
+    mov dword [0xB8004], 0x07540750         ; 'PT' = page tables done
+
+    ; Enter long mode
+    call enter_long_mode
 
     ; Hang for now
     jmp $
@@ -572,3 +575,103 @@ setup_page_tables:
 
     ret
 
+; --- Enter Long Mode ---------------------------------------------------
+; Transitions from 32-bit protected mode to 64-bit long mode
+; After this we jump to the kernel at 0xFFFFFFFF80100000
+
+enter_long_mode:
+    ; Step 1: Load PML4 into CR3
+    mov eax, 0x1000                         ; PML4 is at physical 0x1000
+    mov cr3, eax
+
+    ; Step 2: Enable PAE (Physical Address Extension)
+    ; Required for long mode - allows 64-bit addresses
+    mov eax, cr4
+    or eax, (1 << 5)                        ; Set PAE bit (bit 5)
+    mov cr4, eax
+
+    ; Step 3: Enable long mode in EFER MSR
+    ; EFER = Extended Feature Enable Register
+    ; MSR address: 0xC0000080
+    mov ecx, 0xC0000080                     ; EFER MSR number
+    rdmsr                                   ; Read into EDX:EAX
+    or eax, (1 << 8)                        ; Set LME bit (Long Mode Enable, bit 8)
+    wrmsr                                   ; Write back
+
+    ; Step 4: Enable paging (CR0.PG = 1)
+    ; This activates long mode (CPU switches from protected to compatibility)
+    mov eax, cr0
+    or eax, (1 << 31)                       ; Set PG bit (bit 31)
+    mov cr0, eax
+
+    ; CPU is now in 64-bit compatability mode
+    ; We need a far jump to load a 64-bit code segment
+    ; This puts us in full 64-bit long mode
+
+    ; Step 5: Load 64-bit GDT
+    lgdt [gdt64_descriptor]
+
+    ; Write 'G' to confirm GDT loaded
+    mov dword [0xB8008], 0x07470700
+
+    ; Step 6: Far jump via memory to 64-bit code segment
+    ; Must use indirect jump - direct far jump doesn't work reliably
+    mov dword [far_jump_target], long_mode_entry
+    mov word [far_jump_target + 4], 0x08
+    jmp far [far_jump_target]
+
+; --- 64-bit GDT --------------------------------------------------------
+; Minimal GDT for 64-bit long mode
+; In 64-bit most GDT fields are ignored - only the L bit matters
+
+align 8
+gdt64:
+    ; Null descriptor
+    dq 0
+
+    ; 64-bit code segment
+    ; L bit (bit 53) must be set for 64-bit code
+    dw 0x0000                           ; Limit (ignored for 64-bit)
+    dw 0x0000                           ; Base low (ignored)
+    db 0x00                             ; Base middle (ignored)
+    db 10011010b                        ; Access: present, ring=0, code, executable, readable
+    db 00100000b                        ; Flags: L=1 (64-bit), D=0 (must be 0 for 64-bit)
+    db 0x00                             ; Base high (ignored)
+
+    ; 64-bit data segment
+    dw 0x0000                           ; Limit (ignored for 64-bit)
+    dw 0x0000                           ; Base low (ignored)
+    db 0x00                             ; Base middle (ignored)
+    db 10010010b                        ; Access: present, ring=0, data, executable, readable
+    db 00100000b                        ; Flags: L=1 (64-bit), D=0 (must be 0 for 64-bit)
+    db 0x00                             ; Base high (ignored)
+
+gdt64_end:
+
+gdt64_descriptor:
+    dw gdt64_end - gdt64 - 1            ; GDT size - 1
+    dd gdt64                            ; 64-bit GDT address (8 bytes in 64 bit!)
+
+far_jump_target:
+    dd 0                                ; Offset filled in at runtime
+    dw 0                                ; Selector filled in at runtime
+
+; --- 64-bit long mode entry ------------------------------------------------
+[BITS 64]
+long_mode_entry:
+    ; We're now in 64-bit long mode
+    ; Load 64-bit data segments
+    mov ax, 0x10                        ; Data segment selector
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+
+    ; Set up 64-bit stack
+    mov rsp, 0x9000                     ; Temporary 64-bit stack
+
+    ; Signal we're in long mode - write 'LM' to VGA
+    mov dword [0xB800C], 0x074D074C     ; 'LM' white on black
+
+    jmp $
