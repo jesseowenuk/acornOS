@@ -195,6 +195,17 @@ void scheduler_start()
 
     kserial_printf("Scheduler: starting with process '%s'\n", current_process->name);
 
+
+    kserial_printf("Scheduler: current_process ptr=0x%x%x\n",
+        (uint32_t)((uint64_t)current_process >> 32),
+        (uint32_t)(uint64_t)current_process);
+    kserial_printf("Scheduler: cpu.esp=0x%x%x\n",
+        (uint32_t)(current_process->cpu.esp >> 32),
+        (uint32_t)current_process->cpu.esp);
+    kserial_printf("Scheduler: cpu.eip=0x%x%x\n",
+        (uint32_t)(current_process->cpu.eip >> 32),
+        (uint32_t)current_process->cpu.eip);
+
     // Set up the stack and jump to the process entry point
     // We do this in assemnbly to have full control
     __asm__ volatile (

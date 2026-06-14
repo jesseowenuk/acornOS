@@ -98,6 +98,6 @@ void vga_print(const char* str)
 
 void vga_init()
 {
-    vga_set_colour(LIGHT_GREEN, BLACK);
+    vga_set_colour(WHITE, BLACK);
     vga_clear();
 }

@@ -7,10 +7,16 @@
 // Everything in the PMM is aligned to this boundary
 #define PAGE_SIZE 4096
 
+// Physical address for page number calculation
+#define PMM_BITMAP_PHYSICAL 0x200000UL
+
 // The bitmap lives at a fixed address just above our heap
 // Each bit represents one 4KB page of physcial memory
 // 1MB mark - heap must start above this!
-#define PMM_BITMAP_ADDRESS 0x100000  // 1MB mark
+#define PMM_BITMAP_ADDRESS 0xFFFF800000200000UL  // PMM bitmap virtual address
+
+// Physical address of kernel heap
+#define HEAP_PHYSICAL_BASE 0x2200000UL
 
 // Structure of a single E820 memory map entry
 // Must match exactly what the BIOS wrote during boot
@@ -18,8 +24,8 @@ typedef struct
 {
     uint64_t base;          // Starting physical address of this region
     uint64_t length;        // Length of this region in bytes
-    uint64_t type;          // 1=usable, 2=reserved, 3=ACPI, 4=ACPI NVS, 5=bad
-    uint64_t acpi;          // ACPI extended attributes - we wrote 1 here in boot.asm
+    uint32_t type;          // 1=usable, 2=reserved, 3=ACPI, 4=ACPI NVS, 5=bad
+    uint32_t acpi;          // ACPI extended attributes - we wrote 1 here in boot.asm
 } __attribute__((packed)) e820_entry_t;
 
 // E820 memory type constants - makes code more readable that raw numbers
@@ -30,7 +36,7 @@ typedef struct
 #define E820_BAD        5   // Faulty RAM - never use
 
 // Reads E820 map and builds the bitmap
-void pmm_init(uint64_t mem_map_addr, uint64_t mem_map_count);
+void pmm_init(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest_ram);
 
 // Allocate one free page - returns physical address
 void* pmm_alloc();

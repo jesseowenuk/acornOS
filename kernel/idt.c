@@ -32,10 +32,12 @@ extern void irq1();
 void idt_set_entry(int n, uint64_t base, uint16_t selector, uint8_t flags)
 {
     idt[n].base_low = base & 0xFFFF;
-    idt[n].base_high = (base >> 16) & 0xFFFF;
+    idt[n].base_mid = (base >> 16) & 0xFFFF;
+    idt[n].base_high = (base >> 32) & 0xFFFFFFFF;
     idt[n].selector = selector;
-    idt[n].zero = 0;
+    idt[n].ist = 0;
     idt[n].flags = flags;
+    idt[n].reserved = 0;
 }
 
 void idt_init()

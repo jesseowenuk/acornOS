@@ -48,36 +48,23 @@ static int bitmap_test(uint64_t page)
 }
 
 // --- Init ---------------------------------------------
-void pmm_init(uint64_t mem_map_addr, uint64_t mem_map_count)
+void pmm_init(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest_ram)
 {
+    kserial_printf("PMM: E820 map address=0x%x\n", (uint32_t)mem_map_addr);
+    kserial_printf("PMM: first entry type=%u\n", ((e820_entry_t*)(uintptr_t)mem_map_addr)->type);
+
+    kserial_printf("PMM: highest_ram=%u\n", (uint32_t)highest_ram);
+    kserial_printf("PMM: mem_map_count=%u\n", (uint32_t)mem_map_count);
+
     // Step 1: get the total memory size from the E820 map
     // We find the highest usable address to know how many pages we need
 
     // Cast the raw address to our entry struct pointer
     e820_entry_t* map = (e820_entry_t*)(uintptr_t)mem_map_addr;
 
-    // Highest usable memory address we find
-    uint64_t highest = 0;
-
-    for(uint64_t i = 0; i < mem_map_count; i++)
-    {
-        if(map[i].type == E820_USABLE)
-        {
-            // Only count usable RAM regions
-            uint64_t end = (uint64_t)(map[i].base + map[i].length);
-
-            // End address of this region
-            if(end > highest)
-            {
-                // Track the highest usable address
-                highest = end;
-            }
-        }
-    }
-
-    // Step 2: calculate how many pages we need to track
-    // Total pages = total memory / page size
-    total_pages = highest / PAGE_SIZE;
+    // Use highest_ram passed from stage 2 bootloader
+    total_pages = highest_ram / PAGE_SIZE;
+    kserial_printf("PMM: total_pages=%u\n", (uint32_t)total_pages);
 
     // Step 3: mark ALL pages as used to start with
     // We'll then mark usable regions as free
@@ -85,6 +72,12 @@ void pmm_init(uint64_t mem_map_addr, uint64_t mem_map_count)
 
     // How many bytes the bitmap needs
     uint64_t bitmap_bytes = total_pages / 8 + 1;
+    kserial_printf("PMM: bitmap_bytes=%u\n", (uint32_t)bitmap_bytes);
+
+    kserial_printf("PMM: bitmap at 0x%x\n", (uint32_t)PMM_BITMAP_ADDRESS);
+    kserial_printf("PMM: about to clear bitmap...\n");
+
+    kserial_printf("PMM: bitmap address = 0x%x%x\n", (uint32_t)((uint64_t)bitmap >> 32), (uint32_t)(uint64_t)bitmap);
 
     for(uint64_t i = 0; i < bitmap_bytes; i++)
     {
@@ -92,18 +85,26 @@ void pmm_init(uint64_t mem_map_addr, uint64_t mem_map_count)
         bitmap[i] = 0xFF;
     }
 
+    kserial_printf("PMM: bitmap cleared\n");
+
     // All pages start as used
     used_pages = total_pages;
+
+    kserial_printf("PMM: about to walk E820...\n");
 
     // Step 4: Walk E820 map again, mark usable regions as free
     for(uint64_t i = 0; i < mem_map_count; i++)
     {
+        kserial_printf("PMM: E820 entry %u type=%u\n", (uint32_t)i, map[i].type);
+
         if(map[i].type == E820_USABLE)
         {
             uint64_t base = (uint64_t)map[i].base;
 
             // How many full pages fit in this region
             uint64_t pages = (uint64_t)map[i].length / PAGE_SIZE;
+
+            kserial_printf("PMM: marking %u pages free from 0x%x\n", (uint32_t)pages, (uint32_t)base);
 
             for(uint64_t p = 0; p < pages; p++)
             {
@@ -124,12 +125,16 @@ void pmm_init(uint64_t mem_map_addr, uint64_t mem_map_count)
 
     // Mark page 0 as used - null pointer protection
     // Any code that accidentally dereferences NULL will fault cleanly
+    kserial_printf("PMM: marking reserved regions...\n");
+
     bitmap_set(0);
     used_pages++;
+    kserial_printf("PMM: null page reserved\n");
     
     // Mark pages covering our bootloader (0x7C00 - 0x7E00)
     bitmap_set(0x7C00 / PAGE_SIZE);
     used_pages++;
+    kserial_printf("PMM: bootloader reserved\n");
 
     // Mark pages covering our kernel (0x1000 - 0x20000)
     for(uint64_t addr = 0x1000; addr < 0x20000; addr += PAGE_SIZE)
@@ -137,17 +142,22 @@ void pmm_init(uint64_t mem_map_addr, uint64_t mem_map_count)
         bitmap_set(addr / PAGE_SIZE);
         used_pages++;
     }
+    kserial_printf("PMM: kernel pages reserved\n");
 
     // Mark pages covering our bitmap itself so we don't allocate over it
+    kserial_printf("PMM: reserving bitmap pages...\n");
     uint64_t bitmap_pages = bitmap_bytes / PAGE_SIZE + 1;
+    kserial_printf("PMM: bitmap_pages=%u\n", (uint32_t)bitmap_pages);
+
     for(uint64_t p = 0; p < bitmap_pages; p++)
     {
-        bitmap_set((PMM_BITMAP_ADDRESS / PAGE_SIZE) + p);
+        bitmap_set((PMM_BITMAP_PHYSICAL / PAGE_SIZE) + p);
         used_pages++;
     }
+    kserial_printf("PMM: bitmap pages reserved\n");
 
     // Mark pages covering our heap
-    for(uint64_t addr = HEAP_START; addr < HEAP_START + HEAP_SIZE; addr += PAGE_SIZE)
+    for(uint64_t addr = 0x2200000; addr < 0x2200000 + HEAP_SIZE; addr += PAGE_SIZE)
     {
         bitmap_set(addr / PAGE_SIZE);
         used_pages++;

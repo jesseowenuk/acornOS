@@ -136,7 +136,8 @@ run: os.img check-size
 	qemu-system-x86_64 \
 		-drive file=os.img,format=raw,index=0,media=disk \
 		-serial stdio \
-		-m 256M
+		-m 256M \
+		2> debug.log
 
 clean:
 	rm -f *.bin *.o *.img

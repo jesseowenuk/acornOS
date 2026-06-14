@@ -4,39 +4,25 @@
 #include <stdint.h>
 
 // --- Task State Segment -----------------------------------------------
-// 104 byte structure required by the CPU for ring transitions
-// We only use esp0 and ss0 - everything else is legacy hardware task switching
-// __attribute__((packed)) ensures no padding between fields
+// In 64-bit mode the TSS is much simpler than in 32-bit
+// Legacy fields are gone - only stack pointers and I/O bitmap remain
 typedef struct __attribute__((packed))
 {
-    uint32_t prev_tss;              // Previous TSS link - unused, always 0
-    uint32_t esp0;                  // Kernel stack pointer - CPU loads this on ring 3->0
-    uint32_t ss0;                   // Kernel stack segment - 0x10 (kernel data)
-    uint32_t esp1;                  // Ring 1 stack - unused
-    uint32_t ss1;                   // Ring 1 stack segment - unused
-    uint32_t esp2;                  // Ring 2 stack - unused
-    uint32_t ss2;                   // Ring 2 stack segment - unused
-    uint32_t cr3;                   // Page directory - unused (we manage paging ourselves)
-    uint32_t eip;                   // Instruction pointer - unused
-    uint32_t eflags;                // CPU flags - unused
-    uint32_t eax;                   // General purpose registers - all unused
-    uint32_t ecx;
-    uint32_t edx;
-    uint32_t ebx;
-    uint32_t esp;
-    uint32_t ebp;
-    uint32_t esi;
-    uint32_t edi;
-    uint32_t es;                    // Segment registers - all unused
-    uint32_t cs;
-    uint32_t ss;
-    uint32_t ds;
-    uint32_t fs;
-    uint32_t gs;
-    uint32_t ldt;                   // LDT selector - unused
-    uint16_t trap;                  // Debug trap flag - unused
+    uint32_t reserved0;             // reserved
+    uint64_t rsp0;                  // kernel stack pointer for ring 0
+    uint64_t rsp1;                  // stack for ring 1 (unused)
+    uint64_t rsp2;                  // stack for ring 2 (unused)
+    uint64_t reserved1;             // reserved
+    uint64_t ist1;                  // Interrupt Stack Table entries (unused)
+    uint64_t ist2;
+    uint64_t ist3;
+    uint64_t ist4;
+    uint64_t ist5;
+    uint64_t ist6;
+    uint64_t ist7;
+    uint64_t reserved2;             // reserved
+    uint16_t reserved3;             // reserved
     uint16_t iobp;                  // I/O permission bitmap offset
-                                    // Set to sizeof(tss_t) to disable I/O from ring 3
 } tss_t;
 
 // --- Functions ------------------------------------------------------------
@@ -46,6 +32,6 @@ void tss_init();
 
 // Update esp0 - called on every context switch
 // so the CPU always knows the current kernel stack
-void tss_set_kernel_stack(uint32_t stack);
+void tss_set_kernel_stack(uint64_t stack);
 
 #endif

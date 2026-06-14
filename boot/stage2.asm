@@ -14,10 +14,10 @@ KERNEL_PHYSICAL_BASE equ 0x100000
 BOOT_STACK_TOP equ 0x7000
 
 ; We'll store E820 map here
-E820_MAP_ADDRESS equ 0x700
+E820_MAP_ADDRESS equ 0x800
 
 ; We'll store E820 count here
-E820_COUNT_ADDRESS equ 0x500
+E820_COUNT_ADDRESS equ 0x600
 
 ; --- Entry point -----------------------------------------------------
 start:
@@ -51,6 +51,15 @@ start:
     call load_kernel
     mov si, msg_kernel
     call print
+
+    mov eax, dword [0xA000]
+    mov dword [0xA000], eax
+    mov eax, dword [0xA004]
+    mov dword [0xA004], eax
+
+    ; Save kernel sectors
+    mov eax, dword [kernel_sectors]
+    mov dword [0xA008], eax
 
     ; Disable interrupts - critical before mode switch
     cli
@@ -168,8 +177,10 @@ enable_a20_keyboard:
 
 detect_memory:
     xor ax, ax
+    mov ds, ax
     mov es, ax                          ; ES = 0 for buffer addressing
     xor ebx, ebx                        ; EBX = 0 to start enumeration
+
     mov word [E820_COUNT_ADDRESS], 0    ; Zero the count
     mov di, E820_MAP_ADDRESS            ; DI points to our buffer
     mov dword [highest_ram], 0          ; Initialise highest RAM to 0
@@ -203,15 +214,16 @@ detect_memory:
     adc edx, dword [di+12]              ; Add length high 32 bits with carry     
 
     ; Is this end address = base + length
-    cmp edx, dword [highest_ram+4]      ; Compare high 32 bits
+    cmp edx, dword [0xA004]      ; Compare high 32 bits
     ja .new_highest                     ; Definitley higher
     jb .skip_highest                    ; Definitiley lower
-    cmp eax, dword [highest_ram]        ; High bits equal - compare low bits
+    cmp eax, dword [0xA000]        ; High bits equal - compare low bits
     jbe .skip_highest                   ; Not higher
 
 .new_highest:
-    mov dword [highest_ram], eax        ; Update highest RAM low 32 bits
-    mov dword [highest_ram + 4], edx    ; Update highest RAM high 32 bits
+    mov dword [0xA000], eax        ; Update highest RAM low 32 bits
+    mov dword [0xA004], edx    ; Update highest RAM high 32 bits
+
 
 .skip_highest:
     add di, 24               
@@ -429,16 +441,17 @@ protected_mode_entry:
     ; Set up 32-bit stack
     mov esp, 0x9000                         ; Temporary 32-bit stack
 
-    ; Signal we made it
-    ; Write 'PM' to VGA text buffer directly (BIOS int no longer works)
-    mov dword [0xB8000], 0x074D0750         ; 'P', 'M' in white on black
+    ; Copy kernel from 0x10000 to 0x100000
+    mov ecx, dword [0xA008]                 ; kernel_sector_count
+    shl ecx, 9                              ; * 512 = byte count
+    mov esi, 0x10000                        ; source
+    mov edi, 0x100000                       ; destination
+    rep movsb                               ; copy
 
     ; Load highest_ram into EDX:EAX and call setup
-    mov eax, dword [highest_ram]            ; Low 32 bits
-    mov edx, dword [highest_ram + 4]        ; High 32 bits
+    mov eax, dword [0xA000]            ; Low 32 bits
+    mov edx, dword [0xA004]              ; High 32 bits
     call setup_page_tables
-
-    mov dword [0xB8004], 0x07540750         ; 'PT' = page tables done
 
     ; Enter long mode
     call enter_long_mode
@@ -468,76 +481,71 @@ protected_mode_entry:
 ; EDX = highest physical RAM address (high 32 bits)
 
 setup_page_tables:
-    ; Save arguments
-    push eax                        ; highest_ram low
-    push edx                        ; highest_ram high
+    ; Clear page tables 0x1000 - 0x7000
+    mov dword [0x900], eax              ; Save highest_ram low to scratch
+    mov dword [0x904], edx              ; Save highest_ram high to scratch
 
-    ; Step 1: clear all page table memory (0x1000 - 0x8000 = 28KB)
+    ; Clear page table 0x1000 to 0x8000 (7 tables x 4KB)
+    ; 0x1000=PML4, 0x2000=ident PDPT, 0x3000=ident PD,
+    ; 0x4000=direct PDPT, 0x5000=kernel PDPT, 0x6000=kernel PD
+    ; 0x7000=direct map PD (2MB pages)
     mov edi, 0x1000
     xor eax, eax
-    mov ecx, (0x7000 / 4)           ; 28KB / 4 bytes = 7168 dwords
+    mov ecx, (0x6000 / 4)               ; 24KB
     rep stosd
 
-    ; Restore arguments
-    pop edx                         ; highest_ram high
-    pop eax                         ; highest_ram low
+    ; Clear direct map PD at 0x7000 (up to 0x7E00 - stage 2 starts there!)
+    mov edi, 0x7000
+    xor eax, eax
+    mov ecx, (0xE00 / 4)                ; 3584 bytes         
+    rep stosd                           ; Clobbers EAX, ECX, EDI
 
-    ; --- PML4 (at 0x1000) ------------------------------------------
-    ; Entry 0: identity map PDPT -> 0x2000
-    ; Entry 256: identity map PDPT -> 0x4000 (0xFFFF800000000000)
-    ; Entry 511: kernel PDPT -> 0x5000 (0xFFFFFFFF80000000)
+    ; Restore highest_ram
+    mov eax, dword [0x900]                                
+    mov edx, dword [0x904]                               
 
-    mov dword [0x1000 + 0 * 8], 0x2003      ; PML4[0] -> 0x2000 present+writable
-    mov dword [0x1000 + 256 * 8], 0x4003    ; PML4[256] -> 0x4000 present+writable
-    mov dword [0x1000 + 511 * 8], 0x5003    ; PML4[511] -> 0x5000 present+writale
+    ; --- PML4 -------------------------------------------------------
+    ; PML4[0] -> identity PDPT (0x2000) temporary
+    ; PML4[256] -> direct map PDPT (0x4000) ALL RAM
+    ; PML4[511] -> kernel PDPT (0x5000)
+    mov dword [0x1000 + 0 * 8], 0x2003
+    mov dword [0x1000 + 256 * 8], 0x4003
+    mov dword [0x1000 + 511 * 8], 0x5003
 
-    ; --- Identity map PDPT (0x2000) --------------------------------
-    ; PDPT[0] -> PD at 0x3000 (covers first 1GB)
-    mov dword [0x2000], 0x3003              ; Present + writable
+    ; --- Identity map (at 0x2000) -----------------------------------
+    ; Must cover all of low memory we use:
+    ; 0x0 to 0x200000 (2MB) covers stage2, page_tables, kernel load
+    mov dword [0x2000], 0x3003
 
-    ; --- Identity map PD (at 0x3000)
-    ; One 2MB page covering 0x0 - 0x1FFFFF
-    ; Flags: present (1) + writable (2) + 2MB page (0x80) = 0x83
-    mov dword [0x3000], 0x0083              ; 0x0 | present | writable | PS(2MB)
+    ; PD - map first 2MB (enough to execute from during transition)
+    ; This is temporary - kernel will remove it after boot
+    mov dword [0x3000], 0x0083              ; 2MB at physical 0x0
 
-    ; --- Direct physical map PDPT (at 0x4000) ----------------------
-    ; Uses 1GB pages - one entry per GB of RAM
-    ; Calculate how many 1GB entries we need:
-    ;   entries = ceil(highest_ram / 1GB)
-    ;   1GB = 0x40000000
-    ; We loop from 0 to entries filling each PDPT slot
+    ; --- Direct physical map -----------------------------------------
+    ; Map ALL RAM using 1GB pages
+    ; Entry N -> physical N * 1GB
+    ; Number of entries = ceil(highest_ram / 1GB)
+    mov dword [0x4000], 0x7003              ; PDPT[0] -> PD at 0x7000
 
-    ; Calculate number of RAM pages needed
-    ; highest_ram is in EAX (low) EDX (high)
-    ; For simplicity treat as 64-bit EDX:EAX / 0x40000000
-    ; Since we're in 32-bit mode this takes some care
+    ; Fill PD at 0x7000 with 2MB pages covering all RAM
+    ; entries = ceil(highest_ram / 2MB)
+    ; Reload highest_ram from scratch
+    mov eax, dword [0x900]
+    mov edx, dword [0x904] 
 
-    push eax
-    push edx
+    shrd eax, edx, 21                       ; Divide by 2MB (shift right by 21)
+    shr edx, 21
+    inc eax                                 ; Round up
+    mov ecx, eax                            ; ECX = number of 2MB entries
 
-    ; EDX:EAX = highest_ram
-    ; Divide by 1GB (0x40000000) to get the number of entries
-    ; Simple approach: shift right by 30 bits
-    ; Result fits in 32 bits since max RAM is 512GB = 9 bits
-    shrd eax, edx, 30                       ; Shift EDX:EAX right by 30
-    shr edx, 30                             ; Shift the high bits
-
-    ; EAX now = number of 1GB chunks
-    ; Add 1 to round up (ceil)
-    inc eax
-    mov ecx, eax                            ; ECX = number of PDPT entries needed
-
-    pop edx
-    pop eax
-
-    ; Fill PDPT entries
-    ; Entry N maps physical address n * 1GB
-    ; Flags: present (1) + writable (2) + PS/1GB page (0x80) = 0x83
-    xor esi, esi                            ; ESI = entry index
-    xor ebx, ebx                            ; EBX = current physical address low
-    xor edx, edx                            ; EDX = current physical address high
+    ; Fill direct map PDPT at 0x4000
+    xor esi, esi                            ; Entry index
+    xor ebx, ebx                            ; Current physical address low
+    xor edx, edx                            ; Current physical address high
 
 .direct_map_loop:
+    mov dword [0xA010], ecx
+
     cmp esi, ecx                            ; Done all entries?
     jge .direct_map_done
 
@@ -547,11 +555,11 @@ setup_page_tables:
     ; High 32 bits: physical_address_high 
     mov eax, ebx
     or eax, 0x83                            ; Present + writable + 1GB page
-    mov dword [0x4000 + esi * 8], eax       ; Low 32 bits
-    mov dword [0x4000 + esi * 8 + 4], edx   ; High 32 bits
+    mov dword [0x7000 + esi * 8], eax       ; Low 32 bits
+    mov dword [0x7000 + esi * 8 + 4], edx   ; High 32 bits
 
-    ; Advance to next 1GB boundary
-    add ebx, 0x40000000                     ; Add 1GB to low address
+    ; Advance to next 2MB boundary
+    add ebx, 0x200000                       ; next 2MB boundary
     adc edx, 0                              ; Carry to high address
     inc esi
     jmp .direct_map_loop
@@ -559,19 +567,18 @@ setup_page_tables:
 .direct_map_done:
     ; --- Kernel PDPT (at 0x5000) ---------------------------------------
     ; Kernel virtual address: 0xFFFFFFFF80100000
-    ; PML4[511] -> PDPT[510] -> PD[0] -> 2MB page at 0x100000
-    ; PDPT entry 510 (offset 510 * 8 = 0xFF0)
+    ; 
+    ; Breakdown:
+    ;   PML4[511] -> PDPT at 0x5000
+    ;   PDPT[510] -> PD at 0x6000
+    ;   PD[0] -> 2MB page at physical 0x0
     mov dword [0x5000 + 510 * 8], 0x6003    ; PD at 0x6000
 
     ; --- Kernel PD (at 0x6000) -----------------------------------------
-    ; PD[0] -> 2MB page at physical 0x100000
+    ; PD[0] -> 2MB page at physical 0x000000
     ; Flags: present(1) + writable(2) + PS/2MB(0x80) = 0x83
-    ; Physical address 0x100000 with 2MB page flag
-    mov dword [0x6000], (0x100000 | 0x83)
-
-    ; That maps 0xFFFFFFFF80000000 -> 0x100000 for 2MB
-    ; Kernel entry point is at 0xFFFFFFFF80100000
-    ; Which is 0x100000 into this 2MB page.
+    ; Physical address 0x000000 with 2MB page flag
+    mov dword [0x6000], 0x0083
 
     ret
 
@@ -650,7 +657,7 @@ gdt64_end:
 
 gdt64_descriptor:
     dw gdt64_end - gdt64 - 1            ; GDT size - 1
-    dd gdt64                            ; 64-bit GDT address (8 bytes in 64 bit!)
+    dq gdt64                            ; 64-bit GDT address (8 bytes in 64 bit!)
 
 far_jump_target:
     dd 0                                ; Offset filled in at runtime
@@ -669,9 +676,24 @@ long_mode_entry:
     mov ss, ax
 
     ; Set up 64-bit stack
-    mov rsp, 0x9000                     ; Temporary 64-bit stack
+    mov rsp, 0xFFFF800000009000                     
 
     ; Signal we're in long mode - write 'LM' to VGA
-    mov dword [0xB800C], 0x074D074C     ; 'LM' white on black
+    mov rbx, 0xB8000
+    mov dword [rbx], 0x074A074A     ; 'JJ' at columns 0,1
 
-    jmp $
+    ; Pass E820 info to kernel
+    ; kernel_main(mem_map_addr, mem_map_count, highest_ram)
+    mov rdi, 0x800                          ; E820 map address
+    movzx rsi, word [0x600]                 ; E820 entry count
+    mov edx, dword [0xA000]                 ; highest_ram low (from fixed address)
+    mov ecx, dword [0xA004]                 ; Highest_ram high
+
+    ; Check PD entry 17 at 0x7000 + 17*8 = 0x7088
+    ;mov eax, dword [0xA010]
+    ;mov dword [0xB8000], eax
+    ;jmp $
+
+    ; Jump to kernel virtual address
+    mov rax, 0xFFFFFFFF80100000             ; Kernel entry point
+    jmp rax                                 ; Jump to higher half kernel

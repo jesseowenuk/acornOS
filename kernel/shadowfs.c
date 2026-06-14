@@ -436,13 +436,13 @@ static int shadowfs_write(file_t* file, const void* buf, uint32_t size)
             // Allocate a new block
             shadowfs_block_t* new_block = (shadowfs_block_t*)kmalloc(sizeof(shadowfs_block_t));
 
-            // 4KB page from PMM - plenty of those
-            new_block->data = (uint8_t*)pmm_alloc();
-
             if(!new_block)
             {
                 kpanic("shadowfs_write: failed to allocate block!");
             }
+
+            // 4KB page from PMM - plenty of those
+            new_block->data = (uint8_t*)((uint64_t)pmm_alloc() + 0xFFFF800000000000UL);
 
             new_block->used = 0;
             new_block->next = 0;
@@ -479,7 +479,7 @@ static int shadowfs_write(file_t* file, const void* buf, uint32_t size)
         last->used += to_write;
         src += to_write;
         written += to_write;
-        remaining += to_write;
+        remaining -= to_write;
     }
 
     // Update inode size and position

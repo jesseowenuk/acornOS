@@ -24,10 +24,10 @@ typedef struct __attribute__((packed))
 typedef struct __attribute__((packed))
 {
     uint16_t limit;             // Size of GDT minus 1
-    uint32_t base;              // Address of first GDT entry
+    uint64_t base;              // Address of first GDT entry
 } gdt_descriptor_t;
 
 void gdt_init();
-void gdt_set_tss_entry(uint32_t base, uint32_t limit);
+void gdt_set_tss_entry(uint64_t base, uint64_t limit);
 
 #endif

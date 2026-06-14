@@ -38,7 +38,7 @@ switch_context:
 
     mov [rdi+88], rdi               ; Save RDI into old->cpu.rdi (old process pointer)
     mov [rdi+96], rbp               ; Save RBP into olf->cpu.rbp
-    mov qword [edi+48], 0           ; Save RAX = 0 (RAX clobbered by call)
+    mov qword [rdi+48], 0           ; Save RAX = 0 (RAX clobbered by call)
 
     ; Save RAX - we need to recover the real RAX value
     ; Current RSP points to return address

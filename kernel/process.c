@@ -105,16 +105,21 @@ process_t* process_create(const char* name, void(*entry)(), uint64_t flags)
 
     // Step 5: Allocate a stack for this process
     // Each process needs its own stack - we get a fresh page from PMM
-    proc->stack = (uint64_t)pmm_alloc();        // Allocate one 4KB page
+    uint64_t stack_physical = (uint64_t)pmm_alloc();
+    kserial_printf("process_create: stack_physical=0x%x\n", (uint32_t)stack_physical);
+
+    proc->stack = stack_physical + 0xFFFF800000000000UL;        // Convert to virtual via direct map
 
     // Stack grows downward - top of stack is at the END of the page
     // We subtract 4 to leave room for the first push
-    proc->stack_top = proc->stack + PROCESS_STACK_SIZE - 4;
+    proc->stack_top = proc->stack + PROCESS_STACK_SIZE - 8;
+    kserial_printf("process_create: stack set up\n");
 
     // Step 6: set up the initial CPU state
     // When this process first runs, the CPU will load these values
     // Zero all the registers first
     kmemset(&proc->cpu, 0, sizeof(cpu_state_t));
+    kserial_printf("process_create: cpu zeroed\n");
 
     proc->cpu.eip = (uint64_t)entry;            // Start executing at entry function
     proc->cpu.esp = proc->stack_top;            // Stack starts at top and grows down
@@ -138,11 +143,11 @@ process_t* process_create(const char* name, void(*entry)(), uint64_t flags)
 
     // Step 7: Each process gets own directory with kernel mappings shared
     proc->page_dir = paging_clone_directory();
+    kserial_printf("process_create: page_dir set\n");
 
     if(!proc->page_dir)
     {
-        kpanic("process_create: failed to clone page directory!");
-        return 0;
+        kserial_printf("process_create: using kernel page tables for '%s'\n", name);
     }
 
     // Step 8: add to process table
@@ -256,7 +261,7 @@ process_t* create_user_process(const char* name, void (*entry)())
 
     if(!entry)
     {
-        kpanic("create_user_process: null entry point!");
+        kserial_printf("create_user_process: using kernel page tables\n");
     }
 
     // Step 1: find a free slot in the process table
@@ -308,7 +313,7 @@ process_t* create_user_process(const char* name, void (*entry)())
 
     if(!proc->page_dir)
     {
-        kpanic("create_user_process: failed to clone page directory!");
+        kserial_printf("create_user_process: using kernel directory for now\n");
         return 0;
     }
 

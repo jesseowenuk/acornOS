@@ -20,19 +20,10 @@ void tss_init()
 
     // Set the fields we actually need
 
-    // Kernel data segment = 0x10
-    // CPU loads this as SS on ring 3->0
-    tss.ss0 = GDT_KERNEL_DATA;
+    // Set kernel stack - updated on every context switch
+    tss.rsp0 = 0x90000;
 
-    // Initial kernel stack
-    // Updated on every context switch
-    // via tss_set_kernel_stack()
-    tss.esp0 = 0x90000;
-
-    // I/O permission bitmap offset
-    // Setting to sizeof(tss_t) places it
-    // beyond the TSS - disables all I/O
-    // port access from ring 3
+    // I/O bitmap beyond TSS = no ring 3 I/O access
     tss.iobp = sizeof(tss_t);
 
     // Install TSS descriptor into GDT entry 5
@@ -53,7 +44,7 @@ void tss_init()
     );
 
     kserial_printf("TSS: initialised at 0x%x\n", (uint64_t)&tss);
-    kserial_printf("TSS: esp=0x%x ss0=0x%x\n", tss.esp0, tss.ss0);
+    kserial_printf("TSS: rsp=0x%x\n", (uint32_t)tss.rsp0);
 }
 
 // --- tss_set_kernel_stack ---------------------------------------------
@@ -61,10 +52,10 @@ void tss_init()
 // Must be called on every context switch so the CPU knows which
 // kernel stack to use when the new process triggers an interrupt
 
-void tss_set_kernel_stack(uint32_t stack)
+void tss_set_kernel_stack(uint64_t stack)
 {
     // Update kernel stack pointer
     // CPU reads this automatically on
     // every ring 3 -> 0 transition
-    tss.esp0 = stack;
+    tss.rsp0 = stack;
 }

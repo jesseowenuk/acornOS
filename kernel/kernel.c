@@ -150,13 +150,13 @@ static void wait_test_program()
     for(;;);
 }
 
-void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
+void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest_ram)
 {       
-    vga_init();                                 // Clear screen, set default colour
-
     // Initialise serial first so we can log everything that follows
     serial_init();
     kserial_printf("Kernel started.\n");
+
+    vga_init();                                 // Clear screen, set default colour
 
     kprintf("acornOS v0.1\n");
     kprintf("------------\n");
@@ -212,7 +212,7 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
 
     vga_set_colour(WHITE, BLACK);
     kprintf("Initialising PMM...\n");
-    pmm_init(mem_map_addr, mem_map_count);      // Pass E820 map from bootloader
+    pmm_init(mem_map_addr, mem_map_count, highest_ram);      // Pass E820 map from bootloader
     kserial_printf("PMM initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf("PMM online\n");
@@ -262,10 +262,12 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
 
     mem_print_stats();
     int fd = vfs_open("/temp/test.txt", O_CREAT | O_WRONLY);
+    kserial_printf("fd=%d\n", fd);
 
     if(fd >= 0)
     {
         const char* msg = "Hello from shadowFS!\n";
+        kserial_printf("About to write...\n");
         int written = vfs_write(fd, msg, 21);
         kserial_printf("shadowFS: wrote %d bytes\n", written);
         vfs_close(fd);
@@ -303,14 +305,6 @@ void kernel_main(uint32_t mem_map_addr, uint32_t mem_map_count)
         kpanic("kernel: failed to create shell process!");
     }
     scheduler_add(shell);
-
-    process_t* wait_test = create_user_process("wait_test", wait_test_program);
-    if(!wait_test)
-    {
-        kpanic("kernel: failed to create wait_test process!");
-    }
-    scheduler_add(wait_test);
-    
 
     scheduler_start();          // start scheduling - never returns
 

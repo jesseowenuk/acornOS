@@ -3,7 +3,7 @@
 
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
-#define VGA_MEMORY 0xB8000
+#define VGA_MEMORY 0xFFFF8000000B8000UL
 
 // Colour constants
 typedef enum

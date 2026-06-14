@@ -10,8 +10,8 @@
 //
 typedef struct block_header
 {
-    uint32_t size;              // Size of the DATA region (not including the header)
-    uint32_t free;              // 1 = this block is free, 0 = in use
+    uint64_t size;              // Size of the DATA region (not including the header)
+    uint64_t free;              // 1 = this block is free, 0 = in use
     struct block_header* next;  // Pointer to the next block header in the list
                                 // NULL means this is the last block
 } block_header_t;
@@ -30,6 +30,9 @@ void mem_init()
 {
     // Place the first block header at the start of the heap
     heap_start = (block_header_t*)HEAP_START;
+
+    kserial_printf("mem_init: heap_start = 0x%x\n", (uint32_t)HEAP_START);
+    kserial_printf("mem_init: about to write...\n");
 
     // Initialise it as one giant free block covering the whole heap
     // Entire heap minus the header itself

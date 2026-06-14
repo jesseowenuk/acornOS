@@ -7,9 +7,11 @@ typedef struct __attribute__((packed))
 {
     uint16_t base_low;          // Lower 16 bits of handler address
     uint16_t selector;          // Kernel code segment selector
-    uint8_t zero;               // Always zero
+    uint8_t ist;                // Interupt Stack Table offset (0 = none)
     uint8_t flags;              // Type and attributes
-    uint16_t base_high;         // Upper 16 bits of handler address
+    uint16_t base_mid;          // Bits 16-31 of handler address
+    uint32_t base_high;         // Bits 32-63 of handler address
+    uint32_t reserved;          // Always zero
 } idt_entry_t;
 
 typedef struct __attribute__((packed))
