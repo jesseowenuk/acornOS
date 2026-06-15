@@ -136,58 +136,58 @@
 ### 5a — Toolchain
 - ✅ Install x86_64-elf-gcc cross compiler
 - ✅ Install x86_64-elf-ld
-- ⬜ Update Makefile for 64-bit targets
+- ✅ Update Makefile for 64-bit targets
 
 ### 5b — Two-Stage Bootloader
-- ⬜ Stage 1 (512 bytes):
-  - ⬜ Save boot drive
-  - ⬜ LBA load Stage 2 (sectors 1-63)
-  - ⬜ Jump to Stage 2
-- ⬜ Stage 2 (up to 31.5KB):
-  - ⬜ Enable A20 line (properly!)
-  - ⬜ E820 memory detection
-  - ⬜ Read kernel size dynamically from disk
-  - ⬜ Load kernel to 0x100000 (any size)
-  - ⬜ Set up temporary 32-bit GDT
-  - ⬜ Enter protected mode
-  - ⬜ Set up 64-bit page tables:
-    - ⬜ Identity map first 2MB (temporary)
-    - ⬜ Map kernel: 0xFFFFFFFF80100000 -> 0x100000
-    - ⬜ Map direct physical map: 0xFFFF800000000000 -> 0x0
-    - ⬜ Map VGA: 0xFFFFFFFF800B8000 -> 0xB8000
-  - ⬜ Enable PAE
-  - ⬜ Enable long mode (EFER.LME)
-  - ⬜ Enable paging
-  - ⬜ Far jump to 64-bit code segment
-  - ⬜ Jump to kernel at 0xFFFFFFFF80100000
+- ✅ Stage 1 (512 bytes):
+  - ✅ Save boot drive
+  - ✅ LBA load Stage 2 (sectors 1-63)
+  - ✅ Jump to Stage 2
+- ✅ Stage 2 (up to 31.5KB):
+  - ✅ Enable A20 line (properly!)
+  - ✅ E820 memory detection
+  - ✅ Read kernel size dynamically from disk
+  - ✅ Load kernel to 0x100000 (any size)
+  - ✅ Set up temporary 32-bit GDT
+  - ✅ Enter protected mode
+  - ✅ Set up 64-bit page tables:
+    - ✅ Identity map first 2MB (temporary)
+    - ✅ Map kernel: 0xFFFFFFFF80100000 -> 0x100000
+    - ✅ Map direct physical map: 0xFFFF800000000000 -> 0x0
+    - ✅ Map VGA: 0xFFFFFFFF800B8000 -> 0xB8000
+  - ✅ Enable PAE
+  - ✅ Enable long mode (EFER.LME)
+  - ✅ Enable paging
+  - ✅ Far jump to 64-bit code segment
+  - ✅ Jump to kernel at 0xFFFFFFFF80100000
 
 ### 5c — Kernel Entry (start.asm rewrite)
-- ⬜ 64-bit kernel entry point
-- ⬜ Set up kernel stack
-- ⬜ Zero BSS
-- ⬜ Extend direct physical map to cover ALL RAM
+- ✅ 64-bit kernel entry point
+- ✅ Set up kernel stack
+- ✅ Zero BSS
+- ✅ Extend direct physical map to cover ALL RAM
 - ⬜ Remove temporary identity map
-- ⬜ Set up proper 64-bit GDT
+- ✅ Set up proper 64-bit GDT
 - ⬜ Set up 64-bit IDT
-- ⬜ Call kernel_main
+- ✅ Call kernel_main
 
 ### 5d — Core Kernel Updates
-- ⬜ Update linker script (. = 0xFFFFFFFF80100000)
-- ⬜ Update GDT for 64-bit
-- ⬜ Update IDT for 64-bit
-- ⬜ Update ISR stubs for 64-bit (isr.asm)
-- ⬜ Update context switch (switch.asm)
-- ⬜ Update TSS for 64-bit
-- ⬜ Update syscall mechanism (keep INT 0x80 for now)
-- ⬜ Update all uint32_t addresses to uint64_t
-- ⬜ Update VGA driver (new virtual address)
-- ⬜ Update serial driver
+- ✅ Update linker script (. = 0xFFFFFFFF80100000)
+- ✅ Update GDT for 64-bit
+- ✅ Update IDT for 64-bit
+- ✅ Update ISR stubs for 64-bit (isr.asm)
+- ✅ Update context switch (switch.asm)
+- ✅ Update TSS for 64-bit
+- ✅ Update syscall mechanism (keep INT 0x80 for now)
+- ✅ Update all uint32_t addresses to uint64_t
+- ✅ Update VGA driver (new virtual address)
+- ✅ Update serial driver
 
 ### 5e — Memory Management Updates
-- ⬜ PMM rewrite for 64-bit
-  - ⬜ Dynamic bitmap sizing from E820
-  - ⬜ Support up to 1TB RAM
-  - ⬜ Reserve ALL regions before first allocation
+- ✅ PMM rewrite for 64-bit
+  - ✅ Dynamic bitmap sizing from E820
+  - ✅ Support up to 512MB RAM
+  - ✅ Reserve ALL regions before first allocation
 - ⬜ Paging rewrite for 4-level paging
   - ⬜ PML4 / PDPT / PD / PT structures
   - ⬜ Direct physical map (ALL RAM)
@@ -197,7 +197,7 @@
 - ⬜ Heap update (new virtual address)
 
 ### 5f — Process Management Updates
-- ⬜ Update process_t for 64-bit registers
+- ✅ Update process_t for 64-bit registers
 - ⬜ Update cpu_state_t (64-bit registers)
 - ⬜ Update fork() for 64-bit
 - ⬜ Update exec() for 64-bit
@@ -205,12 +205,12 @@
 - ⬜ Update user stack address (USER_STACK_TOP)
 
 ### 5g — Verification
-- ⬜ Boot to kernel_main in 64-bit
-- ⬜ Serial output working
-- ⬜ VGA output working
-- ⬜ Interrupts working
-- ⬜ Keyboard working
-- ⬜ Shell working
+- ✅ Boot to kernel_main in 64-bit
+- ✅ Serial output working
+- ✅ VGA output working
+- ✅ Interrupts working
+- ✅ Keyboard working
+- ✅ Shell working
 - ⬜ fork/exec/wait working
 - ⬜ VFS and shadowFS working
 - ⬜ All previous tests passing

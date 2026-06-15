@@ -75,6 +75,52 @@ static int uint_to_hex(char* buf, uint32_t n)
     return 8;
 }
 
+// --- uint64_to_hex ------------------------------------------
+// Write a 64-bit hex number into buf
+// Always writes 16 digits with leading zeroes
+
+static int uint64_to_hex(char* buf, uint64_t n)
+{
+    const char* digits = "0123456789ABCDEF";
+
+    for(int i = 15; i >= 0; i--)
+    {
+        buf[i] = digits[n & 0xF];
+        n >>= 4;
+    }
+
+    return 16;
+}
+
+// --- uint64_to_dec ------------------------------------------
+// Write a 64-bit unsigned decimal into buf
+
+static int uint64_to_dec(char* buf, uint64_t n)
+{
+    if(n == 0)
+    {
+        buf[0] = '0';
+        return 1;
+    }
+
+    char tmp[20];
+    int i = 0;
+
+    while(n > 0)
+    {
+        tmp[i++] = '0' + (n % 10);
+        n /= 10;
+    }
+
+    int len = i;
+    for(int j = 0; j < len; j++)
+    {
+        buf[j] = tmp[len - 1 - j];
+    }
+
+    return len;
+}
+
 // --- kvsnprintf ---------------------------------------------
 // Core formatting function
 // Writes formatted output into buf up to size-1 characters
@@ -112,22 +158,51 @@ int kvsnprintf(char* buf, int size, const char* fmt, va_list args)
         // Skip the '%'
         fmt++;
 
+        // Check for 'l' modifier (64-bit)
+        int is_long = 0;
+        if(*fmt == 'l')
+        {
+            is_long = 1;
+            fmt++;
+        }
+
         // Handle format specifier
         switch(*fmt++)
         {
             // Signed decimal integer
             case 'd':
             {
-                int32_t n = va_arg(args, int32_t);
-
-                // Max 11 characters for 32-bit signed + null
-                char tmp[12];
-
-                int len = int_to_dec(tmp, n);
-
-                for(int i = 0; i < len; i++)
+                if(is_long)
                 {
-                    PUTC(tmp[i]);
+                    int64_t n = va_arg(args, int64_t);
+                    char tmp[21];
+
+                    // Handle negative
+                    int len = 0;
+
+                    if(n < 0)
+                    {
+                        PUTC('-');
+                        len = uint64_to_dec(tmp, (uint64_t)(-n));
+                    }
+                    else
+                    {
+                        len = uint64_to_dec(tmp, (uint64_t)n);
+                    }
+                }
+                else
+                {
+                    int32_t n = va_arg(args, int32_t);
+
+                    // Max 11 characters for 32-bit signed + null
+                    char tmp[12];
+
+                    int len = int_to_dec(tmp, n);
+
+                    for(int i = 0; i < len; i++)
+                    {
+                        PUTC(tmp[i]);
+                    }
                 }
                 break;
             }
@@ -135,16 +210,31 @@ int kvsnprintf(char* buf, int size, const char* fmt, va_list args)
             // Unsigned decimal integer
             case 'u':
             {
-                uint32_t n = va_arg(args, uint32_t);
-
-                // Max 10 characters for 32-bit unsigned + null
-                char tmp[11];
-                
-                int len = uint_to_dec(tmp, n);
-
-                for(int i = 0; i < len; i++)
+                if(is_long)
                 {
-                    PUTC(tmp[i]);
+                    uint64_t n = va_arg(args, uint64_t);
+
+                    char tmp[21];
+                    int len = uint64_to_dec(tmp, n);
+
+                    for(int i = 0; i < len; i++)
+                    {
+                        PUTC(tmp[i]);
+                    }
+                }
+                else
+                {
+                    uint32_t n = va_arg(args, uint32_t);
+
+                    // Max 10 characters for 32-bit unsigned + null
+                    char tmp[11];
+                
+                    int len = uint_to_dec(tmp, n);
+
+                    for(int i = 0; i < len; i++)
+                    {
+                        PUTC(tmp[i]);
+                    }
                 }
                 break;
             }
@@ -152,16 +242,31 @@ int kvsnprintf(char* buf, int size, const char* fmt, va_list args)
             // Hexadecimal
             case 'x':
             {
-                uint32_t n = va_arg(args, uint32_t);
-
-                // "0x" + 8 hex digits + null
-                char tmp[11];
-
-                int len = uint_to_hex(tmp, n);
-
-                for(int i = 0; i < len; i++)
+                if(is_long)
                 {
-                    PUTC(tmp[i]);
+                    uint64_t n = va_arg(args, uint64_t);
+
+                    char tmp[17];
+                    int len = uint64_to_hex(tmp, n);
+
+                    for(int i = 0; i < len; i++)
+                    {
+                        PUTC(tmp[i]);
+                    }
+                }
+                else
+                {
+                    uint32_t n = va_arg(args, uint32_t);
+
+                    // "0x" + 8 hex digits + null
+                    char tmp[11];
+
+                    int len = uint_to_hex(tmp, n);
+
+                    for(int i = 0; i < len; i++)
+                    {
+                        PUTC(tmp[i]);
+                    }
                 }
                 break;
             }

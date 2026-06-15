@@ -10,7 +10,7 @@ Linker script and memory map
 
                 0xffffffff80100000                . = 0xffffffff80100000
 
-.text           0xffffffff80100000     0x5389
+.text           0xffffffff80100000     0x5609
  start.o(.text)
  .text          0xffffffff80100000       0x48 start.o
                 0xffffffff80100000                _start
@@ -124,161 +124,161 @@ Linker script and memory map
                 0xffffffff8010367c                syscall_handler
                 0xffffffff801036fb                syscall_init
  *fill*         0xffffffff80103712       0x2e 
- .text          0xffffffff80103740      0x584 kprintf.o
-                0xffffffff801037e9                kvsnprintf
-                0xffffffff80103b92                kprintf
-                0xffffffff80103c1e                kserial_printf
- *fill*         0xffffffff80103cc4        0xc 
- .text          0xffffffff80103cd0       0x92 tss.o
-                0xffffffff80103cd0                tss_init
-                0xffffffff80103d5a                tss_set_kernel_stack
- .text          0xffffffff80103d62       0x3f usermode.o
-                0xffffffff80103d62                jump_to_usermode
- *fill*         0xffffffff80103da1        0xf 
- .text          0xffffffff80103db0       0x28 usermode_asm.o
-                0xffffffff80103db0                enter_usermode
-                0xffffffff80103dc9                iret_to_usermode
- *fill*         0xffffffff80103dd8       0x28 
- .text          0xffffffff80103e00      0xe1e vfs.o
-                0xffffffff80103e00                vfs_init
-                0xffffffff80103ead                vfs_mount
-                0xffffffff80104030                vfs_find_mount
-                0xffffffff801040e5                vfs_resolve_path
-                0xffffffff801042b7                vfs_alloc_fd
-                0xffffffff80104304                vfs_free_fd
-                0xffffffff8010431c                vfs_get_file
-                0xffffffff80104336                vfs_open
-                0xffffffff80104639                vfs_close
-                0xffffffff801046c5                vfs_read
-                0xffffffff80104766                vfs_write
-                0xffffffff80104807                vfs_mkdir
-                0xffffffff801049f0                vfs_readdir
-                0xffffffff80104a7f                vfs_delete
- *fill*         0xffffffff80104c1e        0x2 
- .text          0xffffffff80104c20      0x6fa shadowfs.o
-                0xffffffff8010519c                shadowfs_get_ops
-                0xffffffff801051a4                shadowfs_mount
- .text          0xffffffff8010531a       0x6f panic.o
-                0xffffffff8010531a                kpanic
+ .text          0xffffffff80103740      0x814 kprintf.o
+                0xffffffff801038c9                kvsnprintf
+                0xffffffff80103e22                kprintf
+                0xffffffff80103eae                kserial_printf
+ *fill*         0xffffffff80103f54        0xc 
+ .text          0xffffffff80103f60       0x92 tss.o
+                0xffffffff80103f60                tss_init
+                0xffffffff80103fea                tss_set_kernel_stack
+ .text          0xffffffff80103ff2       0x3f usermode.o
+                0xffffffff80103ff2                jump_to_usermode
+ *fill*         0xffffffff80104031        0xf 
+ .text          0xffffffff80104040       0x28 usermode_asm.o
+                0xffffffff80104040                enter_usermode
+                0xffffffff80104059                iret_to_usermode
+ *fill*         0xffffffff80104068       0x18 
+ .text          0xffffffff80104080      0xe1e vfs.o
+                0xffffffff80104080                vfs_init
+                0xffffffff8010412d                vfs_mount
+                0xffffffff801042b0                vfs_find_mount
+                0xffffffff80104365                vfs_resolve_path
+                0xffffffff80104537                vfs_alloc_fd
+                0xffffffff80104584                vfs_free_fd
+                0xffffffff8010459c                vfs_get_file
+                0xffffffff801045b6                vfs_open
+                0xffffffff801048b9                vfs_close
+                0xffffffff80104945                vfs_read
+                0xffffffff801049e6                vfs_write
+                0xffffffff80104a87                vfs_mkdir
+                0xffffffff80104c70                vfs_readdir
+                0xffffffff80104cff                vfs_delete
+ *fill*         0xffffffff80104e9e        0x2 
+ .text          0xffffffff80104ea0      0x6fa shadowfs.o
+                0xffffffff8010541c                shadowfs_get_ops
+                0xffffffff80105424                shadowfs_mount
+ .text          0xffffffff8010559a       0x6f panic.o
+                0xffffffff8010559a                kpanic
 
-.rodata         0xffffffff801053a0     0x1e98
+.rodata         0xffffffff80105620     0x1f48
  *(.rodata)
- .rodata        0xffffffff801053a0       0x3b keyboard.o
- *fill*         0xffffffff801053db        0x5 
- .rodata        0xffffffff801053e0       0x40 syscall.o
- .rodata        0xffffffff80105420       0xb0 kprintf.o
+ .rodata        0xffffffff80105620       0x3b keyboard.o
+ *fill*         0xffffffff8010565b        0x5 
+ .rodata        0xffffffff80105660       0x40 syscall.o
+ .rodata        0xffffffff801056a0      0x160 kprintf.o
  *(.rodata.*)
  .rodata.str1.1
-                0xffffffff801054d0      0x38f kernel.o
- *fill*         0xffffffff8010585f        0x1 
+                0xffffffff80105800      0x38f kernel.o
+ *fill*         0xffffffff80105b8f        0x1 
  .rodata.str1.8
-                0xffffffff80105860      0x120 kernel.o
+                0xffffffff80105b90      0x120 kernel.o
  .rodata.str1.1
-                0xffffffff80105980       0x34 gdt.o
+                0xffffffff80105cb0       0x34 gdt.o
  .rodata.str1.1
-                0xffffffff801059b4       0x5e idt.o
+                0xffffffff80105ce4       0x5e idt.o
  .rodata.str1.1
-                0xffffffff80105a12       0xb0 shell.o
- *fill*         0xffffffff80105ac2        0x6 
+                0xffffffff80105d42       0xb0 shell.o
+ *fill*         0xffffffff80105df2        0x6 
  .rodata.str1.8
-                0xffffffff80105ac8      0x160 shell.o
+                0xffffffff80105df8      0x160 shell.o
  .rodata.str1.1
-                0xffffffff80105c28       0xe0 mem.o
+                0xffffffff80105f58       0xe0 mem.o
  .rodata.str1.8
-                0xffffffff80105d08       0x6f mem.o
+                0xffffffff80106038       0x6f mem.o
  .rodata.str1.1
-                0xffffffff80105d77       0x3e serial.o
+                0xffffffff801060a7       0x3e serial.o
  .rodata.str1.1
-                0xffffffff80105db5      0x1f8 pmm.o
- *fill*         0xffffffff80105fad        0x3 
+                0xffffffff801060e5      0x1f8 pmm.o
+ *fill*         0xffffffff801062dd        0x3 
  .rodata.str1.8
-                0xffffffff80105fb0       0xdb pmm.o
- *fill*         0xffffffff8010608b        0x5 
+                0xffffffff801062e0       0xdb pmm.o
+ *fill*         0xffffffff801063bb        0x5 
  .rodata.str1.8
-                0xffffffff80106090       0xf8 paging.o
+                0xffffffff801063c0       0xf8 paging.o
  .rodata.str1.1
-                0xffffffff80106188       0xcd paging.o
- *fill*         0xffffffff80106255        0x3 
+                0xffffffff801064b8       0xcd paging.o
+ *fill*         0xffffffff80106585        0x3 
  .rodata.str1.8
-                0xffffffff80106258      0x340 process.o
+                0xffffffff80106588      0x340 process.o
  .rodata.str1.1
-                0xffffffff80106598      0x129 process.o
+                0xffffffff801068c8      0x129 process.o
  .rodata.str1.1
-                0xffffffff801066c1       0x86 scheduler.o
- *fill*         0xffffffff80106747        0x1 
+                0xffffffff801069f1       0x86 scheduler.o
+ *fill*         0xffffffff80106a77        0x1 
  .rodata.str1.8
-                0xffffffff80106748       0xbf scheduler.o
+                0xffffffff80106a78       0xbf scheduler.o
  .rodata.str1.1
-                0xffffffff80106807      0x114 syscall.o
- *fill*         0xffffffff8010691b        0x5 
+                0xffffffff80106b37      0x114 syscall.o
+ *fill*         0xffffffff80106c4b        0x5 
  .rodata.str1.8
-                0xffffffff80106920       0xc1 syscall.o
+                0xffffffff80106c50       0xc1 syscall.o
  .rodata.str1.1
-                0xffffffff801069e1       0x18 kprintf.o
+                0xffffffff80106d11       0x18 kprintf.o
  .rodata.str1.1
-                0xffffffff801069f9       0x29 tss.o
- *fill*         0xffffffff80106a22        0x6 
+                0xffffffff80106d29       0x29 tss.o
+ *fill*         0xffffffff80106d52        0x6 
  .rodata.str1.8
-                0xffffffff80106a28       0x28 usermode.o
+                0xffffffff80106d58       0x28 usermode.o
  .rodata.str1.1
-                0xffffffff80106a50      0x169 vfs.o
- *fill*         0xffffffff80106bb9        0x7 
+                0xffffffff80106d80      0x169 vfs.o
+ *fill*         0xffffffff80106ee9        0x7 
  .rodata.str1.8
-                0xffffffff80106bc0      0x361 vfs.o
- *fill*         0xffffffff80106f21        0x7 
+                0xffffffff80106ef0      0x361 vfs.o
+ *fill*         0xffffffff80107251        0x7 
  .rodata.str1.8
-                0xffffffff80106f28      0x1fc shadowfs.o
+                0xffffffff80107258      0x1fc shadowfs.o
  .rodata.str1.1
-                0xffffffff80107124       0xbf shadowfs.o
+                0xffffffff80107454       0xbf shadowfs.o
  .rodata.str1.1
-                0xffffffff801071e3       0x55 panic.o
+                0xffffffff80107513       0x55 panic.o
 
-.eh_frame       0xffffffff80107238     0x10f8
- .eh_frame      0xffffffff80107238       0x68 kernel.o
- .eh_frame      0xffffffff801072a0       0x98 vga.o
- .eh_frame      0xffffffff80107338       0x58 gdt.o
- .eh_frame      0xffffffff80107390       0x98 idt.o
- .eh_frame      0xffffffff80107428       0x68 pic.o
- .eh_frame      0xffffffff80107490       0x90 keyboard.o
- .eh_frame      0xffffffff80107520       0xa0 shell.o
- .eh_frame      0xffffffff801075c0       0x78 timer.o
- .eh_frame      0xffffffff80107638       0xa0 mem.o
- .eh_frame      0xffffffff801076d8       0x98 serial.o
- .eh_frame      0xffffffff80107770      0x108 pmm.o
- .eh_frame      0xffffffff80107878      0x168 paging.o
- .eh_frame      0xffffffff801079e0      0x180 process.o
- .eh_frame      0xffffffff80107b60       0xd0 scheduler.o
- .eh_frame      0xffffffff80107c30      0x198 syscall.o
- .eh_frame      0xffffffff80107dc8       0xc0 kprintf.o
- .eh_frame      0xffffffff80107e88       0x50 tss.o
- .eh_frame      0xffffffff80107ed8       0x40 usermode.o
- .eh_frame      0xffffffff80107f18      0x238 vfs.o
- .eh_frame      0xffffffff80108150      0x1a8 shadowfs.o
- .eh_frame      0xffffffff801082f8       0x38 panic.o
+.eh_frame       0xffffffff80107568     0x1120
+ .eh_frame      0xffffffff80107568       0x68 kernel.o
+ .eh_frame      0xffffffff801075d0       0x98 vga.o
+ .eh_frame      0xffffffff80107668       0x58 gdt.o
+ .eh_frame      0xffffffff801076c0       0x98 idt.o
+ .eh_frame      0xffffffff80107758       0x68 pic.o
+ .eh_frame      0xffffffff801077c0       0x90 keyboard.o
+ .eh_frame      0xffffffff80107850       0xa0 shell.o
+ .eh_frame      0xffffffff801078f0       0x78 timer.o
+ .eh_frame      0xffffffff80107968       0xa0 mem.o
+ .eh_frame      0xffffffff80107a08       0x98 serial.o
+ .eh_frame      0xffffffff80107aa0      0x108 pmm.o
+ .eh_frame      0xffffffff80107ba8      0x168 paging.o
+ .eh_frame      0xffffffff80107d10      0x180 process.o
+ .eh_frame      0xffffffff80107e90       0xd0 scheduler.o
+ .eh_frame      0xffffffff80107f60      0x198 syscall.o
+ .eh_frame      0xffffffff801080f8       0xe8 kprintf.o
+ .eh_frame      0xffffffff801081e0       0x50 tss.o
+ .eh_frame      0xffffffff80108230       0x40 usermode.o
+ .eh_frame      0xffffffff80108270      0x238 vfs.o
+ .eh_frame      0xffffffff801084a8      0x1a8 shadowfs.o
+ .eh_frame      0xffffffff80108650       0x38 panic.o
 
-.data           0xffffffff80108340       0x60
+.data           0xffffffff801086a0       0x60
  *(.data)
- .data          0xffffffff80108340        0x0 kernel.o
- .data          0xffffffff80108340        0x0 vga.o
- .data          0xffffffff80108340        0x0 gdt.o
- .data          0xffffffff80108340        0x0 idt.o
- .data          0xffffffff80108340        0x0 pic.o
- .data          0xffffffff80108340        0x0 keyboard.o
- .data          0xffffffff80108340        0x0 shell.o
- .data          0xffffffff80108340        0x0 timer.o
- .data          0xffffffff80108340        0x0 mem.o
- .data          0xffffffff80108340        0x0 serial.o
- .data          0xffffffff80108340        0x0 pmm.o
- .data          0xffffffff80108340        0x0 paging.o
- .data          0xffffffff80108340        0x0 process.o
- .data          0xffffffff80108340        0x0 scheduler.o
- .data          0xffffffff80108340        0x0 syscall.o
- .data          0xffffffff80108340        0x0 kprintf.o
- .data          0xffffffff80108340        0x0 tss.o
- .data          0xffffffff80108340        0x0 usermode.o
- .data          0xffffffff80108340        0x0 vfs.o
- .data          0xffffffff80108340       0x60 shadowfs.o
- .data          0xffffffff801083a0        0x0 panic.o
+ .data          0xffffffff801086a0        0x0 kernel.o
+ .data          0xffffffff801086a0        0x0 vga.o
+ .data          0xffffffff801086a0        0x0 gdt.o
+ .data          0xffffffff801086a0        0x0 idt.o
+ .data          0xffffffff801086a0        0x0 pic.o
+ .data          0xffffffff801086a0        0x0 keyboard.o
+ .data          0xffffffff801086a0        0x0 shell.o
+ .data          0xffffffff801086a0        0x0 timer.o
+ .data          0xffffffff801086a0        0x0 mem.o
+ .data          0xffffffff801086a0        0x0 serial.o
+ .data          0xffffffff801086a0        0x0 pmm.o
+ .data          0xffffffff801086a0        0x0 paging.o
+ .data          0xffffffff801086a0        0x0 process.o
+ .data          0xffffffff801086a0        0x0 scheduler.o
+ .data          0xffffffff801086a0        0x0 syscall.o
+ .data          0xffffffff801086a0        0x0 kprintf.o
+ .data          0xffffffff801086a0        0x0 tss.o
+ .data          0xffffffff801086a0        0x0 usermode.o
+ .data          0xffffffff801086a0        0x0 vfs.o
+ .data          0xffffffff801086a0       0x60 shadowfs.o
+ .data          0xffffffff80108700        0x0 panic.o
 
 .bss            0xffffffff80109000     0x5e20
                 0xffffffff80109000                __bss_start = .
