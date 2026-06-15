@@ -22,16 +22,16 @@ typedef enum
 // The order matters - it must match how we push registers in assembly
 typedef struct
 {
-    uint64_t eax;                       // General purpose registers
-    uint64_t ebx; 
-    uint64_t ecx;
-    uint64_t edx;
-    uint64_t esi;
-    uint64_t edi;
-    uint64_t ebp;                       // Base pointer - used for stack frames
-    uint64_t esp;                       // Stack pointer - top of the stack
-    uint64_t eip;                       // Instruction pointer - where to resume execution
-    uint64_t eflags;                    // CPU flags - carry, zero, sign etc.
+    uint64_t rax;                       // General purpose registers
+    uint64_t rbx; 
+    uint64_t rcx;
+    uint64_t rdx;
+    uint64_t rsi;
+    uint64_t rdi;
+    uint64_t rbp;                       // Base pointer - used for stack frames
+    uint64_t rsp;                       // Stack pointer - top of the stack
+    uint64_t rip;                       // Instruction pointer - where to resume execution
+    uint64_t rflags;                    // CPU flags - carry, zero, sign etc.
     uint64_t cs;                        // Code segment selector
     uint64_t ds;                        // Data segment selector
     uint64_t ss;                        // Stack segment selector

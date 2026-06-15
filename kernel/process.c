@@ -121,10 +121,10 @@ process_t* process_create(const char* name, void(*entry)(), uint64_t flags)
     kmemset(&proc->cpu, 0, sizeof(cpu_state_t));
     kserial_printf("process_create: cpu zeroed\n");
 
-    proc->cpu.eip = (uint64_t)entry;            // Start executing at entry function
-    proc->cpu.esp = proc->stack_top;            // Stack starts at top and grows down
-    proc->cpu.ebp = proc->stack_top;            // Base pointer same as stack top
-    proc->cpu.eflags = 0x200;                   // Enable interrupts (IF flag = bit 9)
+    proc->cpu.rip = (uint64_t)entry;            // Start executing at entry function
+    proc->cpu.rsp = proc->stack_top;            // Stack starts at top and grows down
+    proc->cpu.rbp = proc->stack_top;            // Base pointer same as stack top
+    proc->cpu.rflags = 0x200;                   // Enable interrupts (IF flag = bit 9)
                                                 // 0x200 = 0000 0010 0000 0000
                                                 // bit 9 set = interrupts enabled
     proc->cpu.cs = 0x08;                        // Kernel code segment selector
@@ -137,9 +137,9 @@ process_t* process_create(const char* name, void(*entry)(), uint64_t flags)
     uint64_t* stack = (uint64_t*)(uintptr_t)proc->stack_top;
     *stack = (uint64_t)entry;                   // Push entry point onto stack
 
-    proc->cpu.esp = proc->stack_top;            // ESP points to the entry point
-    proc->cpu.eip = (uint64_t)entry;            // EIP also set for direct jump
-    proc->cpu.ebp = proc->stack_top;            // EBP same as ESP initially 
+    proc->cpu.rsp = proc->stack_top;            // ESP points to the entry point
+    proc->cpu.rip = (uint64_t)entry;            // EIP also set for direct jump
+    proc->cpu.rbp = proc->stack_top;            // EBP same as ESP initially 
 
     // Step 7: Each process gets own directory with kernel mappings shared
     proc->page_dir = paging_clone_directory();
@@ -345,9 +345,9 @@ process_t* create_user_process(const char* name, void (*entry)())
     // When switch_context restores this process it will
     // restore these registers then ret to our iret stub
     kmemset(&proc->cpu, 0, sizeof(cpu_state_t));
-    proc->cpu.esp = (uint64_t)kstack + 4;           // ESP points to the top of iret frame
-    proc->cpu.eip = (uint64_t)iret_to_usermode;     // First thing we do is iret to ring 3
-    proc->cpu.eflags = 0x200;                       // Interrupts enabled
+    proc->cpu.rsp = (uint64_t)kstack + 4;           // ESP points to the top of iret frame
+    proc->cpu.rip = (uint64_t)iret_to_usermode;     // First thing we do is iret to ring 3
+    proc->cpu.rflags = 0x200;                       // Interrupts enabled
     proc->cpu.cs = 0x08;                            // Kernel code for now
     proc->cpu.ds = 0x10;                            // Kernel data for now
     proc->cpu.ss = 0x10;                            // Kernel stack segment
@@ -459,10 +459,10 @@ pid_t process_fork()
     *kstack-- = 0;                          // EAX = 0 (fork returns 0 to child)
 
     // Step 11: set up child CPU state
-    child->cpu.esp = (uint64_t)kstack + 4;  // Points to top of iret frame
-    child->cpu.eip = (uint64_t)iret_to_usermode;    // child enters via iret
-    child->cpu.eax = 0;
-    child->cpu.eflags = 0x200;              // Clean EFLAGS
+    child->cpu.rsp = (uint64_t)kstack + 4;  // Points to top of iret frame
+    child->cpu.rip = (uint64_t)iret_to_usermode;    // child enters via iret
+    child->cpu.rax = 0;
+    child->cpu.rflags = 0x200;              // Clean EFLAGS
     child->cpu.cs = 0x08;                   // Kernel code for now
     child->cpu.ds = 0x10;                   // Kernel data
     child->cpu.ss = 0x10;                   // Kernel stack segment
@@ -548,13 +548,13 @@ int process_exec(void (*entry)())
 
     // Step 8: update CPU state to use new stack and entry point
     uint64_t new_esp = (uint64_t)kstack + 4;
-    current_process->cpu.esp = new_esp;
-    current_process->cpu.eip = (uint64_t)iret_to_usermode;
-    current_process->cpu.eflags = 0x200;
+    current_process->cpu.rsp = new_esp;
+    current_process->cpu.rip = (uint64_t)iret_to_usermode;
+    current_process->cpu.rflags = 0x200;
     current_process->cpu.cs = 0x08;
     current_process->cpu.ds = 0x10;
     current_process->cpu.ss = 0x10;
-    current_process->cpu.eax = 0;
+    current_process->cpu.rax = 0;
 
     kserial_printf("exec: switching to new program\n");
 

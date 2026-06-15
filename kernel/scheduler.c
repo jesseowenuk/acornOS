@@ -199,12 +199,12 @@ void scheduler_start()
     kserial_printf("Scheduler: current_process ptr=0x%x%x\n",
         (uint32_t)((uint64_t)current_process >> 32),
         (uint32_t)(uint64_t)current_process);
-    kserial_printf("Scheduler: cpu.esp=0x%x%x\n",
-        (uint32_t)(current_process->cpu.esp >> 32),
-        (uint32_t)current_process->cpu.esp);
+    kserial_printf("Scheduler: cpu.rsp=0x%x%x\n",
+        (uint32_t)(current_process->cpu.rsp >> 32),
+        (uint32_t)current_process->cpu.rsp);
     kserial_printf("Scheduler: cpu.eip=0x%x%x\n",
-        (uint32_t)(current_process->cpu.eip >> 32),
-        (uint32_t)current_process->cpu.eip);
+        (uint32_t)(current_process->cpu.rip >> 32),
+        (uint32_t)current_process->cpu.rip);
 
     // Set up the stack and jump to the process entry point
     // We do this in assemnbly to have full control
@@ -215,6 +215,6 @@ void scheduler_start()
                                     // (EIP was pushed onto the process stack
                                     // during process_create)
         :
-        : "r"(current_process->cpu.esp)
+        : "r"(current_process->cpu.rsp)
     );
 }
