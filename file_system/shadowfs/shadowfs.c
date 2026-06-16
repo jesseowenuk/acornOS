@@ -1,0 +1,515 @@
+#include <drivers/serial.h>
+#include <file_system/shadowfs.h>
+#include <file_system/vfs.h>
+#include <kernel/core/kprintf.h>
+#include <kernel/core/panic.h>
+#include <kernel/core/string.h>
+#include <kernel/memory/mem.h>
+#include <kernel/memory/pmm.h>
+
+// --- Forward declarations ---------------------------------------------
+// Internal functions declared here, defined below
+static inode_t* shadowfs_lookup(inode_t* dir, const char* name);
+static inode_t* shadowfs_create(inode_t* dir, const char* name, uint32_t type);
+static int      shadowfs_delete(inode_t* dir, const char* name);
+static int      shadowfs_open(inode_t* inode, file_t* file);
+static int      shadowfs_close(inode_t* inode, file_t* file);
+static int      shadowfs_read(file_t* file, void* buf, uint32_t size);
+static int      shadowfs_write(file_t* file, const void* buf, uint32_t size);
+static int      shadowfs_readdir(file_t* file, dentry_t* dentry);
+static int      shadowfs_mkdir(inode_t* dir, const char* name);
+static int      shadowfs_truncate(inode_t* inode, uint32_t size);
+
+// --- Operations table ------------------------------------------------
+// Filled in with our function pointers
+// Passed to vfs_mount() so VFS knows how to call us
+
+static fs_ops_t shadowfs_ops =
+{
+    .lookup     = shadowfs_lookup,
+    .create     = shadowfs_create,
+    .delete     = shadowfs_delete,
+    .truncate   = shadowfs_truncate,
+    .open       = shadowfs_open,
+    .close      = shadowfs_close,
+    .read       = shadowfs_read,
+    .write      = shadowfs_write,
+    .seek       = 0,                // we use default VFS seek
+    .readdir    = shadowfs_readdir,
+    .mkdir      = shadowfs_mkdir,
+    .rmdir      = 0,                // TODO: implement later
+};
+
+// --- shadowfs_get_ops --------------------------------------
+// Returns the operations table for shadowFS
+// VFS uses this to call out functions
+
+fs_ops_t* shadowfs_get_ops()
+{
+    // Return pointer to our ops table
+    return &shadowfs_ops;
+}
+
+// --- Internal helpers --------------------------------------
+
+// Create a new VFS inode for shadowFS
+// type = VFS_TYPE_FILE or VFS_TYPE_DIR
+// sb = superblock this inode belongs to
+static inode_t* shadowfs_create_inode(superblock_t* sb, uint32_t type)
+{
+    // Guard against null superblock
+    if(!sb)
+    {
+        kpanic("shadowfs_create_inode: null superblock!");
+    }
+
+    if(!sb->private_data)
+    {
+        kpanic("shadowfs_create_inode: null mount data!");
+    }
+
+    // Get mount private data so we can check quota and assign inode numbers
+    shadowfs_mount_t* mount = (shadowfs_mount_t*)sb->private_data;
+
+    // Step 1: allocate the VFS inode struct
+    inode_t* inode = (inode_t*)kmalloc(sizeof(inode_t));
+    kmemset(inode, 0, sizeof(inode_t));
+
+    // Step 2: allocate private data
+    // Files and directories have different private data layouts
+    shadowfs_inode_t* priv = (shadowfs_inode_t*)kmalloc(sizeof(shadowfs_inode_t));
+    kmemset(priv, 0, sizeof(shadowfs_inode_t));
+
+    // Step 3: fill in the VFS inode fields
+
+    // Assign a unique inode number
+    inode->inode_num = mount->next_inode_num++;
+
+    // File or directory
+    inode->type = type;
+
+    // Empty to start
+    inode->size = 0;
+
+    // rwxr-xr-x default
+    inode->permissions = 0755;
+
+    // One link (the directory entry)
+    inode->link_count = 1;
+
+    // Our operations table
+    inode->ops = &shadowfs_ops;
+
+    // Which filesystem we belong to
+    inode->sb = sb;
+
+    // Our private data
+    inode->private_data = priv;
+
+    // Step 4: - initialise private data based on type
+    if(type == VFS_TYPE_FILE)
+    {
+        // No blocks yet - file is empty
+        priv->file.blocks = 0;
+        priv->file.block_count = 0;
+    }
+    else if(type == VFS_TYPE_DIR)
+    {
+        // No entries yet - empty directory
+        priv->dir.entries = 0;
+        priv->dir.count = 0;
+    }
+    else
+    {
+        kpanic("shadowfs_create_inode: unknown inode type!");
+    }
+
+    // Return the inode
+    return inode;
+}
+
+// --- shadowfs_mount ----------------------------------------------------
+int shadowfs_mount(const char* path, uint32_t quota)
+{
+    // Step 1: check PMM has enough free memory for this quota
+    uint32_t free_bytes = pmm_free_pages() * PAGE_SIZE;
+
+    if(quota > free_bytes / 2)
+    {
+        // Refuse if quota > 50% of free RAM
+        // Protects the rest of the system
+        kserial_printf("shadowFS: quota %u exceeds 50%% of free RAM!\n", quota);
+        return -1;
+    }
+
+    // Step 2: allocate mount private data
+    shadowfs_mount_t* mount = (shadowfs_mount_t*)kmalloc(sizeof(shadowfs_mount_t));
+
+    if(!mount)
+    {
+        kserial_printf("shadowFS: failed to allocate mount data!\n");
+        return -1;
+    }
+
+    kmemset(mount, 0, sizeof(shadowfs_mount_t));
+
+    // Step 3: fill in the mount data
+    
+    // Maximum bytes this mount can use
+    mount->quota = quota;
+
+    // Nothing used yet
+    mount->used = 0;
+
+    // Start inode number at 1
+    // 0 is reserved for "no inode"
+    mount->next_inode_num = 1;
+
+    // Set after mount
+    mount->root_inode = 0;
+
+    // Step 4: register with VFS
+    int result = vfs_mount(path, &shadowfs_ops, mount);
+
+    if(result < 0)
+    {
+        kserial_printf("shadowFS: vfs_mount failed!\n");
+        kfree(mount);
+        return -1;
+    }
+
+    // Step 5: find the superblock VFS just created
+    superblock_t* sb = vfs_find_mount(path);
+    
+    if(!sb)
+    {
+        kserial_printf("shadowFS: could not find superblock!\n");
+        kfree(mount);
+        return -1;
+    }
+
+    // Step 6: create root directory inode
+    inode_t* root = shadowfs_create_inode(sb, VFS_TYPE_DIR);
+
+    if(!root)
+    {
+        kserial_printf("shadowFS: failed to create root inode!\n");
+        kfree(mount);
+        return -1;
+    }
+
+    // Step 7: wire root inode into superblock and mount
+    sb->root = root;
+    mount->root_inode = root;
+
+    kserial_printf("shadowFS: mounted at %s quota=%uKB\n", path, quota / 1024);
+    return 0;
+}
+
+// --- shadowfs_lookup ------------------------------------------------------
+static inode_t* shadowfs_lookup(inode_t* dir, const char* name)
+{
+    // If dir is NULL - return root inode
+    // This is called by vfs_resolve_path when looking up "/"
+    if(!dir)
+    {
+        // Find our superblock and return root
+        // We can't do this without a superblock reference
+        // so return NULL for now - handled by vfs_mount directly
+        return 0;
+    }
+
+    // Get private data for this directory
+    shadowfs_inode_t* priv = (shadowfs_inode_t*)dir->private_data;
+
+    if(!priv)
+    {
+        return 0;
+    }
+
+    // Walk the linked list of directory entries
+    shadowfs_dentry_t* entry = priv->dir.entries;
+
+    while(entry)
+    {
+        if(kstreq(entry->name, name))
+        {
+            // Found it
+            return entry->inode;
+        }
+
+        // Next entry
+        entry = entry->next;
+    }
+
+    // Not found
+    return 0;
+}
+
+// --- shadowfs_create --------------------------------------------------
+static inode_t* shadowfs_create(inode_t* dir, const char* name, uint32_t type)
+{
+    // Step 1: get mount data so we can check quota
+    shadowfs_mount_t* mount = (shadowfs_mount_t*)dir->sb->private_data;
+
+    // Step 2: check quota
+    if(mount->used >= mount->quota)
+    {
+        kserial_printf("shadowFS: quota exceeded!\n");
+        return 0;
+    }
+
+    // Step 3: get directory private data
+    shadowfs_inode_t* dir_priv = (shadowfs_inode_t*)dir->private_data;
+
+    if(!dir_priv)
+    {
+        return 0;
+    }
+
+    // Step 4: check name doesn't already exist
+    shadowfs_dentry_t* entry = dir_priv->dir.entries;
+
+    while(entry)
+    {
+        if(kstreq(entry->name, name))
+        {
+            kserial_printf("shadowFS: %s already exists!\n", name);
+            return 0;
+        }
+        
+        entry = entry->next;
+    }
+
+    // Step 5: create new inode
+    inode_t* inode = shadowfs_create_inode(dir->sb, type);
+
+    if(!inode)
+    {
+        return 0;
+    }
+
+    // Step 6: allocate directory entry
+    shadowfs_dentry_t* dentry = (shadowfs_dentry_t*)kmalloc(sizeof(shadowfs_dentry_t));
+
+    if(!dentry)
+    {
+        kfree(inode->private_data);
+        kfree(inode);
+        return 0;
+    }
+
+    // Step 7: fill in the directory entry
+    kstrcpy(dentry->name, name, VFS_MAX_NAME);
+    dentry->inode = inode;
+    dentry->next = 0;
+
+    // Step 8: Add to directory linked list
+    if(!dir_priv->dir.entries)
+    {
+        // First entry
+        dir_priv->dir.entries = dentry;
+    }
+    else
+    {
+        // Walk to the end of the list
+        shadowfs_dentry_t* last = dir_priv->dir.entries;
+
+        while(last->next)
+        {
+            last = last->next;
+        }
+
+        last->next = dentry;
+    }
+
+    dir_priv->dir.count++;
+
+    // Step 9: update quota usage
+    mount->used += sizeof(shadowfs_dentry_t) + sizeof(inode_t);
+
+    kserial_printf("shadowFS: created %s\n", name);
+    return inode;
+}
+
+static int      shadowfs_delete(inode_t* dir, const char* name)
+{
+    // TODO:
+    (void)dir;
+    (void)name;
+    return 0;
+}
+
+static int      shadowfs_open(inode_t* inode, file_t* file)
+{
+    // TODO:
+    (void)inode;
+    (void)file;
+    return 0;
+}
+
+static int      shadowfs_close(inode_t* inode, file_t* file)
+{
+    // TODO:
+    (void)inode;
+    (void)file;
+    return 0;
+}
+
+static int      shadowfs_read(file_t* file, void* buf, uint32_t size)
+{
+    // TODO:
+    (void)file;
+    (void)buf;
+    (void)size;
+    return 0;
+}
+
+// --- shadowsfs_write --------------------------------------------------------
+static int shadowfs_write(file_t* file, const void* buf, uint32_t size)
+{
+    if(!file)
+    {
+        kpanic("shadowfs_write: null file!");
+    }
+
+    if(!buf)
+    {
+        kpanic("shadowfs_write: null buffer!");
+    }
+
+    if(!file->inode)
+    {
+        kpanic("shadowfs_write: null inode");
+    }
+
+    inode_t* inode = file->inode;
+    shadowfs_inode_t* priv = (shadowfs_inode_t*)inode->private_data;
+
+    if(!priv)
+    {
+        kpanic("shadowfs_write: null private data!");
+    }
+
+    // Get mount data to check quota
+    shadowfs_mount_t* mount = (shadowfs_mount_t*)inode->sb->private_data;
+
+    if(!mount)
+    {
+        kpanic("shadowfs_write: null mount data!");
+    }
+
+    if(size == 0)
+    {
+        // Nothing to write
+        return 0;
+    }
+
+    uint32_t remaining = size;
+    const uint8_t* src = (const uint8_t*)buf;
+    uint32_t written = 0;
+
+    // Find the last block or start from scratch
+    shadowfs_block_t* block = priv->file.blocks;
+    shadowfs_block_t* last = 0;
+
+    // Walk to the last block
+    while(block)
+    {
+        last = block;
+        block = block->next;
+    }
+
+    while(remaining > 0)
+    {
+        // Check quota before allocating
+        if(mount->used >= mount->quota)
+        {
+            kserial_printf("shadowFS: quota exceeded on write!\n");
+
+            // Return what we've written so far
+            break;
+        }
+
+        // Do we need a new block
+        if(!last || last->used == SHADOWFS_BLOCK_SIZE)
+        {
+            // Allocate a new block
+            shadowfs_block_t* new_block = (shadowfs_block_t*)kmalloc(sizeof(shadowfs_block_t));
+
+            if(!new_block)
+            {
+                kpanic("shadowfs_write: failed to allocate block!");
+            }
+
+            // 4KB page from PMM - plenty of those
+            new_block->data = (uint8_t*)((uint64_t)pmm_alloc() + 0xFFFF800000000000UL);
+
+            new_block->used = 0;
+            new_block->next = 0;
+
+            // Link into the chain
+            if(!priv->file.blocks)
+            {
+                // First block
+                priv->file.blocks = new_block;
+            }
+            else
+            {
+                // Append to chain
+                last->next = new_block;
+            }
+
+            last = new_block;
+            priv->file.block_count++;
+
+            // Update quota
+            mount->used += sizeof(shadowfs_block_t);
+        }
+
+        // How much space in current block
+        uint32_t space = SHADOWFS_BLOCK_SIZE - last->used;
+        uint32_t to_write = (remaining < space) ? remaining : space;
+
+        // Copy data into block
+        for(uint32_t i = 0; i < to_write; i++)
+        {
+            last->data[last->used + i] = src[i];
+        }
+
+        last->used += to_write;
+        src += to_write;
+        written += to_write;
+        remaining -= to_write;
+    }
+
+    // Update inode size and position
+    inode->size += written;
+    file->position += written;
+
+    return (int)written;
+}
+
+static int      shadowfs_readdir(file_t* file, dentry_t* dentry)
+{
+    // TODO:
+    (void)file;
+    (void)dentry;
+    return 0;
+}
+
+static int      shadowfs_mkdir(inode_t* dir, const char* name)
+{
+    // TODO:
+    (void)dir;
+    (void)name;
+    return 0;
+}
+
+static int      shadowfs_truncate(inode_t* inode, uint32_t size)
+{
+    // TODO:
+    (void)inode;
+    (void)size;
+    return 0;
+}
