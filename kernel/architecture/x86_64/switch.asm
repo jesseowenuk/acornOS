@@ -66,6 +66,12 @@ switch_context:
     test rax, rax                   ; Is it NULL?
     jz .no_switch                   ; If NULL keep current CR3
 
+    ; Convert virtual to physical via direct map
+    ; Physical = virtual + PHYSICAL_MAP_BASE (0xFFFF800000000000)
+    mov rcx, 0xFFFF800000000000
+    sub rax, rcx                    ; RAM = physical address
+    mov cr3, rax
+
     mov cr3, rax                    ; Load new page directory
                                     ; Flushes TLB, switches address space
 

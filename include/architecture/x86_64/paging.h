@@ -5,121 +5,92 @@
 
 #include <stdint.h>
 
-// --- Page Directory Entry (PDE) -------------------------
-// One entry in the Page Directory
-// Each entry points to a Page Table
-// The CPU reads these automatically when translating virtual addresses
+// --- 64-bit Page Table Entry -------------------------------------
+// Used for ALL levels: PML4, PDPT, PD, PT
+// All entries are 8 bytes with the same basic format
 typedef struct __attribute__((packed))
 {
-    uint64_t present            : 1;        // Bit 0 - 1 = this entry is valid
-                                            //         0 = accessing this causes a page fault
-    uint64_t writable           : 1;        // Bit 1 - 1 = page table is writable
-                                            //         0 = read only
-    uint64_t user               : 1;        // Bit 2 - 1 = user programs can access this
-                                            //         0 = kernel only
-    uint64_t write_through      : 1;        // Bit 3 - controls CPU cache write behaviour
-    uint64_t cache_disabled     : 1;        // Bit 4 - 1 = disable CPU cache for this entry
-    uint64_t accessed           : 1;        // Bit 5 - CPU sets this when entry is read
-    uint64_t reserved           : 1;        // Bit 6 - must always be 0
-    uint64_t page_size          : 1;        // Bit 7 - 0 = 4KB pages (what we use)
-                                            //         1 = 4MB pages (we don't use this)
-    uint64_t ignored            : 4;        // Bits 8-11 - ignored by CPU, we can use freely
-    uint64_t frame              : 20;       // Bits 12-31 - upper 20 bits of the physical 
-                                            //              address of the Page Table
-                                            //              lower 12 bits are always 0
-                                            //              (page tables are 4KB aligned)
-} pde_t;
+    uint64_t present                        : 1;    // Bit 0 - entry is valid
+    uint64_t writable                       : 1;    // Bit 1 - writes allowed
+    uint64_t user                           : 1;    // Bit 2 - user space accessible
+    uint64_t write_through                  : 1;    // Bit 3 - cache write-through
+    uint64_t cache_disabled                 : 1;    // Bit 4 - disable cache
+    uint64_t accessed                       : 1;    // Bit 5 - CPU sets on access
+    uint64_t dirty                          : 1;    // Bit 6 - CPU sets on write (PT only)
+    uint64_t huge_page                      : 1;    // Bit 7 - 2MB page (PD) or 1GB (PDPT)
+    uint64_t global                         : 1;    // Bit 8 - don't flush on CR3 reload
+    uint64_t available                      : 3;    // Bits 9 - 11 - free for OS use
+    uint64_t frame                          : 40;   // Bits 12 - 51 - physical address >> 12
+    uint64_t available2                     : 11;   // Bits 52 - 62 - free for OS use
+    uint64_t no_execute                     : 1;    // Bit 63 - NX bit (disable execution)
+} page_entry_t;
 
-// --- Page Table Entry (PTE) -----------------------------------------
-// One entry in a Page Table 
-// Each entry points to a physical page of memory
-typedef struct __attribute__((packed))
-{
-    uint64_t present            : 1;        // Bit 0 - 1 = this page exists in RAM
-    uint64_t writable           : 1;        // Bit 1 - 1 = page is writable
-    uint64_t user               : 1;        // Bit 2 - 1 = user programs can access
-    uint64_t write_through      : 1;        // Bit 3 - cache write behaviour
-    uint64_t cache_disabled     : 1;        // Bit 4 - disable cache for this page
-    uint64_t accessed           : 1;        // Bit 5 - CPU sets when page is read
-    uint64_t dirty              : 1;        // Bit 6 - CPU sets when page is written to
-                                            //         useful for knowing which pages
-                                            //         need writing back to disk
-    uint64_t reserved           : 1;        // Bit 7 - must always be 0
-    uint64_t global             : 1;        // Bit 8 - 1 = don't flush from TLB on
-                                            //             CR3 reload (kernel pages use this)
-    uint64_t ignored            : 3;        // Bits 9-11 - ignored by CPU
-    uint64_t frame              : 20;       // Bits 12-31 - upper 20 bits of the physical
-                                            //              page address this entry maps to.
-} pte_t;
-
-// --- Page Directory --------------------------------------------
-// The top level structure - 1024 entries covering the full 4GB virtual space
-// Each entry covers 4MB of virtual address space (1024 x 4KB)
-// Must be 4KB aligned in memory so the CPU can find it via CR3
+// --- Page Table ------------------------------------------------------------
+// 512 entries x 8 bytes = exactly 4KB
+// Used for all levels: PML4, PDPT, PD, PT
 typedef struct __attribute__((aligned(4096)))
 {
-    pde_t entries[1024];                    // 1024 x 4 bytes = exactly 4KB
-} page_directory_t;
-
-// --- Page Table -------------------------------------------------
-// Second level structure - 1024 entries covering 4MB of virtual space
-// Each entry maps to one 4KB physical page
-// Must also be 4KB aligned
-typedef struct __attribute__((aligned(4096)))
-{
-    pte_t entries[1024];                    // 1024 x 4 bytes = exactly 4KB
+    page_entry_t entries[512];
 } page_table_t;
 
-// The kernel page directory - accessible to other modules
-extern page_directory_t kernel_directory;
+// --- Page Directory --------------------------------------------------------
+// A process's top-level page structure is just a page table (PML4)
+typedef page_table_t page_directory_t;
 
-// --- Flag constants ----------------------------------------------
-// Used when setting up entries - OR these together for the flags you want
-#define PAGE_PRESENT    0x1                 // Page is present in memory
-#define PAGE_WRITABLE   0x2                 // Page is writable
-#define PAGE_USER       0x3                 // Page is accessible from user space
+// --- Virtual address index macros ------------------------------------------
+// Break a 64-bit virtual address into its component indicies
+#define PML4_INDEX(addr)        (((uint64_t)(addr) >> 39) & 0x1FF)      // Bits 47 - 39
+#define PDPT_INDEX(addr)        (((uint64_t)(addr) >> 30) & 0x1FF)      // Bits 38 - 30
+#define PD_INDEX(addr)          (((uint64_t)(addr) >> 21) & 0x1FF)      // Bits 29 - 21
+#define PT_INDEX(addr)          (((uint64_t)(addr) >> 12) & 0x1FF)      // Bits 20 - 12
+#define PG_OFFSET(addr)         ((uint64_t)(addr) & 0xFFF)              // Bits 11 - 0
 
-void paging_init();                         // Set up page tables and enable paging
-void page_fault_handler(registers_t* regs); // Called on interrupt 14
+// --- Page Flags -----------------------------------------------------------
+#define PAGE_PRESENT            (1UL << 0)      // Page is present
+#define PAGE_WRITABLE           (1UL << 1)      // Page is writable
+#define PAGE_USER               (1UL << 2)      // User space accessible
+#define PAGE_HUGE               (1UL << 7)      // 2MB (PD) or 1GB (PDPT) page
+#define PAGE_NO_EXECUTE         (1UL << 63)     // Disable execution
 
-// --- Virtual to physical helpers
+// --- Direct physical map base ---------------------------------------------
+// All physcial RAM is mapped here by Stage 2 bootloader
+// Physical address X -> virtual PHYSICAL_MAP_BASE + X
+#define PHYSICAL_MAP_BASE       0xFFFF800000000000UL
 
-// Extract the page directory index from a virtual address
-// Takes bits 31-22 - the top 10 bits
-#define PD_INDEX(addr) ((addr) >> 22)
+// Convert physical to virtual via direct map
+#define PHYSICAL_TO_VIRTUAL(addr)   ((uint64_t)(addr) + PHYSICAL_MAP_BASE)
+#define VIRTUAL_TO_PHYSICAL(addr)   ((uint64_t)(addr) - PHYSICAL_MAP_BASE)
 
-// Extract the page index from a virtual address
-// Takes bits 21-12 - the middle 10 bits
-// & 0x3FF masks to 10 bits (1023)
-#define PT_INDEX(addr) (((addr) >> 12) & 0x3FF)
+// --- Kernel page directory -----------------------------------------------
+// The kernel's PML4 - set up by Stage 2, extended by paging_init()
+extern page_directory_t* kernel_pml4;
 
-// Extract the page offset from a virtual address
-// Takes bits 11-0 - the bottom 12 bits
-// & 0xFFF masks to 12 bits (4095)
-#define PG_OFFSET(addr) ((addr) & 0xFFF)
+// --- Functions -----------------------------------------------------------
+void paging_init();
 
-// Map a virtual address to a physical address
+// Map a 4KB page: virtual -> physical with given flags
 void map_page(uint64_t virtual_addr, uint64_t physical_addr, uint64_t flags);
 
-void map_page_in(page_directory_t* dir, uint64_t virtual_addr, uint64_t physical_addr, uint64_t flags);
+// Map a page in a specific address space
+void map_page_in(page_directory_t* pml4, uint64_t virtual_addr, uint64_t physical_addr, uint64_t flags);
 
-// Remove a mapping
+// Unmap a page
 void unmap_page(uint64_t virtual_addr);
 
-// Look up physical address for a virtual address
+// Walk page tables to find physical address for virtual address
+// Returns 0 if not mapped
 uint64_t get_physical(uint64_t virtual_addr);
 
-// Clone the kernel page directory for a new process
-// Returns a new page directory with kernel mappings shared
+// Create a new address space with kernel mappings shared
 page_directory_t* paging_clone_directory();
 
-// Switch to a different page directory
-// Called on every context switch
-void paging_switch_directory(page_directory_t* dir);
+// Switch to a different address space
+void paging_switch_directory(page_directory_t* pml4);
 
-// Deep copy a page directory - used by fork()
-// Every user space page is copied to a new physical page
-// Kernel pages are shared (read only - safe to share)
+// Deep copy an address space (for fork())
 page_directory_t* paging_deep_copy_directory(page_directory_t* src);
+
+// Page fault handler - called from IDT
+void page_fault_handler(registers_t* regs);
 
 #endif

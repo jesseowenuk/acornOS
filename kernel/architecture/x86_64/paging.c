@@ -5,341 +5,383 @@
 #include <kernel/core/panic.h>
 #include <kernel/memory/pmm.h>
 
-// --- Page directory -----------------------------------
-// We declare this statically so it lives in the kernel's BSS segment
-// __attribute__((aligned(4096))) ensures it starts on a 4KB boundary
-// which is required by the CPU - CR3 must point to a 4KB-aligned address
-page_directory_t kernel_directory __attribute__((aligned(4096)));
+// --- Kernel PML4 --------------------------------------------------
+// Pointer to the kernel's top-level page table
+// Set up by Stage 2 at physical 0x1000
+// We read CR3 at boot to find it
+page_directory_t* kernel_pml4 = 0;
 
-// --- Page table ----------------------------------------
-// We need one page table for every 4MB of virtual space we want to map
-// Each page table covers 1024 pages x 4KB = 4MB
-// For now we'll identity map the first 4MB - enough for our kernel
-//static page_table_t first_table __attribute__((aligned(4096)));
-
-// --- Helper: Set a page directory entry ------------------------
-// Takes a PTE pointer, physical address of the page table and flags
-static void pte_set(pte_t* entry, uint64_t phsical_addr, uint64_t flags)
+// --- Physical / Virtual conversion --------------------------------
+// All physical RAM is mapped via direct map at PHYSICAL_MAP_BASE   
+// We use this to access page table entries by physical address
+static inline page_table_t* physical_to_table(uint64_t physical)
 {
-    // Set present bit if PAGE_PRESENT flag given
-    entry->present = (flags & PAGE_PRESENT) ? 1 : 0;
-
-    // Set present bit if PAGE_WRITABLE flag given
-    entry->writable = (flags & PAGE_WRITABLE) ? 1 : 0;
-
-    // Set present bit if PAGE_USER flag given
-    entry->user = (flags & PAGE_USER) ? 1 : 0;
-
-    // Store upper 20 bits of physical address
-    // >> 12 discards the lower 12 bits (always 0
-    // since pages are 4KB aligned)
-    entry->frame = phsical_addr >> 12;
+    return (page_table_t*)PHYSICAL_TO_VIRTUAL(physical);
 }
 
-// --- Helper: Set a page directory entry ------------------------
-// Takes a PDE pointer, physical address of the page table and flags
-static void pde_set(pde_t* entry, uint64_t table_phsical_addr, uint64_t flags)
-{
-    // Mark this directory entry as valid
-    entry->present = (flags & PAGE_PRESENT) ? 1 : 0;
-
-    // Allow writes through this directory entry
-    entry->writable = (flags & PAGE_WRITABLE) ? 1 : 0;
-
-    // Allow user access through this entry
-    entry->user = (flags & PAGE_USER) ? 1 : 0;
-
-    // Store physical address of the page table
-    // Upper 20 bits only - same as PTE
-    entry->frame = table_phsical_addr >> 12;
-}
-
-// --- Init --------------------------------------------------------
-
-void paging_init()
-{
-    kserial_printf("Paging using stage 2 page tables (64-bit)\n");
-    // Page tables already set up by stage 2 bootloader
-    // TODO: rebuild proper kernel page tables here
-}
-
-// --- Page fault handler ---------------------------------------
-// Called by isr_handler in idt.c when interrupt 14 fires
-// regs->err_code contains the fault flags
-// CR2 contains the virtual address that caused the fault
-void page_fault_handler(registers_t* regs)
-{
-    // Read CR2 - the CPU stores the faulting address here automatically
-    uint64_t faulting_addr;
-    __asm__ volatile(
-        "mov %%cr2, %0"             // Read CR2 into faulting_addr
-        : "=r"(faulting_addr)       // Output operand
-    );
-
-    // Decode the error code bits
-    // Present
-    // 0 = page not present
-    // 1 = page present but protection violated
-    int present = regs->err_code & 0x1;
-
-    // Write
-    // 0 = fault happened on a read
-    // 1 = fault happened on a write
-    int write = regs->err_code & 0x2;
-
-    // User
-    // 0 = kernel was accessing the address
-    // 1 = user program was accessing it
-    int user = regs->err_code & 0x4;
-
-    // Print fault information to VGA
-    vga_set_colour(RED, BLACK);
-    kprintf("\n--- PAGE FAULT ---\n");
-    vga_set_colour(WHITE, BLACK);
-
-    kprintf("Address : 0x%x\n", faulting_addr);
-    kprintf("Reason  : %s %s %s\n", 
-        present ? "protection violation" : "page not present",
-        write   ? "on write"             : "on read",
-        user    ? "from user space"      : "from kernel");
-    kserial_printf("PAGE FAULT at 0x%x%x\n", (uint32_t)(faulting_addr >> 32), (uint32_t)faulting_addr);
-    kserial_printf("Error: present=%d, write=%d, user=%d\n",
-        regs->err_code & 1,
-        (regs->err_code >> 1) & 1,
-        (regs->err_code >> 2) & 1);
-
-    kserial_printf("RIP: 0x%x%x\n",
-        (uint32_t)(regs->rip >> 32),
-        (uint32_t)regs->rip);
-
-    // Hang - we can't safely continue after a page fault
-    for(;;);
-}
-
-// --- Page table storage ------------------------------------
-
-// Allocate a fresh zeroed page table from our pool
+// --- Allocate a zeroed page table ----------------------------------
 static page_table_t* alloc_table()
 {
-    // PMM gives us a free 4KB physical page - exactly the right size
-    page_table_t* table = (page_table_t*)pmm_alloc();
-
-    // Zero out every entry - all pages start out as not present
-    uint64_t* t = (uint64_t*)table;
-    for(int j = 0; j < 1024; j++)
+    // PMM returns physcial address
+    uint64_t physical = (uint64_t)pmm_alloc();
+    if(!physical)
     {
-        // Not present, not writable
-        t[j] = 0;
+        kpanic("paging: out of memory for page table!");
+    }
+
+    // Access via direct map to zero it
+    page_table_t* table = physical_to_table(physical);
+    for(int i = 0; i < 512; i++)
+    {
+        // Zero every entry - not present
+        *((uint64_t*)&table->entries[i]) = 0;
     }
 
     return table;
 }
 
-// --- map_page --------------------------------------------
-// Maps a single virtual address to a physical address with fiven flags
-// Both addresses are rounded down to 4KB page boundaries automatically
-void map_page(uint64_t virtual_addr, uint64_t physical_addr, uint64_t flags)
+// --- Get physical address of a table pointer -------------------------
+static inline uint64_t table_to_physical(page_table_t* table)
 {
-    // Round both addresses down to page boundaries
-    // e.g. 0x1234 becomes 0x1000 - we always map whole pages
-    // Clear bottom 12 bits
-    virtual_addr &= ~0xFFF;
-    physical_addr &= ~0xFFF;
-
-    // Get the page directory index from the virtual address
-    // Which entry in the page directory?
-    uint64_t pdi = PD_INDEX(virtual_addr);
-
-    // Get the page table index from the virtual address
-    // Which entry in the page table?
-    uint64_t pti = PT_INDEX(virtual_addr);
-
-    // Check if a page table already exists in this direcrory entry
-    if(!kernel_directory.entries[pdi].present)
-    {
-        // No page table yet so lets create one
-        page_table_t* new_table = alloc_table();
-
-        if(!new_table)
-        {
-            kpanic("map page: out of page tables!");
-            return;
-        }
-
-        // Install the new table into the directory
-        pde_set(
-            (pde_t*)&kernel_directory.entries[pdi],
-            (uint64_t)new_table,                // physical address of the new table
-            PAGE_PRESENT | PAGE_WRITABLE
-        );
-    }
-
-    // Get pointer to the page table for this directory entry
-    // frame contains the upper 20 bits of the table address
-    // shift left 12 to get the full address back
-    page_table_t* table = (page_table_t*)(
-        (uint64_t)kernel_directory.entries[pdi].frame << 12
-    );
-
-    // Set the page table entry to map virtual -> physical
-    pte_set(
-        (pte_t*)&table->entries[pti],           // Which PTE to set
-        physical_addr,                          // Physical address to map to
-        flags                                   // Present, writable, user etc.
-    );
-
-    // Flush the TLB entry for this virtual address
-    // The CPU caches translations in the TLB - we must invalidate
-    // the old entry or the CPU will use the stale cached translation
-    __asm__ volatile(
-        "invlpg (%0)"                           // Invalidate TLB entry for this address
-        :                                       // No output
-        : "r"(virtual_addr)                     // Input: the virtual address to flush
-        : "memory"                              // Tells compiler memory may have changed
-    );
+    return VIRTUAL_TO_PHYSICAL((uint64_t)table);
 }
 
-// --- map_page_in ---------------------------------------------------
-// Map a page in a SPECIFIC page directory
-void map_page_in(page_directory_t* dir, uint64_t virtual_addr, uint64_t physical_addr, uint64_t flags)
+// --- Walk/create page table hierarchy ---------------------------------
+// Given a PML4 and virtual address, walk down to the PT entry
+// Creates intermediate tables if they don't exist (when create=1)
+// Returns pointer to the PT entry, or NULL if not present and create=0
+static page_entry_t* get_pt_entry(page_directory_t* pml4, uint64_t vaddr, int create)
 {
-    // Guard against null directory
-    if(!dir)
+    // Level 1: PML4
+    uint64_t pml4_idx = PML4_INDEX(vaddr);
+    page_entry_t* pml4_entry = &pml4->entries[pml4_idx];
+
+    if(!pml4_entry->present)
     {
-        kpanic("map_page_in: null page directory!");
-    }
-
-    virtual_addr &= ~0xFFF;
-    physical_addr &= ~0xFFF;
-
-    uint64_t pdi = PD_INDEX(virtual_addr);
-    uint64_t pti = PT_INDEX(virtual_addr);
-
-    // Check if page table exists in THIS directory
-    if(!dir->entries[pdi].present)
-    {
-        page_table_t* new_table = alloc_table();
-
-        if(!new_table)
+        if(!create)
         {
-            kpanic("map_page_in: out of page tables!");
-            return;
+            return 0;
         }
 
-        pde_set((pde_t*)&dir->entries[pdi], (uint64_t)new_table, PAGE_PRESENT | PAGE_WRITABLE);
+        // Allocate PDPT
+        page_table_t* pdpt = alloc_table();
+        *((uint64_t*)pml4_entry) = 0;
+        pml4_entry->frame = table_to_physical(pdpt) >> 12;
+        pml4_entry->present = 1;
+        pml4_entry->writable = 1;
     }
 
-    page_table_t* table = (page_table_t*)((uint64_t)dir->entries[pdi].frame << 12);
+    // Level 2: PDPT
+    page_table_t* pdpt = physical_to_table((uint64_t)pml4_entry->frame << 12);
+    uint64_t pdpt_idx = PDPT_INDEX(vaddr);
+    page_entry_t* pdpt_entry = &pdpt->entries[pdpt_idx];
 
-    pte_set((pte_t*)&table->entries[pti], physical_addr, flags);
+    if(!pdpt_entry->present)
+    {
+        if(!create)
+        {
+            return 0;
+        }
 
-    __asm__ volatile(
-        "invlpg (%0)"
-        :
-        : "r"(virtual_addr)
-        : "memory"
-    );
+        // Allocate PD
+        page_table_t* pd = alloc_table();
+        *((uint64_t*)pdpt_entry) = 0;
+        pdpt_entry->frame = table_to_physical(pd) >> 12;
+        pdpt_entry->present = 1;
+        pdpt_entry->writable = 1;
+    }
+
+    // Level 3: PD
+    page_table_t* pd = physical_to_table((uint64_t)pdpt_entry->frame << 12);
+    uint64_t pd_idx = PD_INDEX(vaddr);
+    page_entry_t* pd_entry = &pd->entries[pd_idx];
+
+    if(!pd_entry->present)
+    {
+        if(!create)
+        {
+            return 0;
+        }
+
+        // Allocate PD
+        page_table_t* pt = alloc_table();
+        *((uint64_t*)pd_entry) = 0;
+        pd_entry->frame = table_to_physical(pt) >> 12;
+        pd_entry->present = 1;
+        pd_entry->writable = 1;
+    }
+
+    // Level 4: PT
+    page_table_t* pt = physical_to_table((uint64_t)pd_entry->frame << 12);
+    uint64_t pt_idx = PT_INDEX(vaddr);
+
+    return &pt->entries[pt_idx];
 }
 
-// --- unmap_page ----------------------------------------------------
-// Remove a virtual address mapping
-void unmap_page(uint64_t virtual_addr)
+// --- paging_init -------------------------------------------------------
+// Called after kernel boots - find Stage 2 page tables via CR3
+void paging_init()
 {
-    virtual_addr &= ~0xFFF;                 // Round to page boundary
+    // Read CR3 to find the PML4 Stage 2 set up
+    uint64_t cr3;
+    __asm__ volatile("mov %%cr3, %0" : "=r"(cr3));
 
-    uint64_t pdi = PD_INDEX(virtual_addr);
-    uint64_t pti = PT_INDEX(virtual_addr);
+    // CR3 holds physical address of PML4
+    // Access it via direct map
+    kernel_pml4 = (page_directory_t*)PHYSICAL_TO_VIRTUAL(cr3);
 
-    // Check directory entry exists
-    if(!kernel_directory.entries[pdi].present)
+    kserial_printf("Paging kernel PML4 at phys=0x%lx virt=0x%lx\n", cr3, (uint64_t)kernel_pml4);
+    kserial_printf("Paging: using Stage 2 page tables (4-levels)\n");
+}
+
+// --- map_page ----------------------------------------------------------
+// Map a single 4KB virtual page to a physical page
+void map_page(uint64_t vaddr, uint64_t paddr, uint64_t flags)
+{
+    vaddr &= ~0xFFUL;       // Align to 4KB
+    paddr &= ~0xFFUL;
+
+    page_entry_t* entry = get_pt_entry(kernel_pml4, vaddr, 1);
+
+    if(!entry)
     {
-        // Nothing to unmap
+        kpanic("map_page: failed to get page table entry!");
+    }
+
+    *((uint64_t*)entry) = 0;
+    entry->frame = paddr >> 12;
+    entry->present = (flags & PAGE_PRESENT) ? 1 : 0;
+    entry->writable = (flags & PAGE_WRITABLE) ? 1 : 0;
+    entry->user = (flags & PAGE_USER) ? 1 : 0;
+
+    // Flush TLB entry
+    __asm__ volatile("invlpg (%0)" : : "r"(vaddr) : "memory");
+}
+
+// --- map_page_in ----------------------------------------------------------
+// Map a page in a specific address space
+void map_page_in(page_directory_t* pml4, uint64_t vaddr, uint64_t paddr, uint64_t flags)
+{
+    if(!pml4)
+    {
+        kpanic("map_page_in: null PML4!");
+    }
+
+    vaddr &= ~0xFFUL;       // Align to 4KB
+    paddr &= ~0xFFUL;
+
+    page_entry_t* entry = get_pt_entry(pml4, vaddr, 1);
+
+    if(!entry)
+    {
+        kpanic("map_page_in: failed to get page table entry!");
+    }
+
+    *((uint64_t*)entry) = 0;
+    entry->frame = paddr >> 12;
+    entry->present = (flags & PAGE_PRESENT) ? 1 : 0;
+    entry->writable = (flags & PAGE_WRITABLE) ? 1 : 0;
+    entry->user = (flags & PAGE_USER) ? 1 : 0;
+
+    // Flush TLB entry
+    __asm__ volatile("invlpg (%0)" : : "r"(vaddr) : "memory");
+}
+
+// --- unmap_page ------------------------------------------------------------
+void unmap_page(uint64_t vaddr)
+{
+    vaddr &= ~0xFFUL;
+
+    page_entry_t* entry = get_pt_entry(kernel_pml4, vaddr, 0);
+    if(!entry)
+    {
+        // Nothing mapped - so nothing to do
         return;
     }
 
-    // Get the page table
-    page_table_t* table = (page_table_t*)(
-        (uint64_t)kernel_directory.entries[pdi].frame << 12
-    );
-    
-    // Clear the page table entry
-    uint64_t* entry = (uint64_t*)&table->entries[pti];
+    // Clear entry
+    *((uint64_t*)entry) = 0;
 
-    // Zero = not present
-    *entry = 0;
-
-    // Flush TLB for this address
-    __asm__ volatile(
-        "invlpg (%0)"
-        : 
-        : "r"(virtual_addr)
-        : "memory"
-    );
+    __asm__ volatile("invlpg (%0)" : : "r"(vaddr): "memory");
 }
 
-// --- get_physical -----------------------------------------
-// Walks the page tables to find the physical address for a virtual address
-// Returns 0 if the address is not mapped
-uint64_t get_physical(uint64_t virtual_addr)
+// --- get_physical -------------------------------------------------------
+uint64_t get_physical(uint64_t vaddr)
 {
-    uint64_t pdi = PD_INDEX(virtual_addr);
-    uint64_t pti = PT_INDEX(virtual_addr);
-
-    // Check directory entry is present
-    if(!kernel_directory.entries[pdi].present)
+    page_entry_t* entry = get_pt_entry(kernel_pml4, vaddr, 0);
+    if(!entry || !entry->present)
     {
-        // Not mapped
         return 0;
     }
 
-    // Get the page table
-    page_table_t* table = (page_table_t*)(
-        (uint64_t)kernel_directory.entries[pdi].frame << 12
-    );
-
-    // Check page table entry is present
-    if(!table->entries[pti].present)
-    {
-        // Not mapped
-        return 0;
-    }
-
-    // Get physical address - frame is upper 20 bits, add back the offset
-    uint64_t physical = (uint64_t)table->entries[pti].frame << 12;
-
-    // Add the byte offset within the page
-    physical |= PG_OFFSET(virtual_addr);
-
-    return physical;
+    return ((uint64_t)entry->frame << 12) | PG_OFFSET(vaddr);
 }
 
-// --- paging_clone_directory ---------------------------------
-// Creates a new page directory for a process
-// kernel mappings are shared - user mappings start empty
-
+// --- paging_clone_directory ----------------------------------------------
+// Create a new address space sharing kernel mappings
 page_directory_t* paging_clone_directory()
 {
-    kserial_printf("paging_clone: stub - returning NULL\n");
-    return 0;
+    // Allocate a new PML4
+    page_table_t* new_pml4 = alloc_table();
+
+    // Copy kernel mappings (upper half, indicies 256-511)
+    // User space (indicies 0-255) starts empty
+    for(int i = 256; i < 512; i++)
+    {
+        new_pml4->entries[i] = kernel_pml4->entries[i];
+    }
+
+    kserial_printf("paging: cloned PML4 at phys=0x%lx\n", table_to_physical(new_pml4));
+
+    return (page_directory_t*)new_pml4;
 }
 
-// --- paging_switch_directory --------------------------------------------
-// Loads a page directory into CR3
-// Called on every context switch to switch virtual address spaces
-
-void paging_switch_directory(page_directory_t* dir)
+// --- paging_switch_directory ---------------------------------------
+void paging_switch_directory(page_directory_t* pml4)
 {
-    (void)dir;
-    // Don't switch - use stage 2 page tables for now
+    if(!pml4)
+    {
+        // NULL = keep current
+        return;
+    }
+
+    uint64_t physical = VIRTUAL_TO_PHYSICAL((uint64_t)pml4);
+
+    kserial_printf("paging_switch: virt=0x%lx phys=0x%lx\n", (uint64_t)pml4, physical);
+
+    __asm__ volatile("mov %0, %%cr3" : : "r"(physical) : "memory");
 }
 
-// --- paging_deep_copy_directory -----------------------------------------------
-// Creates a complete independent copy of a page directory
-// Used by fork() to give child its own address space
-
+// --- paging_deep_copy_directory -------------------------------------
+// Full copy of address space for fork()
 page_directory_t* paging_deep_copy_directory(page_directory_t* src)
 {
-    (void)src;
-    kserial_printf("paging_deep_copy: stub - returning NULL");
-    return 0;
+    if(!src)
+    {
+        kpanic("paging_deep_copy: null source!");
+    }
+
+    // Allocate new PML4
+    page_table_t* dst_pml4 = alloc_table();
+
+    // Copy kernel mappings (shared, upper half)
+    for(int i = 256; i < 512; i++)
+    {
+        dst_pml4->entries[i] = ((page_table_t*)src)->entries[i];
+    }
+
+    // Deep copy user space (lower half: indicies 0-255)
+    for(int pml4_i = 0; pml4_i < 256; pml4_i++)
+    {
+        page_entry_t* src_pml4_e = &((page_table_t*)src)->entries[pml4_i];
+        if(!src_pml4_e->present)
+        {
+            continue;
+        }
+
+        // Allocate new PDPT
+        page_table_t* dst_pdpt = alloc_table();
+        dst_pml4->entries[pml4_i] = *src_pml4_e;
+        dst_pml4->entries[pml4_i].frame = table_to_physical(dst_pdpt) >> 12;
+
+        page_table_t* src_pdpt = physical_to_table((uint64_t)src_pml4_e->frame << 12);
+
+        for(int pdpt_i = 0; pdpt_i < 512; pdpt_i++)
+        {
+            page_entry_t* src_pdpt_e = &src_pdpt->entries[pdpt_i];
+            if(!src_pdpt_e->present)
+            {
+                continue;
+            }
+
+            // Allocate new PD
+            page_table_t* dst_pd = alloc_table();
+            dst_pd->entries[pdpt_i] = *src_pdpt_e;
+            dst_pd->entries[pdpt_i].frame = table_to_physical(dst_pd) >> 12;
+
+            page_table_t* src_pd = physical_to_table((uint64_t)src_pdpt_e->frame << 12);
+
+            for(int pd_i = 0; pd_i < 512; pd_i++)
+            {
+                page_entry_t* src_pd_e = &src_pd->entries[pd_i];
+                if(!src_pd_e->present)
+                {
+                    continue;
+                }
+
+                if(src_pd_e->huge_page)
+                {
+                    // 2MB page - share it (copy on write later)
+                    dst_pd->entries[pd_i] = *src_pd_e;
+                    continue;
+                }
+
+                // Allocate new PT
+                page_table_t* dst_pt = alloc_table();
+                dst_pt->entries[pd_i] = *src_pd_e;
+                dst_pt->entries[pd_i].frame = table_to_physical(dst_pt) >> 12;
+
+                page_table_t* src_pt = physical_to_table((uint64_t)src_pd_e->frame << 12);
+
+                for(int pt_i = 0; pt_i < 512; pt_i++)
+                {
+                    page_entry_t* src_pt_e = &src_pt->entries[pt_i];
+
+                    if(!src_pt_e->present)
+                    {
+                        continue;
+                    }
+
+                    // Allocate new physical page and copy contents
+                    uint64_t new_physical = (uint64_t)pmm_alloc();
+                    if(!new_physical)
+                    {
+                        kpanic("paging_deep_copy: out of memory!");
+                    }
+
+                    // Copy page contents via direct map
+                    uint8_t* src_page = (uint8_t*)PHYSICAL_TO_VIRTUAL((uint64_t)src_pt_e->frame << 12);
+                    uint8_t* dst_page = (uint8_t*)PHYSICAL_TO_VIRTUAL(new_physical);
+
+                    for(int b = 0; b < 4096; b++)
+                    {
+                        dst_page[b] = src_page[b];
+                    }
+
+                    dst_pt->entries[pt_i] = *src_pt_e;
+                    dst_pt->entries[pt_i].frame = new_physical >> 12;
+                }
+            }
+        }
+    }
+
+    kserial_printf("paging: deep copied PML4 to phys=0x%lx\n", table_to_physical(dst_pml4));
+
+    return (page_directory_t*)dst_pml4;
+}
+
+// --- Page fault handler ----------------------------------------
+void page_fault_handler(registers_t* regs)
+{
+    uint64_t faulting_address;
+    __asm__ volatile("mov %%cr2, %0" : "=r"(faulting_address));
+
+    int present = regs->err_code & 0x1;
+    int write = (regs->err_code >> 1) & 0x1;
+    int user = (regs->err_code >> 2) & 0x1;
+
+    vga_set_colour(RED, BLACK);
+    kprintf("\n--- PAGE FAULT ---\n");
+    vga_set_colour(WHITE, BLACK);
+    kprintf("Address : 0x%lx\n", faulting_address);
+    kprintf("Reason  : %s %s %s\n",
+        present ? "protection violation" : "page not present",
+        write   ? "on write"             : "on read",
+        user    ? "from user space"      : "from kernel");
+
+    kserial_printf("PAGE FAULT at 0x%lx\n", faulting_address);
+    kserial_printf("Error: present=%d write=%d user=%d\n", present, write, user);
+    kserial_printf("RIP: 0x%lx\n", regs->rip);
+
+    for(;;);
 }

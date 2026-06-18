@@ -57,7 +57,7 @@ static void update_clock()
     buf[10] = '0' + (seconds % 10);                 // Units digit of seconds
 
     // Write directly to VGA memory - top right corner
-    unsigned short* vga = (unsigned short*)0xB8000;
+    unsigned short* vga = (unsigned short*)0xFFFFFFFF800B8000UL;
     for(int i = 0; i < 11; i++)
     {
         // Row 0, column 69 onwards (80 - 11 = 69)
