@@ -1,9 +1,9 @@
-#include <architecture/x86_64/idt.h>
 #include <architecture/x86_64/pic.h>
 #include <drivers/keyboard.h>
 #include <drivers/serial.h>
 #include <drivers/vga.h>
 #include <kernel/core/kprintf.h>
+#include <kernel/interrupts.h>
 #include <kernel/processes/process.h>
 #include <kernel/processes/scheduler.h>
 

@@ -1,7 +1,7 @@
-#include <architecture/x86_64/idt.h>
 #include <architecture/x86_64/pic.h>
 #include <drivers/timer.h>
 #include <drivers/vga.h>
+#include <kernel/interrupts.h>
 
 // --- PIT ports --------------------------------------------
 // The PIT has three channels - we use channel 0 which is wired to IRQ0

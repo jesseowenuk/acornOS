@@ -1,7 +1,7 @@
-#ifndef PAGING_H
-#define PAGING_H
+#ifndef ARCH_PAGING_H
+#define ARCH_PAGING_H
 
-#include <architecture/x86_64/idt.h>
+#include <kernel/paging.h>
 
 #include <stdint.h>
 
@@ -33,11 +33,13 @@ typedef struct __attribute__((aligned(4096)))
     page_entry_t entries[512];
 } page_table_t;
 
-// --- Page Directory --------------------------------------------------------
-// A process's top-level page structure is just a page table (PML4)
-typedef page_table_t page_directory_t;
+struct page_directory
+{
+    page_entry_t entries[512]
+} __attribute__((aligned(4096)));
 
 // --- Virtual address index macros ------------------------------------------
+
 // Break a 64-bit virtual address into its component indicies
 #define PML4_INDEX(addr)        (((uint64_t)(addr) >> 39) & 0x1FF)      // Bits 47 - 39
 #define PDPT_INDEX(addr)        (((uint64_t)(addr) >> 30) & 0x1FF)      // Bits 38 - 30
@@ -45,52 +47,15 @@ typedef page_table_t page_directory_t;
 #define PT_INDEX(addr)          (((uint64_t)(addr) >> 12) & 0x1FF)      // Bits 20 - 12
 #define PG_OFFSET(addr)         ((uint64_t)(addr) & 0xFFF)              // Bits 11 - 0
 
-// --- Page Flags -----------------------------------------------------------
-#define PAGE_PRESENT            (1UL << 0)      // Page is present
-#define PAGE_WRITABLE           (1UL << 1)      // Page is writable
-#define PAGE_USER               (1UL << 2)      // User space accessible
-#define PAGE_HUGE               (1UL << 7)      // 2MB (PD) or 1GB (PDPT) page
-#define PAGE_NO_EXECUTE         (1UL << 63)     // Disable execution
-
 // --- Direct physical map base ---------------------------------------------
 // All physcial RAM is mapped here by Stage 2 bootloader
 // Physical address X -> virtual PHYSICAL_MAP_BASE + X
 #define PHYSICAL_MAP_BASE       0xFFFF800000000000UL
-
-// Convert physical to virtual via direct map
-#define PHYSICAL_TO_VIRTUAL(addr)   ((uint64_t)(addr) + PHYSICAL_MAP_BASE)
-#define VIRTUAL_TO_PHYSICAL(addr)   ((uint64_t)(addr) - PHYSICAL_MAP_BASE)
+#define PHYSICAL_TO_VIRTUAL(address) ((uint64_t)(address) + PHYSICAL_MAP_BASE)
+#define VIRTUAL_TO_PHYSICAL(address) ((uint64_t)(address) - PHYSICAL_MAP_BASE)
 
 // --- Kernel page directory -----------------------------------------------
 // The kernel's PML4 - set up by Stage 2, extended by paging_init()
 extern page_directory_t* kernel_pml4;
-
-// --- Functions -----------------------------------------------------------
-void paging_init();
-
-// Map a 4KB page: virtual -> physical with given flags
-void map_page(uint64_t virtual_addr, uint64_t physical_addr, uint64_t flags);
-
-// Map a page in a specific address space
-void map_page_in(page_directory_t* pml4, uint64_t virtual_addr, uint64_t physical_addr, uint64_t flags);
-
-// Unmap a page
-void unmap_page(uint64_t virtual_addr);
-
-// Walk page tables to find physical address for virtual address
-// Returns 0 if not mapped
-uint64_t get_physical(uint64_t virtual_addr);
-
-// Create a new address space with kernel mappings shared
-page_directory_t* paging_clone_directory();
-
-// Switch to a different address space
-void paging_switch_directory(page_directory_t* pml4);
-
-// Deep copy an address space (for fork())
-page_directory_t* paging_deep_copy_directory(page_directory_t* src);
-
-// Page fault handler - called from IDT
-void page_fault_handler(registers_t* regs);
 
 #endif

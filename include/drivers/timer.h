@@ -1,7 +1,7 @@
 #ifndef TIMER_H
 #define TIMER_H
 
-#include <architecture/x86_64/idt.h>
+#include <kernel/interrupts.h>
 
 #include <stdint.h>
 

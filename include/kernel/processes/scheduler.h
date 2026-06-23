@@ -1,7 +1,7 @@
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 
-#include <architecture/x86_64/idt.h>
+#include <kernel/interrupts.h>
 #include <kernel/processes/process.h>
 
 // Initialise the scheduler

@@ -1,4 +1,3 @@
-#include <architecture/x86_64/paging.h>
 #include <architecture/x86_64/tss.h>
 #include <architecture/x86_64/usermode.h>
 #include <drivers/serial.h>
@@ -8,6 +7,7 @@
 #include <kernel/core/string.h>
 #include <kernel/memory/mem.h>
 #include <kernel/memory/pmm.h>
+#include <kernel/paging.h>
 #include <kernel/processes/process.h>
 #include <kernel/processes/scheduler.h>
 

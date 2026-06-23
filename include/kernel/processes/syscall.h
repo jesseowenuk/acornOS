@@ -1,7 +1,7 @@
 #ifndef SYSCALL_H
 #define SYSCALL_H
 
-#include <architecture/x86_64/idt.h>
+#include <kernel/interrupts.h>
 
 // --- Syscall numbers ---------------------------------------------
 #define SYS_EXIT    0               // Terminate current process

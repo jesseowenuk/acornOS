@@ -1,6 +1,4 @@
 #include <architecture/x86_64/gdt.h>
-#include <architecture/x86_64/idt.h>
-#include <architecture/x86_64/paging.h>
 #include <architecture/x86_64/pic.h>
 #include <architecture/x86_64/tss.h>
 #include <drivers/keyboard.h>
@@ -11,8 +9,10 @@
 #include <file_system/vfs.h>
 #include <kernel/core/kprintf.h>
 #include <kernel/core/panic.h>
+#include <kernel/interrupts.h>
 #include <kernel/memory/mem.h>
 #include <kernel/memory/pmm.h>
+#include <kernel/paging.h>
 #include <kernel/processes/process.h>
 #include <kernel/processes/scheduler.h>
 #include <kernel/processes/syscall.h>

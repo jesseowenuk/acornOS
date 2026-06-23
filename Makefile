@@ -19,7 +19,7 @@ INCLUDE_DIR		= include
 TOOLS_DIR		= tools
 
 # --- Include paths -------------------------------------------
-INCLUDES = -I $(INCLUDE_DIR)
+INCLUDES = -I $(INCLUDE_DIR) -I $(INCLUDE_DIR)/architecture/$(ARCH)
 
 # --- Compiler flags ------------------------------------------
 # -ffreestanding	 	- no standard library

@@ -188,12 +188,12 @@
   - ✅ Dynamic bitmap sizing from E820
   - ✅ Support up to 512MB RAM
   - ✅ Reserve ALL regions before first allocation
-- ⬜ Paging rewrite for 4-level paging
-  - ⬜ PML4 / PDPT / PD / PT structures
-  - ⬜ Direct physical map (ALL RAM)
-  - ⬜ 2MB large pages for direct map
-  - ⬜ map_page() for 64-bit
-  - ⬜ map_page_in() for 64-bit
+- ✅ Paging rewrite for 4-level paging
+  - ✅ PML4 / PDPT / PD / PT structures
+  - ✅ Direct physical map (ALL RAM)
+  - ✅ 2MB large pages for direct map
+  - ✅ map_page() for 64-bit
+  - ✅ map_page_in() for 64-bit
 - ⬜ Heap update (new virtual address)
 
 ### 5f — Process Management Updates
@@ -714,6 +714,12 @@
 - ⬜ 🏆 Play your MIDI keyboard!
 - ⬜ 🏆 Print a document!
 - ⬜ 🏆 Compile acornOS with acornCC!
+
+Phase 30: More features!!!!
+- ⬜ FRED (Flexible Return and Event Delivery)
+      Intel only
+      Unified interrupt/exception/syscall delivery
+      Replace IDT + SYSCALL when hardware is common
 
 ---
 

@@ -26,7 +26,10 @@ typedef struct
 // Generic interrupt interface
 
 // Initialise interrupt handling (arch implements)
-void interrupts_init();             
+void interrupts_init();   
+void idt_init();
+
+void idt_set_entry(int n, uint64_t base, uint16_t selector, uint8_t flags);
 
 // Enable interrupts
 void interrupts_enable();

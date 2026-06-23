@@ -1,7 +1,7 @@
 #ifndef PROCESS_H
 #define PROCESS_H
 
-#include <architecture/x86_64/paging.h>
+#include <kernel/paging.h>
 
 #include <stdint.h>
 

@@ -1,10 +1,10 @@
-#include <architecture/x86_64/paging.h>
 #include <architecture/x86_64/tss.h>
 #include <drivers/serial.h>
 #include <drivers/vga.h>
 #include <kernel/core/kprintf.h>
 #include <kernel/core/panic.h>
 #include <kernel/memory/mem.h>
+#include <kernel/paging.h>
 #include <kernel/processes/process.h>
 #include <kernel/processes/scheduler.h>
 
