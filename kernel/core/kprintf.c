@@ -191,6 +191,11 @@ int kvsnprintf(char* buf, int size, const char* fmt, va_list args)
                     {
                         len = uint64_to_dec(tmp, (uint64_t)n);
                     }
+
+                    for(int i = 0; i < len; i++)
+                    {
+                        PUTC(tmp[i]);
+                    }
                 }
                 else
                 {

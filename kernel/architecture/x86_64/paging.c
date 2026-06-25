@@ -19,6 +19,19 @@ static inline page_table_t* physical_to_table(uint64_t physical)
     return (page_table_t*)PHYSICAL_TO_VIRTUAL(physical);
 }
 
+// --- Physical to virtual -------------------------------------------
+uint64_t physical_to_virtual(uint64_t physical)
+{
+    return physical + PHYSICAL_MAP_BASE;
+}
+
+// --- Virtual to physical -------------------------------------------
+uint64_t virtual_to_physical(uint64_t virtual)
+{
+    return virtual - PHYSICAL_MAP_BASE;
+}
+
+
 // --- Allocate a zeroed page table ----------------------------------
 static page_table_t* alloc_table()
 {

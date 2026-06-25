@@ -6,6 +6,7 @@
 #include <kernel/core/string.h>
 #include <kernel/memory/mem.h>
 #include <kernel/memory/pmm.h>
+#include <kernel/paging.h>
 
 // --- Forward declarations ---------------------------------------------
 // Internal functions declared here, defined below
@@ -443,7 +444,7 @@ static int shadowfs_write(file_t* file, const void* buf, uint32_t size)
             }
 
             // 4KB page from PMM - plenty of those
-            new_block->data = (uint8_t*)((uint64_t)pmm_alloc() + 0xFFFF800000000000UL);
+            new_block->data = (uint8_t*)physical_to_virtual((uint64_t)pmm_alloc());
 
             new_block->used = 0;
             new_block->next = 0;

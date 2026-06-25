@@ -46,4 +46,8 @@ page_directory_t* paging_deep_copy_directory(page_directory_t* src);
 // Page fault handler - called from IDT
 void page_fault_handler(registers_t* regs);
 
+uint64_t physical_to_virtual(uint64_t physical);
+
+uint64_t virtual_to_physical(uint64_t virtual);
+
 #endif

@@ -35,7 +35,7 @@ typedef struct __attribute__((aligned(4096)))
 
 struct page_directory
 {
-    page_entry_t entries[512]
+    page_entry_t entries[512];
 } __attribute__((aligned(4096)));
 
 // --- Virtual address index macros ------------------------------------------

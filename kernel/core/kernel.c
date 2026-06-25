@@ -54,7 +54,7 @@ static void idle_process()
 // Test //////////////////////////////////////////////////
 
 // The program that exec() will load
-static const char exec_msg[] = "Hello from exec'd program!\n";
+/*static const char exec_msg[] = "Hello from exec'd program!\n";
 
 static void exec_program()
 {
@@ -149,7 +149,7 @@ static void wait_test_program()
     }
 
     for(;;);
-}
+}*/
 
 void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest_ram)
 {       
