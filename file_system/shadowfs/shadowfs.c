@@ -333,37 +333,176 @@ static inode_t* shadowfs_create(inode_t* dir, const char* name, uint32_t type)
     return inode;
 }
 
-static int      shadowfs_delete(inode_t* dir, const char* name)
+static int shadowfs_delete(inode_t* dir, const char* name)
 {
-    // TODO:
-    (void)dir;
-    (void)name;
-    return 0;
+    if(!dir || !name)
+    {
+        return -1;
+    }
+
+    shadowfs_inode_t* dir_private = (shadowfs_inode_t*)dir->private_data;
+    if(!dir_private)
+    {
+        return -1;
+    }
+
+    shadowfs_mount_t* mount = (shadowfs_mount_t*)dir->sb->private_data;
+    if(!mount)
+    {
+        return -1;
+    }
+
+    // Walk linked list looking for the entry
+    shadowfs_dentry_t* entry = dir_private->dir.entries;
+    shadowfs_dentry_t* previous = 0;
+
+    while(entry)
+    {
+        if(kstreq(entry->name, name))
+        {
+            // Found it - unlink from the list
+            if(previous)
+            {
+                previous->next = entry->next;
+            }
+            else
+            {
+                dir_private->dir.entries = entry->next;
+            }
+
+            dir_private->dir.count--;
+
+            // Free file data blocks if it's a file
+            if(entry->inode->type == VFS_TYPE_FILE)
+            {
+                shadowfs_inode_t* inode_private = (shadowfs_inode_t*)entry->inode->private_data;
+                shadowfs_block_t* block = inode_private->file.blocks;
+
+                while(block)
+                {
+                    shadowfs_block_t* next = block->next;
+                    // Free the data page back to PMM
+                    pmm_free((void*)virtual_to_physical((uint64_t)block->data));
+                    kfree(block);
+                    block = next;
+                }
+            }
+
+            // Free inode private data
+            kfree(entry->inode->private_data);
+
+            // Free inode
+            kfree(entry->inode);
+
+            // Update quota
+            mount->used -= sizeof(shadowfs_dentry_t) + sizeof(inode_t);
+
+            // Free directory entry
+            kfree(entry);
+
+            kserial_printf("shadowFS: deleted %s\n", name);
+            return 0;
+        }
+
+        previous = entry;
+        entry = entry->next;
+    }
+
+    kserial_printf("shadowFS: delete() %s not found!\n", name);
+    return -1;
 }
 
-static int      shadowfs_open(inode_t* inode, file_t* file)
+static int shadowfs_open(inode_t* inode, file_t* file)
 {
-    // TODO:
+    // No setup needed - VFS handles this as shadowFS is a RAM file system
     (void)inode;
     (void)file;
     return 0;
 }
 
-static int      shadowfs_close(inode_t* inode, file_t* file)
+static int shadowfs_close(inode_t* inode, file_t* file)
 {
-    // TODO:
+    // No setup needed - VFS handles this as shadowFS is a RAM file system
     (void)inode;
     (void)file;
     return 0;
 }
 
-static int      shadowfs_read(file_t* file, void* buf, uint32_t size)
+static int shadowfs_read(file_t* file, void* buffer, uint32_t size)
 {
-    // TODO:
-    (void)file;
-    (void)buf;
-    (void)size;
-    return 0;
+    if(!file || !buffer)
+    {
+        return -1;
+    }
+
+    if(!file->inode)
+    {
+        return -1;
+    }
+
+    shadowfs_inode_t* private = (shadowfs_inode_t*)file->inode->private_data;
+
+    if(!private)
+    {
+        return -1;
+    }
+
+    if(size == 0)
+    {
+        return 0;
+    }
+
+    // Don't read past the end of the file
+    uint32_t remaining = size;
+
+    if(file->position + remaining > file->inode->size)
+    {
+        remaining = file->inode->size - file->position;
+    }
+
+    if(remaining == 0)
+    {
+        return 0;
+    }
+
+    uint8_t* dst = (uint8_t*)buffer;
+    uint32_t read = 0;
+    uint32_t offset = file->position;           // byte offset into file
+
+    // Walk blocks to find starting position
+    shadowfs_block_t* block = private->file.blocks;
+    uint32_t block_start = 0;                   // byte offset of start of this block
+
+    while(block && remaining > 0)
+    {
+        uint32_t block_end = block_start + block->used;
+
+        // Is our read position within this block
+        if(offset < block_end)
+        {
+            // Start reading from offset within this block
+            uint32_t block_offset = offset - block_start;
+            uint32_t available = block->used - block_offset;
+            uint32_t to_read = (remaining < available) ? remaining : available;
+
+            for(uint32_t i = 0; i < to_read; i++)
+            {
+                dst[i] = block->data[block_offset + i];
+            }
+
+            dst += to_read;
+            read += to_read;
+            offset += to_read;
+            remaining -= to_read;
+        }
+
+        block_start += block->used;
+        block = block->next;
+    }
+
+    file->position += read;
+
+    return (int)read;
 }
 
 // --- shadowsfs_write --------------------------------------------------------
@@ -491,26 +630,159 @@ static int shadowfs_write(file_t* file, const void* buf, uint32_t size)
     return (int)written;
 }
 
-static int      shadowfs_readdir(file_t* file, dentry_t* dentry)
+static int shadowfs_readdir(file_t* file, dentry_t* dentry)
 {
-    // TODO:
-    (void)file;
-    (void)dentry;
+    if(!file || !dentry)
+    {
+        return -1;
+    }
+
+    if(!file->inode)
+    {
+        return -1;
+    }
+
+    shadowfs_inode_t* private = (shadowfs_inode_t*)file->inode->private_data;
+
+    if(!private)
+    {
+        return -1;
+    }
+
+    // Walk to the nth entry where n = file->position
+    shadowfs_dentry_t* entry = private->dir.entries;
+    uint32_t index = 0;
+
+    while(entry)
+    {
+        if(index == file->position)
+        {
+            // Found the entry at this position
+            kstrcpy(dentry->name, entry->name, VFS_MAX_NAME);
+            dentry->inode = entry->inode;
+            dentry->type = entry->inode->type;
+
+            // Advance position for next call
+            file->position++;
+            return 1;           // 1 = entry returned
+        }
+
+        index++;
+        entry = entry->next;
+    }
+
+    // 0 = no more entries
     return 0;
 }
 
-static int      shadowfs_mkdir(inode_t* dir, const char* name)
+static int shadowfs_mkdir(inode_t* dir, const char* name)
 {
-    // TODO:
-    (void)dir;
-    (void)name;
+    if(!dir || !name)
+    {
+        return -1;
+    }
+
+    // Use shadowfs_create to create a directory inode
+    inode_t* new_dir = shadowfs_create(dir, name, VFS_TYPE_DIR);
+
+    if(!new_dir)
+    {
+        kserial_printf("shadowFS: mkdir failed for %s\n", name);
+        return -1;
+    }
+
+    kserial_printf("shadowFS: mkdir %s\n", name);
+
     return 0;
 }
 
-static int      shadowfs_truncate(inode_t* inode, uint32_t size)
+static int shadowfs_truncate(inode_t* inode, uint32_t size)
 {
-    // TODO:
-    (void)inode;
-    (void)size;
+    if(!inode)
+    {
+        return -1;
+    }
+
+    shadowfs_inode_t* private = (shadowfs_inode_t*)inode->private_data;
+    if(!private)
+    {
+        return -1;
+    }
+
+    shadowfs_mount_t* mount = (shadowfs_mount_t*)inode->sb->private_data;
+    if(!mount)
+    {
+        return -1;
+    }
+
+    // Only files can be truncated
+    if(inode->type != VFS_TYPE_FILE)
+    {
+        return -1;
+    }
+
+    if(size == 0)
+    {
+        // Free all blocks
+        shadowfs_block_t* block = private->file.blocks;
+
+        while(block)
+        {
+            shadowfs_block_t* next = block->next;
+            pmm_free((void*)virtual_to_physical((uint64_t)block->data));
+            mount->used -= sizeof(shadowfs_block_t);
+            kfree(block);
+            block = next;
+        }
+
+        private->file.blocks = 0;
+        private->file.block_count = 0;
+        inode->size = 0;
+
+        kserial_printf("shadowFS: truncated to 0\n");
+        return 0;
+    }
+
+    // Truncate to specific size - free blocks beyond size
+    uint32_t bytes_remaining = size;
+    shadowfs_block_t* block = private->file.blocks;
+    shadowfs_block_t* previous = 0;
+
+    while(block)
+    {
+        if(bytes_remaining == 0)
+        {
+            // Free this block and all following
+            shadowfs_block_t* next = block->next;
+            pmm_free((void*)virtual_to_physical((uint64_t)block->data));
+            mount->used -= sizeof(shadowfs_block_t);
+            kfree(block);
+
+            private->file.block_count--;
+            if(previous)
+            {
+                previous->next = 0;
+            }
+
+            block = next;
+        }
+        else if(bytes_remaining < block->used)
+        {
+            // Partial block - trim it
+            block->used = bytes_remaining;
+            bytes_remaining = 0;
+            previous = block;
+            block = block->next;
+        }
+        else
+        {
+            bytes_remaining -= block->used;
+            previous = block;
+            block = block->next;
+        }
+    }
+
+    inode->size = size;
+    kserial_printf("shadowFS: truncated to %u bytes\n", size);
     return 0;
 }

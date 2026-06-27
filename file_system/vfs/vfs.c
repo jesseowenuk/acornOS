@@ -633,7 +633,7 @@ int vfs_mkdir(const char* path)
     }
 
     // Step 4: call the filesystem mkdir
-    if(parent->ops || parent->ops->mkdir == 0)
+    if(!parent->ops || !parent->ops->mkdir)
     {
         kserial_printf("VFS: filesystem doesn't support mkdir!\n");
         return -1;
@@ -735,6 +735,14 @@ int vfs_delete(const char* path)
     if(!parent->ops || parent->ops->delete == 0)
     {
         kserial_printf("VFS: filesystem doesn't support delete!\n");
+        return -1;
+    }
+
+    int result = parent->ops->delete(parent, filename);
+
+    if(result < 0)
+    {
+        kserial_printf("VFS: delete() failed for %s\n, path");
         return -1;
     }
 

@@ -261,7 +261,8 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf("shadowFS mounted.\n");
 
-    mem_print_stats();
+    kserial_printf("All subsystems online. Starting shell.\n");
+
     int fd = vfs_open("/temp/test.txt", O_CREAT | O_WRONLY);
     kserial_printf("fd=%d\n", fd);
 
@@ -278,7 +279,90 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
         kpanic("kernel: FAILED to create test file in shadowFS!");
     }
 
-    kserial_printf("All subsystems online. Starting shell.\n");
+    // Read it back
+    int fd_read = vfs_open("/temp/test.txt", O_RDONLY);
+    kserial_printf("Read fd=%d\n", fd_read);
+
+    if(fd_read >= 0)
+    {
+        char read_buffer[32];
+        int bytes_read = vfs_read(fd_read, read_buffer, 21);
+        kserial_printf("Read %d bytes: %s\n", bytes_read, read_buffer);
+        vfs_close(fd_read);
+    }
+
+    // Test readdir
+    int fd_dir = vfs_open("/temp", O_RDONLY);
+    kserial_printf("Dir fd=%d\n", fd_dir);
+
+    if(fd_dir >= 0)
+    {
+        dentry_t dentry;
+        int result;
+        while((result = vfs_readdir(fd_dir, &dentry)) > 0)
+        {
+            kserial_printf("readdir: %s type=%d\n", dentry.name, dentry.type);
+        }
+        vfs_close(fd_dir);
+    }
+
+    // Test mkdir
+    int result = vfs_mkdir("/temp/testdir");
+    kserial_printf("mkdir result=%d\n", result);
+
+    // Verify it appears in readdir
+    int fd_dir2 = vfs_open("/temp", O_RDONLY);
+    if(fd_dir2 >= 0)
+    {
+        dentry_t dentry;
+        while(vfs_readdir(fd_dir2, &dentry) > 0)
+        {
+            kserial_printf("readdir: %s type=%d\n", dentry.name, dentry.type);
+        }
+        vfs_close(fd_dir2);
+    }
+
+    // Test delete
+    int del_result = vfs_delete("/temp/test.txt");
+    kserial_printf("delete result=%d\n", del_result);
+
+    // Verify it's gone
+    int fd_dir3 = vfs_open("/temp", O_RDONLY);
+    if(fd_dir3 >= 0)
+    {
+        dentry_t dentry;
+        while(vfs_readdir(fd_dir3, &dentry) > 0)
+        {
+            kserial_printf("readdir: %s type=%d\n", dentry.name, dentry.type);
+        }
+        vfs_close(fd_dir3);
+    }
+
+    // Test Truncate via O_TRUNC flag
+    int fd_trunc = vfs_open("/temp/trunc.txt", O_CREAT | O_WRONLY);
+    if(fd_trunc >= 0)
+    {
+        vfs_write(fd_trunc, "Hello from shadowFS!", 21);
+        vfs_close(fd_trunc);
+    }
+
+    // Now open with O_TRUNC to truncate to Zero
+    fd_trunc = vfs_open("/temp/trunc.txt", O_TRUNC | O_WRONLY);
+    kserial_printf("truncate fd=%d\n", fd_trunc);
+    if(fd_trunc >= 0)
+    {
+        vfs_close(fd_trunc);
+    }
+
+    // Verify file is empty
+    int fd_verify = vfs_open("/temp/trunc.txt", O_RDONLY);
+    if(fd_verify >= 0)
+    {
+        char buffer[32];
+        int bytes = vfs_read(fd_verify, buffer, 32);
+        kserial_printf("after truncate: read %d bytes\n", bytes);
+        vfs_close(fd_verify);
+    }
 
     // Enable hardware interrupts.
     // From this point the CPU will respond to IRQs
