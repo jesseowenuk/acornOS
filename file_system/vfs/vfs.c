@@ -538,6 +538,50 @@ int vfs_read(int fd, void* buf, uint32_t size)
     return bytes;
 }
 
+// --- vfs_seek ------------------------------------------------------
+int vfs_seek(int fd, int32_t offset, int whence)
+{
+    file_t* file = vfs_get_file(fd);
+
+    if(!file)
+    {
+        kserial_printf("VFS: seek() invalid fd=%d\n", fd);
+        return -1;
+    }
+
+    switch(whence)
+    {
+        case SEEK_SET:
+        {
+            // Seek from the beginning
+            file->position += offset;
+            break;
+        }
+
+        case SEEK_CUR:
+        {
+            // Seek from current position
+            file->position += offset;
+            break;
+        }
+
+        case SEEK_END:
+        {
+            // Seek from the end of the file
+            file->position = file->inode->size + offset;
+            break;
+        }
+
+        default:
+        {
+            kserial_printf("VFS: seek() invalid whence=%d\n", whence);
+            return -1;
+        }
+    }
+
+    return (int)file->position;
+}
+
 // --- vfs_write ------------------------------------------------------
 
 int vfs_write(int fd, const void* buf, uint32_t size)

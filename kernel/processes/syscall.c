@@ -257,6 +257,77 @@ static void sys_exec(registers_t* regs)
     regs->rax = -1;
 }
 
+// --- sys_open ------------------------------------------
+static void sys_open(registers_t* regs)
+{
+    const char* path = (const char*)regs->rbx;
+    uint32_t flags = (uint32_t)regs->rcx;
+
+    if(!path)
+    {
+        regs->rax = -1;
+        return;
+    }
+
+    int file_descriptor = vfs_open(path, flags);
+    regs->rax = (uint64_t)file_descriptor;
+}
+
+// --- sys_close -----------------------------------------
+static void sys_close(registers_t* regs)
+{
+    int file_descriptor = (int)regs->rbx;
+    regs->rax = vfs_close(file_descriptor);
+}
+
+// --- sys_seek ------------------------------------------
+static void sys_seek(registers_t* regs)
+{
+    int file_descriptor = (int)regs->rbx;
+    uint32_t offset = (uint32_t)regs->rcx;
+    int whence = (int)regs->rdx;
+    regs->rax = vfs_seek(file_descriptor, offset, whence);
+}
+
+// --- sys_mkdir -----------------------------------------
+static void sys_mkdir(registers_t* regs)
+{
+    const char* path = (const char*)regs->rbx;
+    if(!path)
+    {
+        regs->rax = -1;
+        return;
+    }
+    regs->rax = vfs_mkdir(path);
+}
+
+// --- sys_readdir ---------------------------------------
+static void sys_readdir(registers_t* regs)
+{
+    int file_desciptor = (int)regs->rbx;
+    dentry_t* dentry = (dentry_t*)regs->rcx;
+    if(!dentry)
+    {
+        regs->rax = -1;
+        return;
+    }
+
+    regs->rax = vfs_readdir(file_desciptor, dentry);
+}
+
+// --- sys_delete ----------------------------------------
+static void sys_delete(registers_t* regs)
+{
+    const char* path = (const char*)regs->rbx;
+    if(!path)
+    {
+        regs->rax = -1;
+        return;
+    }
+
+    regs->rax = vfs_delete(path);
+}
+
 // --- Syscall dispatch table ----------------------------
 // Array of function pointers - index = syscall number
 // Makes adding new syscalls as simple as adding an entry here
@@ -272,6 +343,12 @@ static syscall_fn syscall_table[] =
     sys_fork,               // 5 - SYS_FORK
     sys_wait,               // 6 - SYS_WAIT
     sys_exec,               // 7 - SYS_EXEC
+    sys_open,               // 8 - SYS_OPEN
+    sys_close,              // 9 - SYS_CLOSE
+    sys_seek,               // 10 - SYS_SEEK
+    sys_mkdir,              // 11 - SYS_MKDIR
+    sys_readdir,            // 12 - SYS_READDIR
+    sys_delete,             // 13 - SYS_DELETE
 };
 
 // Number of syscalls in the table

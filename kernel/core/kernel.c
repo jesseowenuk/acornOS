@@ -367,12 +367,6 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     // Create and add the shell process
     process_t* shell = process_create("shell", shell_process, 0);
 
-    process_t* exec_proc = process_create("exec_test", exec_test, 0);
-    if(exec_proc)
-    {
-        scheduler_add(exec_proc);
-    }
-
     if(!shell)
     {
         kpanic("kernel: failed to create shell process!");

@@ -12,6 +12,11 @@
 #define SYS_FORK    5               // Fork current process
 #define SYS_WAIT    6               // Wait for child to exit
 #define SYS_EXEC    7               // Replace process image
+#define SYS_OPEN    8
+#define SYS_SEEK    9
+#define SYS_MKDIR   10
+#define SYS_READDIR 11
+#define SYS_DELETE  12
 
 // --- Syscall handler ---------------------------------------------
 // Called from isr_handler when INT 0x80 fires

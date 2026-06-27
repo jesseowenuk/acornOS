@@ -198,9 +198,9 @@
 
 ### 5f — Process Management Updates
 - ✅ Update process_t for 64-bit registers
-- ⬜ Update cpu_state_t (64-bit registers)
-- ⬜ Update fork() for 64-bit
-- ⬜ Update exec() for 64-bit
+- ✅ Update cpu_state_t (64-bit registers)
+- ✅ Update fork() for 64-bit
+- ✅ Update exec() for 64-bit
 - ⬜ Update user mode entry (iret_to_usermode)
 - ⬜ Update user stack address (USER_STACK_TOP)
 
@@ -211,9 +211,9 @@
 - ✅ Interrupts working
 - ✅ Keyboard working
 - ✅ Shell working
-- ⬜ fork/exec/wait working
-- ⬜ VFS and shadowFS working
-- ⬜ All previous tests passing
+- ✅ fork/exec/wait working
+- ✅ VFS and shadowFS working
+- ✅ All previous tests passing
 
 ---
 
@@ -221,12 +221,12 @@
 
 > Complete shadowFS after 64-bit migration.
 
-- ⬜ shadowfs_write() (with 64-bit PMM)
-- ⬜ shadowfs_read()
-- ⬜ shadowfs_readdir()
-- ⬜ shadowfs_mkdir()
-- ⬜ shadowfs_delete()
-- ⬜ Mount /temp
+- ✅ shadowfs_write() (with 64-bit PMM)
+- ✅ shadowfs_read()
+- ✅ shadowfs_readdir()
+- ✅ shadowfs_mkdir()
+- ✅ shadowfs_delete()
+- ✅ Mount /temp
 - ⬜ Mount /devices
 - ⬜ Mount /process
 - ⬜ Wire VFS syscalls (SYS_OPEN, SYS_READ, SYS_WRITE, SYS_CLOSE)

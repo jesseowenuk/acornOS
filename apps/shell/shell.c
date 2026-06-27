@@ -1,5 +1,6 @@
 #include <drivers/timer.h>
 #include <drivers/vga.h>
+#include <file_system/vfs.h>
 #include <kernel/core/kprintf.h>
 #include <kernel/core/string.h>
 #include <kernel/memory/mem.h>
@@ -8,6 +9,7 @@
 
 #include "shell.h"
 
+// --- Helpers -----------------------------------------------
 // Check if a string starts with a given prefix
 // Returns pointer to the character after the prefix, or 0 if no match
 static const char* starts_with(const char* str, const char* prefix)
@@ -32,7 +34,8 @@ static const char* starts_with(const char* str, const char* prefix)
 // -- Buffer ----------------------------------------------------
 
 static char buffer[SHELL_BUFFER_SIZE];          // Stores the current line being typed
-static int buf_pos = 0;                         // Current position in the buffer   
+static int buf_pos = 0;                         // Current position in the buffer 
+static int skip_prompt = 0;  
 
 // Clear the input buffer and reset position
 static void buffer_clear()
@@ -56,13 +59,6 @@ static void print_prompt()
     vga_set_colour(WHITE, BLACK);       // Input typed in white
 }
 
-static void print_prompt_first()
-{
-    vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("acorn> ");               // The shell prompt
-    vga_set_colour(WHITE, BLACK);       // Input typed in white
-}
-
 // -- Commands ----------------------------------------------------
 
 static void cmd_help()
@@ -77,17 +73,19 @@ static void cmd_help()
     kprintf("    mem          -- show memory usage\n");
     kprintf("    ps           -- list all processes\n");
     kprintf("    echo <text>  -- print text screen\n");
+    kprintf("    ls [path]    -- list directory contents\n");
+    kprintf("    cat <path>   -- print file contents\n");
+    kprintf("    mkdir <path> -- create a directory\n");
+    kprintf("    rm <path>    -- delete a file\n");
 }
-
-static int skip_prompt = 0;         // Flag to suppress prompt after command
 
 static void cmd_clear()
 {
     // Clear the VGA buffer entirely
     vga_clear(); 
     
-    // Print prompt without leading newline
-    print_prompt_first();
+    // Print prompt
+    print_prompt();
     
     // Clear the input buffer too
     buffer_clear();
@@ -158,7 +156,162 @@ static void cmd_ps()
     process_print_all();
 }
 
+static void cmd_ls(const char* path)
+{
+    // Default to /temp if no path given
+    if(*path == ' ')
+    {
+        path++;
+    }
+
+    if(*path == 0)
+    {
+        path = "/temp";
+    }
+
+    int file_descriptor = vfs_open(path, O_RDONLY);
+    if(file_descriptor < 0)
+    {
+        vga_set_colour(LIGHT_RED, BLACK);
+        kprintf("ls: cannot open %s\n", path);
+        vga_set_colour(WHITE, BLACK);
+        return;
+    }
+
+    dentry_t dentry;
+    int result;
+    vga_set_colour(LIGHT_CYAN, BLACK);
+    kprintf("\n");
+
+    while((result = vfs_readdir(file_descriptor, &dentry)) > 0)
+    {
+        if(dentry.type == VFS_TYPE_DIR)
+        {
+            vga_set_colour(LIGHT_BLUE, BLACK);
+            kprintf("  %s/\n", dentry.name);
+        }
+        else
+        {
+            vga_set_colour(WHITE, BLACK);
+            kprintf("  %s\n", dentry.name);
+        }
+    }
+
+    vga_set_colour(WHITE, BLACK);
+    vfs_close(file_descriptor);
+}
+
+static void cmd_cat(const char* path)
+{
+    if(*path == ' ')
+    {
+        path++;
+    }
+
+    if(*path == 0)
+    {
+        vga_set_colour(LIGHT_RED, BLACK);
+        kprintf("Usgae: cat <path>\n");
+        vga_set_colour(WHITE, BLACK);
+        return;
+    }
+
+    int file_descriptor = vfs_open(path, O_RDONLY);
+    if(file_descriptor < 0)
+    {
+        vga_set_colour(LIGHT_RED, BLACK);
+        kprintf("cat: cannot open %s\n", path);
+        vga_set_colour(WHITE, BLACK);
+        return;
+    }
+
+    char buffer[256];
+    int bytes;
+    kprintf("\n");
+
+    while((bytes = vfs_read(file_descriptor, buffer, 255)) > 0)
+    {
+        buffer[bytes] = 0;
+        kprintf("%s", buffer);
+    }
+
+    kprintf("\n");
+    vfs_close(file_descriptor);
+}
+
+static void cmd_mkdir(const char* path)
+{
+    if(*path == ' ')
+    {
+        path++;
+    }
+
+    if(*path == 0)
+    {
+        vga_set_colour(LIGHT_RED, BLACK);
+        kprintf("Usage: mkdir <path>\n");
+        vga_set_colour(WHITE, BLACK);
+        return;
+    }
+
+    int result = vfs_mkdir(path);
+    if(result < 0)
+    {
+        vga_set_colour(LIGHT_RED, BLACK);
+        kprintf("mkdir: failed to create %s\n", path);
+        vga_set_colour(WHITE, BLACK);
+    }
+    else
+    {
+        kprintf("Created directory %s\n", path);
+    }
+}
+
+static void cmd_rm(const char* path)
+{
+    if(*path == ' ')
+    {
+        path++;
+    }
+
+    if(*path == 0)
+    {
+        vga_set_colour(LIGHT_RED, BLACK);
+        kprintf("Usage: rm <path>\n");
+        vga_set_colour(WHITE, BLACK);
+        return;
+    }
+
+    int result = vfs_delete(path);
+    if(result < 0)
+    {
+        vga_set_colour(LIGHT_RED, BLACK);
+        kprintf("rm: failed to delete %s\n", path);
+        vga_set_colour(WHITE, BLACK);
+    }
+    else
+    {
+        kprintf("Deleted %s\n", path);
+    }
+}
+
 // -- Command dispatch ----------------------------------------------------
+
+static command_t commands[] =
+{
+    {"help", cmd_help},
+    {"clear", cmd_clear},
+    {"about", cmd_about},
+    {"uptime", cmd_uptime},
+    {"mem", cmd_mem},
+    {"ps", cmd_ps},
+    {"echo", cmd_echo},
+    {"ls", cmd_ls},
+    {"cat", cmd_cat},
+    {"mkdir", cmd_mkdir},
+    {"rm", cmd_rm},
+    {0, 0}                   // Sentinel
+};
 
 // Called when the user presses enter
 // Looks at the buffer and decides which command to run
@@ -167,53 +320,37 @@ static void process_command()
     // Move to a new line first
     kprintf("\n");
 
-    if(kstreq(buffer, "help"))
+    // Empty line- just reprint the prompt
+    if(buffer[0] == 0)
     {
-        cmd_help();
+        return;
     }
-    else if(kstreq(buffer, "clear"))
+
+    // Walk the command table looking for a match
+    for(int i = 0; commands[i].name != 0; i++)
     {
-        cmd_clear();
+        const char* args = starts_with(buffer, commands[i].name);
+        if(args)
+        {
+            commands[i].handler(args);
+            return;
+        }
     }
-    else if(kstreq(buffer, "about"))
+
+    // Check for "echo " prefix - echo takes an argument
+    const char* echo_text = starts_with(buffer, "echo");
+
+    if(echo_text)
     {
-        cmd_about();
-    }
-    else if(kstreq(buffer, "uptime"))
-    {
-        // Show uptime since boot
-        cmd_uptime();
-    }
-    else if(kstreq(buffer, "mem"))
-    {
-        // Show memory stats
-        cmd_mem();
-    }
-    else if(kstreq(buffer, "ps"))
-    {
-        cmd_ps();
+        // Pass everything after "echo" to handler
+        cmd_echo(echo_text);
     }
     else
     {
-        // Check for "echo " prefix - echo takes an argument
-        const char* echo_text = starts_with(buffer, "echo");
-
-        if(echo_text)
-        {
-            // Pass everything after "echo" to handler
-            cmd_echo(echo_text);
-        }
-        else if(buffer[0] == 0)
-        {
-            // Empty line - just re-print the prompt
-        }
-        else
-        {
-            vga_set_colour(LIGHT_RED, BLACK);
-            kprintf("Unknown command: ");
-            vga_set_colour(WHITE, BLACK);
-            kprintf("%s\n", buffer);              // Echo back what they typed
-        }
+        vga_set_colour(LIGHT_RED, BLACK);
+        kprintf("Unknown command: ");
+        vga_set_colour(WHITE, BLACK);
+        kprintf("%s\n", buffer);              // Echo back what they typed
     }
 }
 
@@ -266,5 +403,5 @@ void shell_handle_key(char c)
 void shell_init()
 {
     buffer_clear();                     // Make sure buffer starts empty
-    print_prompt_first();               // Print the first prompt
+    print_prompt();                     // Print prompt
 }
