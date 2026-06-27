@@ -143,6 +143,19 @@ static void sys_fork(registers_t* regs)
         kpanic("sys_fork: no current process!");
     }
 
+    // Update current process CPU state from interrupt frame
+    // so the child resumes at the correct point
+    current_process->cpu.rip = regs->rip;
+    current_process->cpu.rsp = regs->rsp;
+    current_process->cpu.rflags = regs->rflags;
+    current_process->cpu.rax = regs->rax;
+    current_process->cpu.rbx = regs->rbx;
+    current_process->cpu.rcx = regs->rcx;
+    current_process->cpu.rdx = regs->rdx;
+    current_process->cpu.rsi = regs->rsi;
+    current_process->cpu.rdi = regs->rdi;
+    current_process->cpu.rbp = regs->rbp;
+
     pid_t child_pid = process_fork();
 
     // Return child PID to parent

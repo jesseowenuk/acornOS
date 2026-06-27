@@ -53,103 +53,63 @@ static void idle_process()
 
 // Test //////////////////////////////////////////////////
 
-// The program that exec() will load
-/*static const char exec_msg[] = "Hello from exec'd program!\n";
-
-static void exec_program()
+static uint64_t syscall(uint64_t num, uint64_t arg1, uint64_t arg2)
 {
-    __asm__ volatile(
-        "mov $1, %%eax\n\t"             // SYS_WRITE
-        "int $0x80\n\t"
-        :
-        : "b"(exec_msg), "c"(27)
-        : "eax"
-    );
+    register uint64_t rax __asm__("rax") = num;
+    register uint64_t rbx __asm__("rbx") = arg1;
+    register uint64_t rcx __asm__("rcx") = arg2;
 
     __asm__ volatile(
-        "mov $0, %%eax\n\t"             // SYS_EXIT
-        "mov $0, %%ebx\n\t"
         "int $0x80\n\t"
+        : "+r"(rax)
+        : "r"(rbx), "r"(rcx)
         :
-        :
-        : "eax", "ebx"
     );
 
+    return rax;
+}
+
+static uint64_t sys_fork_call()
+{
+    register uint64_t rax __asm__("rax") = 5;
+
+    __asm__ volatile(
+        "int $0x80\n\t"
+        : "+r"(rax)
+        :
+        :
+    );
+
+    return rax;
+}
+
+// The program that exec() will load
+static void child_process()
+{
+    kserial_printf("Child process running! PID=%d\n", current_process->pid);
+    syscall(0, 0, 0);                   // SYS_EXIT
     for(;;);
 }
 
-static const char wait_parent_msg[] = "Parent: forking...\n";
-static const char wait_done_msg[] = "Parent: child done!\n";
-
-static void wait_test_program()
+static void fork_test()
 {
-    // Print parent message
-    __asm__ volatile(
-        "mov $1, %%eax\n\t"
-        "int $0x80\n\t"
-        :
-        : "b"(wait_parent_msg), "c"(19)
-        : "eax"
-    );
+    kserial_printf("fork test: starting, PID=%d\n", current_process->pid);
 
-    // Fork
-    uint32_t pid;
-    __asm__ volatile(
-        "mov $5, %%eax\n\t"
-        "int $0x80\n\t"
-        "mov %%eax, %0\n\t"
-        : "=r"(pid)
-        :
-        : "eax"
-    );
+    uint64_t pid = sys_fork_call();
+    kserial_printf("fork_test: fork returned pid=%lu PID=%d\n", pid, current_process->pid);
 
     if(pid == 0)
     {
-        // Child - exec a new program
-        __asm__ volatile(
-            "mov $7, %%eax\n\t"             // SYS_EXEC
-            "int $0x80\n\t"
-            :
-            : "b"(exec_program)             // Address of new program
-            : "eax"
-        );
-
-        // Should never reach here
-        for(;;);
+        kserial_printf("fork_test: I am the child!\n");
     }
     else
     {
-        // Parent waits for child
-        __asm__ volatile(
-            "mov $6, %%eax\n\t"             // SYS_WAIT
-            "int $0x80\n\t"
-            :
-            :
-            : "eax"
-        );
-
-        // Child is done
-        __asm__ volatile(
-            "mov $1, %%eax\n\t"
-            "int $0x80\n\t"
-            :
-            : "b"(wait_done_msg), "c"(20)
-            : "eax"
-        );
-
-        // Parent exits
-        __asm__ volatile(
-            "mov $0, %%eax\n\t"
-            "mov $0, %%ebx\n\t"
-            "int $0x80\n\t"
-            :
-            :
-            : "eax", "ebx"
-        );
+        kserial_printf("fork_test: I am the parent, child pid=%lu\n", pid);
     }
 
+    syscall(0, 0, 0);           // SYS_EXIT
     for(;;);
-}*/
+}
 
 void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest_ram)
 {       
@@ -381,6 +341,19 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     idle->time_slice = 1;       // Minimum time slice
     idle->ticks_remaining = 1;
     scheduler_add(idle);
+
+    /*process_t* wait_test = process_create("wait_test", wait_test_program, 0);
+    if(wait_test)
+    {
+        scheduler_add(wait_test);
+    }*/
+
+    // Test fork independently
+    process_t* fork_proc = process_create("fork_test", fork_test, 0);
+    if(fork_proc)
+    {
+        scheduler_add(fork_proc);
+    }
 
     // Create and add the shell process
     process_t* shell = process_create("shell", shell_process, 0);

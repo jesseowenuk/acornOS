@@ -419,7 +419,15 @@ pid_t process_fork()
     kstrcpy(child->name, current_process->name, 32);
 
     // Step 6: allocate new kernel stack
-    child->stack = (uint64_t)pmm_alloc();
+    uint64_t stack_physical = (uint64_t)pmm_alloc();
+    if(!stack_physical)
+    {
+        kserial_printf("fork: failed to allocate child stack!\n");
+        kfree(child);
+        return -1;
+    }
+
+    child->stack = physical_to_virtual(stack_physical);
     if(!child->stack)
     {
         kserial_printf("fork: failed to allocate child stack!\n");
@@ -436,7 +444,7 @@ pid_t process_fork()
     }
 
     // Step 8: update stack top
-    child->stack_top = child->stack + PAGE_SIZE - 4;
+    child->stack_top = child->stack + PAGE_SIZE - 8;
 
     // Step 9: deep copy page directory
     // Child gets its own copy of all user space pages
@@ -450,24 +458,42 @@ pid_t process_fork()
     // Step 10: Set up child's kernel stack with a fresh iret frame
     // Child resumes at same point in user space as parent
     // but fork() returns 0 to the child
-    uint64_t* kstack = (uint64_t*)(uintptr_t)child->stack_top;
+    if(current_process->cpu.cs == 0x08)
+    {
+        // kernel mode process - simple resume
+        // Just copy parent's CPU state, but return 0 from fork()
+        child->cpu = current_process->cpu;
+        child->cpu.rax = 0;                 // fork() returns 0 to child
 
-    *kstack-- = 0x23;                       // SS - user stack segment
-    *kstack-- = current_process->user_esp;  // ESP - user stack pointer
-    *kstack-- = 0x200;                      // EFLAGS - interrupts enabled only
-                                            // TF deliberatley cleared
-    *kstack-- = 0x1B;                       // CS - user code segment
-    *kstack-- = current_process->user_eip;  // EIP - return after int $0x80
-    *kstack-- = 0;                          // EAX = 0 (fork returns 0 to child)
+        // Calculate RSP offset within parent's stack
+        uint64_t rsp_offset = current_process->stack_top - current_process->cpu.rsp;
+        
+        // Apply same offset to child's stack
+        child->cpu.rsp = child->stack_top - rsp_offset;  // Use child's own stack
+        child->cpu.rbp = child->stack_top - (current_process->stack_top - current_process->cpu.rbp);
+    }
+    else
+    {
+        // User mode process - needs iret frame
+        uint64_t* kstack = (uint64_t*)(uintptr_t)child->stack_top;
 
-    // Step 11: set up child CPU state
-    child->cpu.rsp = (uint64_t)kstack + 4;  // Points to top of iret frame
-    child->cpu.rip = (uint64_t)iret_to_usermode;    // child enters via iret
-    child->cpu.rax = 0;
-    child->cpu.rflags = 0x200;              // Clean EFLAGS
-    child->cpu.cs = 0x08;                   // Kernel code for now
-    child->cpu.ds = 0x10;                   // Kernel data
-    child->cpu.ss = 0x10;                   // Kernel stack segment
+        *kstack-- = 0x23;                       // SS - user stack segment
+        *kstack-- = current_process->user_esp;  // ESP - user stack pointer
+        *kstack-- = 0x200;                      // EFLAGS - interrupts enabled only
+                                                // TF deliberatley cleared
+        *kstack-- = 0x1B;                       // CS - user code segment
+        *kstack-- = current_process->user_eip;  // EIP - return after int $0x80
+        *kstack-- = 0;                          // EAX = 0 (fork returns 0 to child)
+
+        // Step 11: set up child CPU state
+        child->cpu.rsp = (uint64_t)kstack + 4;  // Points to top of iret frame
+        child->cpu.rip = (uint64_t)iret_to_usermode;    // child enters via iret
+        child->cpu.rax = 0;
+        child->cpu.rflags = 0x200;              // Clean EFLAGS
+        child->cpu.cs = 0x08;                   // Kernel code for now
+        child->cpu.ds = 0x10;                   // Kernel data
+        child->cpu.ss = 0x10;                   // Kernel stack segment
+    }
 
     // Step 12: set child state to ready
     child->state = PROCESS_READY;
