@@ -303,7 +303,7 @@ process_t* create_user_process(const char* name, void (*entry)())
     proc->stack = (uint64_t)pmm_alloc();
 
     // Top of kernel stack
-    proc->stack_top = proc->stack + PAGE_SIZE - 4;
+    proc->stack_top = proc->stack + PAGE_SIZE - 8;
 
     // Step 5: allocate user stack
     // This is what the process itself uses for function calls
@@ -532,8 +532,9 @@ int process_exec(void (*entry)())
     uint64_t new_stack = (uint64_t)pmm_alloc();
 
     // Step 2: Allocate a fresh kernel stack
-    uint64_t new_kstack = (uint64_t)pmm_alloc();
-    uint64_t new_kstack_top = new_kstack + PAGE_SIZE - 4;
+    uint64_t new_kstack_physical = (uint64_t)pmm_alloc();
+    uint64_t new_kstack = physical_to_virtual(new_kstack_physical);
+    uint64_t new_kstack_top = new_kstack + PAGE_SIZE - 8;
 
     // Step 3: allocate a new page directory
     // We need a fresh address space for the new program
@@ -557,46 +558,75 @@ int process_exec(void (*entry)())
         PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER
     );
 
-    // Step 5: set up iret frame on new kernel stack
-    uint64_t* kstack = (uint64_t*)new_kstack_top;
-    *kstack-- = 0x23;                                   // SS - user stack segment
-    *kstack-- = user_stack_virt + PAGE_SIZE - 4;        // ESP - top of the user stack
-    *kstack-- = 0x200;                                  // EFLAGS - interrupts enabled
-    *kstack-- = 0x1B;                                   // CS - user code segment
-    *kstack-- = (uint64_t)entry;                        // EIP - new entry point
-    *kstack-- = 0;                                      // EAX - return value
+    // Step 5: kernel mode or user mode?
+    if(current_process->cpu.cs == 0x08)
+    {
+        // --- Kernel Mode -------------------------------------
+        // Just redirect RIP - no iret frame needed
+        current_process->stack = new_kstack;
+        current_process->stack_top = new_kstack_top;
+        current_process->page_dir = new_dir;
 
-    // Step 6: update process fields
-    current_process->stack = new_kstack;
-    current_process->stack_top = new_kstack_top;
-    current_process->page_dir = new_dir;
+        current_process->cpu.rip = (uint64_t)entry;
+        current_process->cpu.rsp = new_kstack_top;
+        current_process->cpu.rbp = new_kstack_top;
+        current_process->cpu.rflags = 0x200;
+        current_process->cpu.rax = 0;
 
-    // Step 7: Update TSS with new kernel stack
-    tss_set_kernel_stack(new_kstack_top);
+        kserial_printf("exec: kernel mode redirect to 0x%lx\n", (uint64_t)entry);
 
-    // Step 8: update CPU state to use new stack and entry point
-    uint64_t new_esp = (uint64_t)kstack + 4;
-    current_process->cpu.rsp = new_esp;
-    current_process->cpu.rip = (uint64_t)iret_to_usermode;
-    current_process->cpu.rflags = 0x200;
-    current_process->cpu.cs = 0x08;
-    current_process->cpu.ds = 0x10;
-    current_process->cpu.ss = 0x10;
-    current_process->cpu.rax = 0;
+        // Switch directly to new entry point - never return!
+        __asm__ volatile(
+            "mov %0, %%rsp\n\t"         // Switch to new kernel stack
+            "jmp *%1\n\t"               // Jump to new entry point
+            :
+            : "r"(new_kstack_top), "r"((uint64_t)entry)
+            : "memory"
+        );
+    }
+    else
+    {
+        // --- User Mode --------------------------------------------
+        // Set up iret frame to transition to ring 3 
+        uint64_t* kstack = (uint64_t*)new_kstack_top;
+        *kstack-- = 0x23;                                   // SS - user stack segment
+        *kstack-- = user_stack_virt + PAGE_SIZE - 4;        // ESP - top of the user stack
+        *kstack-- = 0x200;                                  // EFLAGS - interrupts enabled
+        *kstack-- = 0x1B;                                   // CS - user code segment
+        *kstack-- = (uint64_t)entry;                        // EIP - new entry point
+        *kstack-- = 0;                                      // EAX - return value
 
-    kserial_printf("exec: switching to new program\n");
+        // Step 6: update process fields
+        current_process->stack = new_kstack;
+        current_process->stack_top = new_kstack_top;
+        current_process->page_dir = new_dir;
 
-    // Step 9: Switch to new directory and jump
-    paging_switch_directory(new_dir);
+        // Step 7: Update TSS with new kernel stack
+        tss_set_kernel_stack(new_kstack_top);
 
-    // Switch to new kernel stack and jump
-    __asm__ volatile(
-        "mov %0, %%rsp\n\t"             // Switch to new kernel stack (%0 = first input operand (2nd : below))
-        "jmp iret_to_usermode\n\t"      // Jump to user mode entry
-        :
-        : "r"(new_esp)
-        : "memory"
-    );
+        // Step 8: update CPU state to use new stack and entry point
+        uint64_t new_rsp = (uint64_t)kstack + 8;
+        current_process->cpu.rsp = new_rsp;
+        current_process->cpu.rip = (uint64_t)iret_to_usermode;
+        current_process->cpu.rflags = 0x200;
+        current_process->cpu.cs = 0x08;
+        current_process->cpu.ds = 0x10;
+        current_process->cpu.ss = 0x10;
+        current_process->cpu.rax = 0;
+
+        kserial_printf("exec: user mode iret to 0x%lx\n", (uint64_t)entry);
+
+        // Step 9: Switch to new directory and jump
+        paging_switch_directory(new_dir);
+
+        __asm__ volatile(
+            "mov %0, %%rsp\n\t"             // Switch to new kernel stack (%0 = first input operand (2nd : below))
+            "jmp iret_to_usermode\n\t"      // Jump to user mode entry
+            :
+            : "r"(new_rsp)
+            : "memory"
+        );
+    }
 
     // Never reached
     return -1;

@@ -240,6 +240,8 @@ static void sys_exec(registers_t* regs)
     // EBX = entry point address
     void (*entry)() = (void(*)())regs->rbx;
 
+    kserial_printf("sys_exec: rbx=0x%lx entry=0x%lx\n", regs->rbx, (uint64_t)entry);
+
     if(!entry)
     {
         kserial_printf("sys_exec: null entry point!\n");

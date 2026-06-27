@@ -111,6 +111,21 @@ static void fork_test()
     for(;;);
 }
 
+static void exec_target()
+{
+    kserial_printf("exec_target: running! PID=%d\n", current_process->pid);
+    syscall(0, 0, 0);           // SYS_EXIT
+    for(;;);
+}
+
+static void exec_test()
+{
+    kserial_printf("exec_test: about to exec, PID=%d\n", current_process->pid);
+    syscall(7, (uint64_t)exec_target, 0);       // SYS_EXEC
+    kserial_printf("exec_test: should never reach here!\n");
+    for(;;);
+}
+
 void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest_ram)
 {       
     // Initialise serial first so we can log everything that follows
@@ -342,12 +357,6 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     idle->ticks_remaining = 1;
     scheduler_add(idle);
 
-    /*process_t* wait_test = process_create("wait_test", wait_test_program, 0);
-    if(wait_test)
-    {
-        scheduler_add(wait_test);
-    }*/
-
     // Test fork independently
     process_t* fork_proc = process_create("fork_test", fork_test, 0);
     if(fork_proc)
@@ -357,6 +366,12 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
 
     // Create and add the shell process
     process_t* shell = process_create("shell", shell_process, 0);
+
+    process_t* exec_proc = process_create("exec_test", exec_test, 0);
+    if(exec_proc)
+    {
+        scheduler_add(exec_proc);
+    }
 
     if(!shell)
     {
