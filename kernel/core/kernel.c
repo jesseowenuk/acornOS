@@ -235,6 +235,7 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     }
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf("shadowFS mounted.\n");
+    shadowfs_stats();
 
     kserial_printf("All subsystems online. Starting shell.\n");
 

@@ -114,14 +114,14 @@
 - ✅ shadowfs_lookup()
 - ✅ shadowfs_create()
 - ✅ vfs_open() creating files in shadowFS
-- 🔄 shadowfs_write()
-- ⬜ shadowfs_read()
-- ⬜ shadowfs_readdir()
-- ⬜ shadowfs_mkdir()
-- ⬜ shadowfs_delete()
-- ⬜ shadowfs_close()
+- ✅ shadowfs_write()
+- ✅ shadowfs_read()
+- ✅ shadowfs_readdir()
+- ✅ shadowfs_mkdir()
+- ✅ shadowfs_delete()
+- ✅ shadowfs_close()
 - ⬜ shadowfs_stats() — usage reporting
-- ⬜ Mount /temp
+- ✅ Mount /temp
 - ⬜ Mount /devices (devFS)
 - ⬜ Mount /process (procFS)
 
@@ -168,7 +168,7 @@
 - ✅ Extend direct physical map to cover ALL RAM
 - ⬜ Remove temporary identity map
 - ✅ Set up proper 64-bit GDT
-- ⬜ Set up 64-bit IDT
+- ✅ Set up 64-bit IDT
 - ✅ Call kernel_main
 
 ### 5d — Core Kernel Updates
@@ -194,7 +194,7 @@
   - ✅ 2MB large pages for direct map
   - ✅ map_page() for 64-bit
   - ✅ map_page_in() for 64-bit
-- ⬜ Heap update (new virtual address)
+- ✅ Heap update (new virtual address)
 
 ### 5f — Process Management Updates
 - ✅ Update process_t for 64-bit registers
@@ -229,12 +229,12 @@
 - ✅ Mount /temp
 - ⬜ Mount /devices
 - ⬜ Mount /process
-- ⬜ Wire VFS syscalls (SYS_OPEN, SYS_READ, SYS_WRITE, SYS_CLOSE)
-- ⬜ Shell ls command (uses readdir)
-- ⬜ Shell cat command (uses read)
-- ⬜ Shell echo command (uses write)
-- ⬜ Shell mkdir command
-- ⬜ Shell rm command
+- ✅ Wire VFS syscalls (SYS_OPEN, SYS_READ, SYS_WRITE, SYS_CLOSE)
+- ✅ Shell ls command (uses readdir)
+- ✅ Shell cat command (uses read)
+- ✅ Shell echo command (uses write)
+- ✅ Shell mkdir command
+- ✅ Shell rm command
 
 ---
 

@@ -786,3 +786,22 @@ static int shadowfs_truncate(inode_t* inode, uint32_t size)
     kserial_printf("shadowFS: truncated to %u bytes\n", size);
     return 0;
 }
+
+void shadowfs_stats()
+{
+    // Walk mount table to find shadowFS mounts
+    // For now just print /temp stats
+    superblock_t* sb = vfs_find_mount("/temp");
+    if(!sb)
+    {
+        return;
+    }
+
+    shadowfs_mount_t* mount = (shadowfs_mount_t*)sb->private_data;
+    if(!mount)
+    {
+        return;
+    }
+
+    kserial_printf("shadowFS /temp: used=%uKB quota=%uKB\n", mount->used / 1024, mount->quota / 1024, (mount->quota - mount->used) / 1024);
+}
