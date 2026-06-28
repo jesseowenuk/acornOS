@@ -94,12 +94,14 @@ DRIVER_SRCS = \
 	$(DRIVERS_DIR)/display/vga.c \
 	$(DRIVERS_DIR)/input/keyboard.c \
 	$(DRIVERS_DIR)/timer/timer.c \
-	$(DRIVERS_DIR)/serial/serial.c
+	$(DRIVERS_DIR)/serial/serial.c \
+	$(DRIVERS_DIR)/null/null.c
 
 # File systems
 FS_SRCS = \
 	$(FS_DIR)/vfs/vfs.c \
-	$(FS_DIR)/shadowfs/shadowfs.c
+	$(FS_DIR)/shadowfs/shadowfs.c \
+	$(FS_DIR)/devfs/devfs.c
 
 # Apps
 APP_SRCS = \

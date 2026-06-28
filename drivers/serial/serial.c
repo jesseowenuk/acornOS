@@ -126,3 +126,25 @@ void serial_println(const char* str)
     // Then add a newline
     serial_print("\n");
 }
+
+// --- devFS handler --------------------------------------------
+int dev_serial_read(file_t* file, void* buffer, uint32_t size)
+{
+    (void)file;
+    // Serial read not yet implemented
+    (void)buffer;
+    (void)size;
+    return 0;
+}
+
+int dev_serial_write(file_t* file, const void* buffer, uint32_t size)
+{
+    (void)file;
+    const char* str = (const char*)buffer;
+    for(uint32_t i = 0; i < size; i++)
+    {
+        serial_putchar(str[i]);
+    }
+
+    return (int)size;
+}

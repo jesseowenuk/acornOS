@@ -1,6 +1,8 @@
 #ifndef VGA_H
 #define VGA_H
 
+#include <file_system/vfs.h>
+
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
 #define VGA_MEMORY 0xFFFF8000000B8000UL
@@ -31,5 +33,6 @@ void vga_set_colour(vga_colour fg, vga_colour bg);
 void vga_putchar(char c);
 void vga_print(const char* str);
 void vga_clear();
+int dev_display_write(file_t* file, const void* buffer, uint32_t size);
 
 #endif 

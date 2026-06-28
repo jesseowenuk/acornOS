@@ -123,3 +123,21 @@ void keyboard_wait(process_t* proc)
     // Give up the CPU - don't return until woken
     scheduler_yield();
 }
+
+// --- devFS handler --------------------------------------------
+// Read from /devices/keyboard - blocks until keypress
+int dev_keyboard_read(file_t* file, void* buffer, uint32_t size)
+{
+    (void)file;
+
+    char* dst = (char*)buffer;
+    uint32_t read = 0;
+
+    while(read < size)
+    {
+        // Blocks until key available
+        dst[read++] = keyboard_getchar();
+    }
+
+    return (int)read;
+}

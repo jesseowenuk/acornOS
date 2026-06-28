@@ -2,9 +2,11 @@
 #include <architecture/x86_64/pic.h>
 #include <architecture/x86_64/tss.h>
 #include <drivers/keyboard.h>
+#include <drivers/null.h>
 #include <drivers/serial.h>
 #include <drivers/timer.h>
 #include <drivers/vga.h>
+#include <file_system/devfs.h>
 #include <file_system/shadowfs.h>
 #include <file_system/vfs.h>
 #include <kernel/core/kprintf.h>
@@ -130,7 +132,7 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
 {       
     // Initialise serial first so we can log everything that follows
     serial_init();
-    kserial_printf("Kernel started.\n");
+    kserial_printf("Starting Kernel...\n");
 
     vga_init();                                 // Clear screen, set default colour
 
@@ -138,104 +140,141 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     kprintf("------------\n");
 
     vga_set_colour(WHITE, BLACK);
-    kprintf("Initialising GDT...\n");
+    kprintf("Initialising GDT...");
     gdt_init();                                 // Set up memory segments   
     kserial_printf("GDT initialised.\n");    
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("GDT online.\n");
+    kprintf(" [DONE]\n");
 
     vga_set_colour(WHITE, BLACK);
-    kprintf("Initialising TS...\n");
+    kprintf("Initialising TSS...");
     tss_init();
     kserial_printf("TSS initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("TSS online.\n");
+    kprintf(" [DONE]\n");
     
     vga_set_colour(WHITE, BLACK);
-    kprintf("Initialising IDT...\n");
+    kprintf("Initialising IDT...");
     idt_init();                                 // Set up interrupt handlers
     kserial_printf("IDT initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("IDT online.\n");
+    kprintf(" [DONE]\n");
 
     vga_set_colour(WHITE, BLACK);
-    kprintf("Initialising PIC...\n");
+    kprintf("Initialising PIC...");
     pic_init();                                 // Remap hardware interrupts
     kserial_printf("PIC initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("PIC online.\n");
+    kprintf(" [DONE]\n");
 
     vga_set_colour(WHITE, BLACK);
-    kprintf("Initialising timer...\n");
+    kprintf("Initialising timer...");
     timer_init();                               // Set up PIT at 100Hz
     kserial_printf("Timer initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("Timer online\n");
+    kprintf(" [DONE]\n");
                              
     vga_set_colour(WHITE, BLACK);
-    kprintf("Initialising keyboard...\n");
+    kprintf("Initialising keyboard...");
     keyboard_init();                            // Set up the keyboard
     kserial_printf("Keyboard initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("Keyboard online\n");
+    kprintf(" [DONE]\n");
 
     vga_set_colour(WHITE, BLACK);
-    kprintf("Initialising memory manager...\n");
+    kprintf("Initialising memory manager...");
     mem_init();                                 // Set up the heap
     kserial_printf("Memory manager initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("Memory manager online\n");
+    kprintf(" [DONE\n");
 
     vga_set_colour(WHITE, BLACK);
-    kprintf("Initialising PMM...\n");
+    kprintf("Initialising PMM...");
     pmm_init(mem_map_addr, mem_map_count, highest_ram);      // Pass E820 map from bootloader
     kserial_printf("PMM initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("PMM online\n");
+    kprintf(" [DONE]\n");
 
     vga_set_colour(WHITE, BLACK);
-    kprintf("Initialising paging...\n");
+    kprintf("Initialising paging...");
     paging_init();
     kserial_printf("Paging initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("Paging ready.\n");
+    kprintf(" [DONE]\n");
 
     vga_set_colour(WHITE, BLACK);
-    kprintf("Initialising process manager...\n");
+    kprintf("Initialising process manager...");
     process_init();
     kserial_printf("Process manager initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("Process manager online.\n");
+    kprintf(" [DONE]\n");
 
     vga_set_colour(WHITE, BLACK);
-    kprintf("Initialising scheduler...\n");
+    kprintf("Initialising scheduler...");
     scheduler_init();
     kserial_printf("Scheduler initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("Scheduler online.\n");
+    kprintf(" [DONE]\n");
 
     vga_set_colour(WHITE, BLACK);
-    kprintf("Initialising syscalls...\n");
+    kprintf("Initialising syscalls...");
     syscall_init();
     kserial_printf("Syscalls initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("Syscalls online.\n");
+    kprintf(" [DONE]]\n");
 
     vga_set_colour(WHITE, BLACK);
-    kprintf("Initialising VFS...\n");
+    kprintf("Initialising VFS...");
     vfs_init();
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("VFS online.\n");
+    kprintf(" [DONE]\n");
 
     vga_set_colour(WHITE, BLACK);
-    kprintf("Mounting shadowFS...\n");
+    kprintf("Mounting shadowFS...");
     if(shadowfs_mount("/temp", 8 * 1024 * 1024) < 0)       // 8MB for temp files
     {
         kpanic("kernel: failed to mount shadowFS at /temp!");
     }
     vga_set_colour(LIGHT_GREEN, BLACK);
-    kprintf("shadowFS mounted.\n");
+    kprintf(" [DONE]\n");
     shadowfs_stats();
+
+    vga_set_colour(WHITE, BLACK);
+    kprintf("Mounting devFS...");
+    if(devfs_mount("/devices") < 0)       
+    {
+        kpanic("kernel: failed to mount devFS at /devices!");
+    }
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf(" [DONE]\n");
+
+    // Register /devices/display - write prints to VGA
+    vga_set_colour(WHITE, BLACK);
+    kprintf("Registering /devices/display...");
+    devfs_register("/devices", "display", 0, dev_display_write);
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf(" [DONE]\n");
+
+    // Register /devices/keyboard
+    vga_set_colour(WHITE, BLACK);
+    kprintf("Registering /devices/keyboard...");
+    devfs_register("/devices", "keyboard", dev_keyboard_read, 0);
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf(" [DONE]\n");
+
+    // Register /devices/null
+    vga_set_colour(WHITE, BLACK);
+    kprintf("Registering /devices/null...");
+    devfs_register("/devices", "null", dev_null_read, dev_null_write);
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf(" [DONE]\n");
+
+    // Register /devices/serial
+    vga_set_colour(WHITE, BLACK);
+    kprintf("Registering /devices/serial...");
+    devfs_register("/devices", "serial", dev_serial_read, dev_serial_write);
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf(" [DONE]\n");
 
     kserial_printf("All subsystems online. Starting shell.\n");
 
@@ -338,6 +377,44 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
         int bytes = vfs_read(fd_verify, buffer, 32);
         kserial_printf("after truncate: read %d bytes\n", bytes);
         vfs_close(fd_verify);
+    }
+
+    // test /devices/display
+    int display_fd = vfs_open("/devices/display", O_WRONLY);
+    if(display_fd >= 0)
+    {
+        vfs_write(display_fd, "Hello from devFS!\n", 18);
+        vfs_close(display_fd);
+    }
+
+    // Test /devices/null
+    int null_fd = vfs_open("/devices/null", O_WRONLY);
+    if(null_fd >= 0)
+    {
+        vfs_write(null_fd, "This should be discarded\n", 25);
+        vfs_close(null_fd);
+        kserial_printf("null device: write discarded OK\n");
+    }
+
+    // Test /devices/serial
+    int serial_fd = vfs_open("/devices/serial", O_WRONLY);
+    if(serial_fd >= 0)
+    {
+        vfs_write(serial_fd, "Hello from /devices/serial!\n", 28);
+        vfs_close(serial_fd);
+    }
+
+    // Test ls /devices
+    int dev_fd = vfs_open("/devices", O_RDONLY);
+    if(dev_fd >= 0)
+    {
+        dentry_t dentry;
+        kserial_printf("devices:\n");
+        while(vfs_readdir(dev_fd, &dentry) > 0)
+        {
+            kserial_printf("  %s\n", dentry.name);
+        }
+        vfs_close(dev_fd);
     }
 
     // Enable hardware interrupts.

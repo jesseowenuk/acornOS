@@ -1,6 +1,8 @@
 #ifndef SERIAL_H
 #define SERIAL_H
 
+#include <file_system/vfs.h>
+
 #include <stdint.h>
 
 // COM1 base port address - the first serial port on x86
@@ -18,5 +20,8 @@ void serial_print(const char* str);
 
 // Write a string followed by a newline to the serial port
 void serial_println(const char* str);
+
+int dev_serial_read(file_t* file, void* buffer, uint32_t size);
+int dev_serial_write(file_t* file, const void* buffer, uint32_t size);
 
 #endif

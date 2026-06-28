@@ -120,7 +120,7 @@
 - ✅ shadowfs_mkdir()
 - ✅ shadowfs_delete()
 - ✅ shadowfs_close()
-- ⬜ shadowfs_stats() — usage reporting
+- ✅ shadowfs_stats() — usage reporting
 - ✅ Mount /temp
 - ⬜ Mount /devices (devFS)
 - ⬜ Mount /process (procFS)
@@ -227,8 +227,6 @@
 - ✅ shadowfs_mkdir()
 - ✅ shadowfs_delete()
 - ✅ Mount /temp
-- ⬜ Mount /devices
-- ⬜ Mount /process
 - ✅ Wire VFS syscalls (SYS_OPEN, SYS_READ, SYS_WRITE, SYS_CLOSE)
 - ✅ Shell ls command (uses readdir)
 - ✅ Shell cat command (uses read)

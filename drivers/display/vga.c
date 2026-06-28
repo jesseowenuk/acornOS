@@ -101,3 +101,19 @@ void vga_init()
     vga_set_colour(WHITE, BLACK);
     vga_clear();
 }
+
+// --- devFS handler ---------------------------------------------------
+// Write to /devices/display - prints to VGA screen
+int dev_display_write(file_t* file, const void* buffer, uint32_t size)
+{
+    (void)file;
+
+    const char* str = (const char*)buffer;
+
+    for(uint32_t i = 0; i < size; i++)
+    {
+        vga_putchar(str[i]);
+    }
+
+    return (int)size;
+}
