@@ -240,11 +240,11 @@
 
 > Device files. Everything is a file.
 
-- ⬜ devFS design and implementation
-- ⬜ /devices/keyboard (read = get keypress)
-- ⬜ /devices/display (write = print to screen)
-- ⬜ /devices/serial (read/write serial port)
-- ⬜ /devices/null (write = discard, read = EOF)
+- ✅ devFS design and implementation
+- ✅ /devices/keyboard (read = get keypress)
+- ✅ /devices/display (write = print to screen)
+- ✅ /devices/serial (read/write serial port)
+- ✅ /devices/null (write = discard, read = EOF)
 - ⬜ /devices/random (read = random bytes)
 - ⬜ /devices/mem (read/write physical memory)
 - ⬜ Shell: cat /devices/keyboard

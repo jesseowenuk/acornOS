@@ -95,7 +95,8 @@ DRIVER_SRCS = \
 	$(DRIVERS_DIR)/input/keyboard.c \
 	$(DRIVERS_DIR)/timer/timer.c \
 	$(DRIVERS_DIR)/serial/serial.c \
-	$(DRIVERS_DIR)/null/null.c
+	$(DRIVERS_DIR)/null/null.c \
+	$(DRIVERS_DIR)/random/random.c
 
 # File systems
 FS_SRCS = \
@@ -177,7 +178,7 @@ run: $(BUILD_DIR)/os.img check-size
 		-drive file=$(BUILD_DIR)/os.img,format=raw,index=0,media=disk \
 		-serial stdio \
 		-m 256M \
-		2> $(BUILD_DIR)/debug.log
+		-cpu qemu64,+rdrand
 
 clean:
 	rm -rf $(BUILD_DIR)

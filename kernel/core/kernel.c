@@ -3,6 +3,7 @@
 #include <architecture/x86_64/tss.h>
 #include <drivers/keyboard.h>
 #include <drivers/null.h>
+#include <drivers/random.h>
 #include <drivers/serial.h>
 #include <drivers/timer.h>
 #include <drivers/vga.h>
@@ -271,6 +272,13 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
 
     // Register /devices/serial
     vga_set_colour(WHITE, BLACK);
+    kprintf("Registering /devices/random...");
+    devfs_register("/devices", "random", dev_random_read, 0);
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf(" [DONE]\n");
+
+    // Register /devices/random
+    vga_set_colour(WHITE, BLACK);
     kprintf("Registering /devices/serial...");
     devfs_register("/devices", "serial", dev_serial_read, dev_serial_write);
     vga_set_colour(LIGHT_GREEN, BLACK);
@@ -415,6 +423,18 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
             kserial_printf("  %s\n", dentry.name);
         }
         vfs_close(dev_fd);
+    }
+
+    // Test /devices/random
+    int random_fd = vfs_open("/devices/random", O_RDONLY);
+    if(random_fd >= 0)
+    {
+        uint8_t buffer[8];
+        vfs_read(random_fd, buffer, 8);
+        kserial_printf("random bytes: %x %x %x %x %x %x %x %x\n",
+            buffer[0], buffer[1], buffer[2], buffer[3],
+            buffer[4], buffer[5], buffer[6], buffer[7]);
+        vfs_close(random_fd);
     }
 
     // Enable hardware interrupts.
