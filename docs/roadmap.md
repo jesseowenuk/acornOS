@@ -245,7 +245,7 @@
 - ✅ /devices/display (write = print to screen)
 - ✅ /devices/serial (read/write serial port)
 - ✅ /devices/null (write = discard, read = EOF)
-- ⬜ /devices/random (read = random bytes)
+- ✅ /devices/random (read = random bytes)
 - ⬜ /devices/mem (read/write physical memory)
 - ⬜ Shell: cat /devices/keyboard
 - ⬜ Shell: echo "hello" > /devices/display

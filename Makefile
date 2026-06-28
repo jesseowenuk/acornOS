@@ -102,7 +102,8 @@ DRIVER_SRCS = \
 FS_SRCS = \
 	$(FS_DIR)/vfs/vfs.c \
 	$(FS_DIR)/shadowfs/shadowfs.c \
-	$(FS_DIR)/devfs/devfs.c
+	$(FS_DIR)/devfs/devfs.c \
+	$(FS_DIR)/procfs/procfs.c
 
 # Apps
 APP_SRCS = \

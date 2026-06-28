@@ -8,6 +8,7 @@
 #include <drivers/timer.h>
 #include <drivers/vga.h>
 #include <file_system/devfs.h>
+#include <file_system/procfs.h>
 #include <file_system/shadowfs.h>
 #include <file_system/vfs.h>
 #include <kernel/core/kprintf.h>
@@ -284,6 +285,15 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf(" [DONE]\n");
 
+    vga_set_colour(WHITE, BLACK);
+    kprintf("Mounting procFS...");
+    if(procfs_mount("/process") < 0)       
+    {
+        kpanic("kernel: failed to mount procFS at /process!");
+    }
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf(" [DONE]\n");
+
     kserial_printf("All subsystems online. Starting shell.\n");
 
     int fd = vfs_open("/temp/test.txt", O_CREAT | O_WRONLY);
@@ -435,6 +445,17 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
             buffer[0], buffer[1], buffer[2], buffer[3],
             buffer[4], buffer[5], buffer[6], buffer[7]);
         vfs_close(random_fd);
+    }
+
+    // Test procFS
+    int proc_fd = vfs_open("/process/meminfo", O_RDONLY);
+    if(proc_fd >= 0)
+    {
+        char buffer[256];
+        int bytes = vfs_read(proc_fd, buffer, 255);
+        buffer[bytes] = 0;
+        kserial_printf("meminfo:\n%s\n", buffer);
+        vfs_close(proc_fd);
     }
 
     // Enable hardware interrupts.

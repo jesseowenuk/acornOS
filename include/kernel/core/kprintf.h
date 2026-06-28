@@ -18,4 +18,7 @@ void kserial_printf(const char* fmt, ...);
 // Returns mumber of characters written
 int kvsnprintf(char* buf, int size, const char* fmt, va_list args);
 
+// Wrapper for formatter
+int ksnprintf(char* buffer, int size, const char* fmt, ...);
+
 #endif

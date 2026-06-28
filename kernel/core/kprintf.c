@@ -401,3 +401,13 @@ void kserial_printf(const char* fmt, ...)
         serial_putchar(*p++);
     }
 }
+
+// wrapper for formatter
+int ksnprintf(char* buffer, int size, const char* fmt, ...)
+{
+    va_list args;
+    va_start(args, fmt);
+    int result = kvsnprintf(buffer, size, fmt, args);
+    va_end(args);
+    return result;
+}
