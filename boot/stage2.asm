@@ -19,6 +19,11 @@ E820_MAP_ADDRESS equ 0x800
 ; We'll store E820 count here
 E820_COUNT_ADDRESS equ 0x600
 
+; TEMPORARY:::: 
+; hello.elf loaded here (3MB physical)
+HELLO_ELF_PHYSICAL_BASE equ 0x300000
+HELLO_ELF_SECTOR equ 512
+
 ; --- Entry point -----------------------------------------------------
 start:
     ; Stage 1 jumped here with DL = boot drive
@@ -51,6 +56,9 @@ start:
     call load_kernel
     mov si, msg_kernel
     call print
+
+    ; Load hello.elf from disk (temporary test program)
+    call load_hello_elf
 
     mov eax, dword [0xA000]
     mov dword [0xA000], eax
@@ -346,6 +354,36 @@ load_kernel:
     call print
     jmp $
 
+; --- Load hello.elf -----------------------------------------------------
+; Loads our first user space program from disk
+; TEMPORARY: will be replaced by proper ELF loading from a filesystem
+; once we have persistent storage (barkFS)
+;
+; Loaded to HELLO_ELF_PHYSICAL_BASE (0x300000 / 3MB mark)
+; Same segment:offset trick as kernel - load to 0x1000:0 (physical location)
+; then copied up to 0x300000 in protected mode.
+
+load_hello_elf:
+    ; Read just 4 sectors (2KB) - plenty for our tiny test program
+    mov dword [packet_hello + 8], HELLO_ELF_SECTOR          ; LBA start
+    mov dword [packet_hello + 12], 0                        ; LBA high = 0
+    mov word [packet_hello + 2], 4                          ; 4 sectors
+    mov word [packet_hello + 4], 0x0000                     ; Buffer offset
+    mov word [packet_hello + 6], 0x2000                     ; Physical = 0x2000*16 = 0x20000
+
+    mov ah, 0x42
+    mov dl, [boot_drive]
+    mov si, packet_hello
+    int 0x13
+    jc .disk_error
+
+    ret
+
+.disk_error:
+    mov si, msg_disk_error
+    call print
+    jmp $
+
 ; --- Enter Protected Mode -----------------------------------------------
 ; Sets up a temporary GDT and switches to 32-bit protected mode
 ; This is a stepping stone to 64-bit long mode
@@ -381,6 +419,14 @@ packet_kernel:
     dw 0x0000                                   ; Buffer offset (filled in dynamically)
     dw 0x0000                                   ; Buffer segment (filled in dynamically)
     dq 0                                        ; LBA start (filled in dynamically)
+
+align 4
+packet_hello:
+    db 0x10, 0x00                               ; Packey size, reserved
+    dw 0                                        ; Sector count (filled in)
+    dw 0x0000                                   ; Buffer offset (filled in)
+    dw 0x0000                                   ; Buffer segment (filled in)
+    dq 0                                        ; LBA start (filled in)
 
 ; --- Temporary 32-bit GDT -----------------------------------------
 ; Just enough to get us into protected mode
@@ -446,6 +492,12 @@ protected_mode_entry:
     shl ecx, 9                              ; * 512 = byte count
     mov esi, 0x10000                        ; source
     mov edi, 0x100000                       ; destination
+    rep movsb                               ; copy
+
+    ; Copy hello.elf from 0x20000 to 0x300000
+    mov ecx, 4 * 512                        ; 4 sectors * 512
+    mov esi, 0x20000                        ; source
+    mov edi, 0x300000                       ; destination
     rep movsb                               ; copy
 
     ; Load highest_ram into EDX:EAX and call setup

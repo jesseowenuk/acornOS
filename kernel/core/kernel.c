@@ -11,6 +11,7 @@
 #include <file_system/procfs.h>
 #include <file_system/shadowfs.h>
 #include <file_system/vfs.h>
+#include <kernel/core/elf.h>
 #include <kernel/core/kprintf.h>
 #include <kernel/core/panic.h>
 #include <kernel/interrupts.h>
@@ -457,6 +458,9 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
         kserial_printf("meminfo:\n%s\n", buffer);
         vfs_close(proc_fd);
     }
+
+    uint64_t elf_entry = elf_load(HELLO_ELF_PHYSICAL_ADDRESS);
+    kserial_printf("ELF entry point: 0x%lx\n", elf_entry);
 
     // Enable hardware interrupts.
     // From this point the CPU will respond to IRQs

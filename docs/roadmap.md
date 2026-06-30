@@ -256,14 +256,14 @@
 
 > Process information as files. Live kernel data.
 
-- ⬜ procFS design and implementation
-- ⬜ /process/[pid]/status
-- ⬜ /process/[pid]/memory
-- ⬜ /process/[pid]/files
-- ⬜ /process/meminfo (total/free/used RAM)
-- ⬜ /process/mounts (mounted filesystems)
-- ⬜ Shell ps command uses procFS
-- ⬜ Shell mem command uses procFS
+- ✅ procFS design and implementation
+- ✅ /process/[pid]/status
+- ✅ /process/[pid]/memory
+- ✅ /process/[pid]/files
+- ✅ /process/meminfo (total/free/used RAM)
+- ✅ /process/mounts (mounted filesystems)
+- ✅ Shell ps command uses procFS
+- ✅ Shell mem command uses procFS
 
 ---
 
@@ -280,6 +280,9 @@
 - ⬜ exec() updated to load ELF files
 - ⬜ Shell can run ELF binaries
 - ⬜ First compiled C program runs on acornOS!
+- ⬜ Switch syscalls from INT 0x80 to SYSCALL/SYSRET
+- ⬜ Update syscall argument convention (rbx→rdi, rcx→rsi)
+- ⬜ Update hello.c and all user programs
 
 ---
 

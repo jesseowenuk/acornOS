@@ -119,11 +119,19 @@ static void cmd_uptime()
 
 static void cmd_mem()
 {
-    // Heap stats from mem.c
-    mem_print_stats();
+    int fd = vfs_open("/process/meminfo", O_RDONLY);
+    if(fd < 0)
+    {
+        kprintf("mem: cannot open /process/meminfo\n");
+        return;
+    }
 
-    // Physical memory stats from pmm.c
-    pmm_print_stats();
+    char buffer[256];
+    int bytes = vfs_read(fd, buffer, 255);
+    buffer[bytes] = 0;
+    vfs_close(fd);
+
+    kprintf("\n%s", buffer);
 }
 
 static void cmd_echo(const char* text)
@@ -152,8 +160,47 @@ static void cmd_echo(const char* text)
 
 static void cmd_ps()
 {
-    // Delegate to process subsystem
-    process_print_all();
+    // List all processes via procFS
+    int fd = vfs_open("/process/", O_RDONLY);
+    if(fd < 0)
+    {
+        kprintf("ps: cannot open /process\n");
+        return;
+    }
+
+    dentry_t dentry;
+
+    while(vfs_readdir(fd, &dentry) > 0)
+    {
+        // Skip non-PID entries
+        if(dentry.type != VFS_TYPE_DIR)
+        {
+            continue;
+        }
+
+        // Open status file for this PID
+        char path[64];
+        ksnprintf(path, sizeof(path), "/process/%s/status", dentry.name);
+
+        int sfd = vfs_open(path, O_RDONLY);
+        if(sfd < 0)
+        {
+            continue;
+        }
+
+        char buffer[256];
+        int bytes = vfs_read(sfd, buffer, 255);
+        buffer[bytes] = 0;
+        vfs_close(sfd);
+
+        // Print the status
+        vga_set_colour(CYAN, BLACK);
+        kprintf("------------------\n");
+        vga_set_colour(WHITE, BLACK);
+        kprintf("%s\n", buffer);
+    }
+
+    vfs_close(fd);
 }
 
 static void cmd_ls(const char* path)

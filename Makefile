@@ -79,7 +79,8 @@ KERNEL_C_SRCS = \
 	$(KERNEL_DIR)/architecture/$(ARCH)/pic.c \
 	$(KERNEL_DIR)/architecture/$(ARCH)/tss.c \
 	$(KERNEL_DIR)/architecture/$(ARCH)/paging.c \
-	$(KERNEL_DIR)/architecture/$(ARCH)/usermode.c
+	$(KERNEL_DIR)/architecture/$(ARCH)/usermode.c \
+	$(KERNEL_DIR)/core/elf.c
 
 KERNEL_ASM_SRCS = \
 	$(KERNEL_DIR)/architecture/$(ARCH)/start.asm \
@@ -157,8 +158,31 @@ check-size: $(BUILD_DIR)/kernel.bin
 		echo "WARNING: kernel is getting large!"; \
 	fi
 
+# --- User programs -----------------------------------------------
+# Compiled as standalone ELF64 binaries
+# No standard library, no crt0
+# Linked at user space virtual address 0x400000
+
+USER_CC_FLAGS = \
+	-ffreestanding \
+	-nostdlib \
+	-mno-red-zone \
+	-O1 \
+	-Wall \
+	-Wextra
+
+$(BUILD_DIR)/apps/hello/hello.elf: apps/hello/hello.c
+	@mkdir -p $(BUILD_DIR)/apps/hello
+	$(CC) $(USER_CC_FLAGS) \
+	-e _start \
+	-Ttext 0x400000 \
+	-o $(BUILD_DIR)/apps/hello/hello.elf \
+	apps/hello/hello.c
+
 # --- Disk image --------------------------------------------------
-$(BUILD_DIR)/os.img: $(BUILD_DIR)/boot.bin $(BUILD_DIR)/stage2.bin $(BUILD_DIR)/kernel.bin check-size
+$(BUILD_DIR)/os.img: $(BUILD_DIR)/boot.bin $(BUILD_DIR)/stage2.bin \
+ 					 $(BUILD_DIR)/kernel.bin \
+					 $(BUILD_DIR)/apps/hello/hello.elf check-size
 	# Create 10MB disk image
 	dd if=/dev/zero of=$(BUILD_DIR)/os.img bs=1M count=10 2>/dev/null
 
@@ -173,6 +197,9 @@ $(BUILD_DIR)/os.img: $(BUILD_DIR)/boot.bin $(BUILD_DIR)/stage2.bin $(BUILD_DIR)/
 
 	$(TOOLS_DIR)/write_kernel_size.sh $(BUILD_DIR)/kernel.bin $(BUILD_DIR)/os.img
 
+	# Write hello.elf at sector 512
+	dd if=$(BUILD_DIR)/apps/hello/hello.elf of=$(BUILD_DIR)/os.img bs=512 seek=512 conv=notrunc 2>/dev/null
+
 # --- Run --------------------------------------------------------------------------
 run: $(BUILD_DIR)/os.img check-size
 	qemu-system-x86_64 \
@@ -183,3 +210,4 @@ run: $(BUILD_DIR)/os.img check-size
 
 clean:
 	rm -rf $(BUILD_DIR)
+
