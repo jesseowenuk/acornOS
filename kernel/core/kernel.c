@@ -459,9 +459,6 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
         vfs_close(proc_fd);
     }
 
-    uint64_t elf_entry = elf_load(HELLO_ELF_PHYSICAL_ADDRESS);
-    kserial_printf("ELF entry point: 0x%lx\n", elf_entry);
-
     // Enable hardware interrupts.
     // From this point the CPU will respond to IRQs
     __asm__ volatile ("sti"); 
@@ -485,6 +482,26 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     if(fork_proc)
     {
         scheduler_add(fork_proc);
+    }
+
+    uint64_t elf_entry = elf_get_entry(HELLO_ELF_PHYSICAL_ADDRESS);
+    kserial_printf("ELF entry point: 0x%lx\n", elf_entry);
+
+    if(elf_entry)
+    {
+        process_t* hello = process_create("hello", (void(*)())1, 0);        
+        kserial_printf("hello page_dir virtual=0x%lx physical=0x%lx\n", (uint64_t)hello->page_dir, virtual_to_physical((uint64_t)hello->page_dir));
+
+        if(hello && elf_load(HELLO_ELF_PHYSICAL_ADDRESS, hello))
+        {
+            scheduler_add(hello);
+        }
+
+        // After elf_load, verify bytes at 0x400000
+uint64_t phys_400000 = get_physical_in(hello->page_dir, 0x400000);
+uint8_t* code = (uint8_t*)physical_to_virtual(phys_400000);
+kserial_printf("bytes at 0x400000: %x %x %x %x %x\n",
+    code[0], code[1], code[2], code[3], code[4]);
     }
 
     // Create and add the shell process

@@ -230,6 +230,19 @@ uint64_t get_physical(uint64_t vaddr)
     return ((uint64_t)entry->frame << 12) | PG_OFFSET(vaddr);
 }
 
+// --- get_physical_in -----------------------------------------------------
+// Walk a specific page directory to find physical address
+uint64_t get_physical_in(page_directory_t* pml4, uint64_t vaddr)
+{
+    page_entry_t* entry = get_pt_entry((page_directory_t*)pml4, vaddr, 0);
+    if(!entry || !entry->present)
+    {
+        return 0;
+    }
+
+    return ((uint64_t)entry->frame << 12) | PG_OFFSET(vaddr);
+}
+
 // --- paging_clone_directory ----------------------------------------------
 // Create a new address space sharing kernel mappings
 page_directory_t* paging_clone_directory()
@@ -378,6 +391,13 @@ void page_fault_handler(registers_t* regs)
 {
     uint64_t faulting_address;
     __asm__ volatile("mov %%cr2, %0" : "=r"(faulting_address));
+
+    uint64_t cr3;
+    __asm__ volatile(
+        "mov %%cr3, %0"
+        : "=r"(cr3)
+    );
+    kserial_printf("PAGE FAULT: CR3=0x%lx\n", cr3);
 
     int present = regs->err_code & 0x1;
     int write = (regs->err_code >> 1) & 0x1;

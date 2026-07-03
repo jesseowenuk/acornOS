@@ -34,6 +34,9 @@ void unmap_page(uint64_t virtual_addr);
 // Returns 0 if not mapped
 uint64_t get_physical(uint64_t virtual_addr);
 
+// Walk a specific page directory to find physical address
+uint64_t get_physical_in(page_directory_t* pml4, uint64_t vaddr);
+
 // Create a new address space with kernel mappings shared
 page_directory_t* paging_clone_directory();
 

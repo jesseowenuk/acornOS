@@ -1,6 +1,9 @@
 #ifndef KERNEL_ELF_H
 #define KERNEL_ELF_H
 
+#include <kernel/paging.h>
+#include <kernel/processes/process.h>
+
 #include <stdint.h>
 
 // TEMPORARY: hello.elf is loaded by stage 2 to this fixed physical address
@@ -60,9 +63,12 @@ typedef struct __attribute__((packed))
 
 // --- ELF loader interface --------------------------------------------
 
+// Get the elf entry point
+uint64_t elf_get_entry(uint64_t physical_address);
+
 // Load an ELF binary from disk
 // sector = starting disk sector of the ELF binary
 // Returns entry point address or 0 on failure
-uint64_t elf_load(uint64_t physical_address);
+uint64_t elf_load(uint64_t physical_address, process_t* process);
 
 #endif
