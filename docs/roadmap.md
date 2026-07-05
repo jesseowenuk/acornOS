@@ -267,7 +267,7 @@
 
 ---
 
-## Phase 9 — ELF Loader (⬜)
+## Phase 9 — ELF Loader (🔄)
 
 > Load real compiled programs from disk.
 
@@ -280,9 +280,9 @@
 - ⬜ exec() updated to load ELF files
 - ⬜ Shell can run ELF binaries
 - ✅ First compiled C program runs on acornOS!
-- ⬜ Switch syscalls from INT 0x80 to SYSCALL/SYSRET
-- ⬜ Update syscall argument convention (rbx→rdi, rcx→rsi)
-- ⬜ Update hello.c and all user programs
+- ✅ Switch syscalls from INT 0x80 to SYSCALL/SYSRET
+- ✅ Update syscall argument convention (rbx→rdi, rcx→rsi)
+- ✅ Update hello.c and all user programs
 
 ---
 
@@ -805,10 +805,5 @@ acornOS — built entirely from scratch
 ## Change Log
 
 ```
-June 2026   Initial roadmap
-            Phases 0-3 marked complete
-            Phase 4 (shadowFS) in progress
-            Phase 5 (64-bit migration) identified as next priority
-            Gaming OS vision formalised
-            Fun milestones added throughout
+5th July 2026
 ```

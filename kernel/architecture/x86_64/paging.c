@@ -332,8 +332,8 @@ page_directory_t* paging_deep_copy_directory(page_directory_t* src)
 
             // Allocate new PD
             page_table_t* dst_pd = alloc_table();
-            dst_pd->entries[pdpt_i] = *src_pdpt_e;
-            dst_pd->entries[pdpt_i].frame = table_to_physical(dst_pd) >> 12;
+            dst_pdpt->entries[pdpt_i] = *src_pdpt_e;
+            dst_pdpt->entries[pdpt_i].frame = table_to_physical(dst_pd) >> 12;
 
             page_table_t* src_pd = physical_to_table((uint64_t)src_pdpt_e->frame << 12);
 
@@ -354,8 +354,8 @@ page_directory_t* paging_deep_copy_directory(page_directory_t* src)
 
                 // Allocate new PT
                 page_table_t* dst_pt = alloc_table();
-                dst_pt->entries[pd_i] = *src_pd_e;
-                dst_pt->entries[pd_i].frame = table_to_physical(dst_pt) >> 12;
+                dst_pd->entries[pd_i] = *src_pd_e;
+                dst_pd->entries[pd_i].frame = table_to_physical(dst_pt) >> 12;
 
                 page_table_t* src_pt = physical_to_table((uint64_t)src_pd_e->frame << 12);
 
