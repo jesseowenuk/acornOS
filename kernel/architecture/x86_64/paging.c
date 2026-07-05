@@ -396,6 +396,84 @@ page_directory_t* paging_deep_copy_directory(page_directory_t* src)
     return (page_directory_t*)dst_pml4;
 }
 
+// --- paging_free_directory ------------------------------------
+// Frees a process's page directory: every user-space (lower half) page,
+// page table, PD and PDPT it owns, plus the PML4 itself. Never touches
+// the upper half (256-511) - those are the shared kernel mappings, cloned
+// by reference into every process, not owned by any single one of them.
+void paging_free_directory(page_directory_t* dir)
+{
+    if(!dir)
+    {
+        return;
+    }
+
+    page_table_t* pml4 = (page_table_t*)dir;
+
+    for(int pml4_i = 0; pml4_i < 256; pml4_i++)
+    {
+        page_entry_t* pml4_e = &pml4->entries[pml4_i];
+        if(!pml4_e->present)
+        {
+            continue;
+        }
+
+        page_table_t* pdpt = physical_to_table((uint64_t)pml4_e->frame << 12);
+
+        for(int pdpt_i = 0; pdpt_i < 512; pdpt_i++)
+        {
+            page_entry_t* pdpt_e = &pdpt->entries[pdpt_i];
+            if(!pdpt_e->present)
+            {
+                continue;
+            }
+
+            page_table_t* pd = physical_to_table((uint64_t)pdpt_e->frame << 12);
+
+            for(int pd_i = 0; pd_i < 512; pd_i++)
+            {
+                page_entry_t* pd_e = &pd->entries[pd_i];
+                if(!pd_e->present)
+                {
+                    continue;
+                }
+
+                if(pd_e->huge_page)
+                {
+                    // Shared 2MB mapping (e.g. direct map) - not owned by this directory
+                    continue;
+                }
+
+                page_table_t* pt = physical_to_table((uint64_t)pd_e->frame << 12);
+
+                for(int pt_i = 0; pt_i < 512; pt_i++)
+                {
+                    page_entry_t* pt_e = &pt->entries[pt_i];
+                    if(!pt_e->present)
+                    {
+                        continue;
+                    }
+
+                    // Free the actual page of data
+                    pmm_free((void*)((uint64_t)pt_e->frame << 12));
+                }
+
+                // Free the PT itself
+                pmm_free((void*)table_to_physical(pt));
+            }
+
+            // Free the PD itself
+            pmm_free((void*)table_to_physical(pd));
+        }
+
+        // Free the PDPT itself
+        pmm_free((void*)table_to_physical(pdpt));
+    }
+
+    // Free the PML4 itself
+    pmm_free((void*)table_to_physical(pml4));
+}
+
 // --- Page fault handler ----------------------------------------
 void page_fault_handler(registers_t* regs)
 {

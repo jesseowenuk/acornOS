@@ -277,7 +277,7 @@
 - ✅ Segment loader (LOAD segments)
 - ✅ BSS zeroing for ELF
 - ✅ Entry point extraction
-- ⬜ exec() updated to load ELF files
+- ✅ exec() updated to load ELF files
 - ⬜ Shell can run ELF binaries
 - ✅ First compiled C program runs on acornOS!
 - ✅ Switch syscalls from INT 0x80 to SYSCALL/SYSRET

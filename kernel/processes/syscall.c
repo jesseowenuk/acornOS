@@ -237,21 +237,21 @@ static void sys_wait(registers_t* regs)
 // --- sys_exec ------------------------------------------
 static void sys_exec(registers_t* regs)
 {
-    // EBX = entry point address
-    void (*entry)() = (void(*)())regs->rdi;
+    // RDI = pointer to a path string naming the ELF binary to run
+    const char* path = (const char*)regs->rdi;
 
-    kserial_printf("sys_exec: rbx=0x%lx entry=0x%lx\n", regs->rdi, (uint64_t)entry);
+    kserial_printf("sys_exec: path=0x%lx\n", regs->rdi);
 
-    if(!entry)
+    if(!path)
     {
-        kserial_printf("sys_exec: null entry point!\n");
+        kserial_printf("sys_exec: null path!\n");
         regs->rax = -1;
         return;
     }
 
-    // Replace current process
+    // Replace current process image with the ELF at 'path'
     // Never returns on success
-    process_exec(entry);
+    process_exec(path);
 
     // Only reached on failure
     regs->rax = -1;

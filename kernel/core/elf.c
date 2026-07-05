@@ -1,17 +1,17 @@
+#include <file_system/vfs.h>
 #include <kernel/core/elf.h>
 #include <kernel/core/kprintf.h>
 #include <kernel/core/panic.h>
+#include <kernel/memory/mem.h>
 #include <kernel/memory/pmm.h>
 #include <kernel/paging.h>
 
 extern void iret_to_usermode();
 
 // Get the elf entry point
-uint64_t elf_get_entry(uint64_t physical_address)
+uint64_t elf_get_entry(uint8_t* data)
 {
- // Access the ELF via the direct physical map
-    uint8_t* file = (uint8_t*)physical_to_virtual(physical_address);
-    elf64_header_t* header = (elf64_header_t*)file;
+    elf64_header_t* header = (elf64_header_t*)data;
 
     // Verify magic bytes: 0x7F 'E' 'L' 'F'
     if(header->e_ident[0] != 0x7F ||
@@ -51,10 +51,10 @@ uint64_t elf_get_entry(uint64_t physical_address)
 // Loads an ELF64 binary already present in physical memory
 // physical_address = physical address where the ELF file starts
 // Returns entry point virtual address, or 0 on failure
-uint64_t elf_load(uint64_t physical_address, process_t* process)
+uint64_t elf_load(uint8_t* data, process_t* process)
 {
     // Access the ELF via the direct physical map
-    uint8_t* file = (uint8_t*)physical_to_virtual(physical_address);
+    uint8_t* file = data;
     elf64_header_t* header = (elf64_header_t*)file;
 
     // Verify magic bytes: 0x7F 'E' 'L' 'F'
@@ -217,4 +217,52 @@ uint64_t elf_load(uint64_t physical_address, process_t* process)
     kserial_printf("elf_load: loaded OK entry=0x%lx stack=0x%lx\n", header->e_entry, process->cpu.rsp);
 
     return header->e_entry;
+}
+
+// --- elf_load_from_path -----------------------------------------------
+// Reads a whole ELF file from the VFS into a temorary heap buffer,
+// then hands it to elf_load. The buffer is only staging - elf_load()
+// copies segment data out of it into the process's own pages, so it's
+// safe to free once elf_load() returns.
+uint64_t elf_load_from_path(const char* path, process_t* process)
+{
+    int fd = vfs_open(path, O_RDONLY);
+    if(fd < 0)
+    {
+        kserial_printf("elf_load_from_path: could not open '%s'\n", path);
+        return 0;
+    }
+
+    file_t* file = vfs_get_file(fd);
+    if(!file || !file->inode || file->inode->size == 0)
+    {
+        kserial_printf("elf_load from path: '%s' has no size\n", path);
+        vfs_close(fd);
+        return 0;
+    }
+
+    uint32_t size = file->inode->size;
+    uint8_t* buffer = (uint8_t*)kmalloc(size);
+    if(!buffer)
+    {
+        kserial_printf("elf_load_from_path: out of memory reading '%s'\n", path);
+        vfs_close(fd);
+        return 0;
+    }
+
+    int bytes_read = vfs_read(fd, buffer, size);
+    vfs_close(fd);
+
+    if(bytes_read < 0 || (uint32_t)bytes_read != size)
+    {
+        kserial_printf("elf_load_from_path: short read '%s'\n", path);
+        kfree(buffer);
+        return 0;
+    }
+
+    uint64_t entry = elf_load(buffer, process);
+
+    kfree(buffer);
+
+    return entry;
 }

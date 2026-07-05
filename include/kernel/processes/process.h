@@ -116,9 +116,15 @@ pid_t process_fork();
 // Wait for a child process to exit - blocks until child is dead
 void process_wait(pid_t pid);
 
-// Replace current process image with a new program
-// entry = address of new program to run
-// Returns -1 on failure, never returns on success
-int process_exec(void (*entry)());
+// Replace current process image with the ELF binary at the given path
+// path = VFS path to an ELF64 executable
+// Returns -1 on failure (current process keeps running its old image)
+// Never returns on success - jumps straight into the new program
+int process_exec(const char* path);
+
+// Create a brand new process running the ELF binary at 'path' and add
+// it to the scheduler. Does not affect the calling process.
+// Returns the new process's PID, or -1 on failure
+pid_t process_spawn(const char* path); 
 
 #endif

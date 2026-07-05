@@ -53,4 +53,9 @@ uint64_t physical_to_virtual(uint64_t physical);
 
 uint64_t virtual_to_physical(uint64_t virtual);
 
+// Free every user-space (lower half) page, page table, PD and PDPT owned
+// by this directory, then the directory itself. Never touches the shared
+// upper-half kernel mappings. Used when a process exits or exec()'s.
+void paging_free_directory(page_directory_t* dir);
+
 #endif

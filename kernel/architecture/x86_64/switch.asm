@@ -1,6 +1,7 @@
 [BITS 64]
 
 global switch_context           ; Make this function visible to C code
+extern enter_ring3
 
 ; switch_context(process_t* old, process_t* new)
 ; Arguments are on the stack per C calling convention:
@@ -105,19 +106,6 @@ switch_context:
     ret
 
 .ring3_restore:
-    ; --- Ring 3 restore - use iretq ------------------------------------
-    ; Load data segments with user segment
-    mov ax, 0x23
-    mov ds, ax
-    mov es, ax
-
-    mov rsp, [rsi+104]              ; Load cpu.rsp (points to iretq frame)
-
-    ; Restore general purpose registers
-    mov rbx, [rsi+56]
-    mov rcx, [rsi+64]
-    mov rdx, [rsi+72]
-    mov rbp, [rsi+96]
-    mov rsi, [rsi+80]
-
-    iretq
+    ; --- Ring 3 restore - shared with process_exec via enter_ring3 -----------
+    mov rdi, rsi                        ; enter_ring3 takes the process pointer in RDI
+    jmp enter_ring3

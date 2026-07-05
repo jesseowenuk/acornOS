@@ -452,7 +452,8 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     idle->ticks_remaining = 1;
     scheduler_add(idle);
 
-    uint64_t elf_entry = elf_get_entry(HELLO_ELF_PHYSICAL_ADDRESS);
+    uint8_t* hello_elf_data = (uint8_t*)physical_to_virtual(HELLO_ELF_PHYSICAL_ADDRESS);
+    uint64_t elf_entry = elf_get_entry(hello_elf_data);
     kserial_printf("ELF entry point: 0x%lx\n", elf_entry);
 
     if(elf_entry)
@@ -461,7 +462,7 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
         process_t* hello = process_create("hello", dummy, 0);        
         kserial_printf("hello page_dir virtual=0x%lx physical=0x%lx\n", (uint64_t)hello->page_dir, virtual_to_physical((uint64_t)hello->page_dir));
 
-        if(hello && elf_load(HELLO_ELF_PHYSICAL_ADDRESS, hello))
+        if(hello && elf_load(hello_elf_data, hello))
         {
             scheduler_add(hello);
         }

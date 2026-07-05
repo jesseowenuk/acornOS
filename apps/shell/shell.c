@@ -342,6 +342,36 @@ static void cmd_rm(const char* path)
     }
 }
 
+static void cmd_run(const char* path)
+{
+    if(*path == ' ')
+    {
+        path++;
+    }
+
+    if(*path == 0)
+    {
+        vga_set_colour(LIGHT_RED, BLACK);
+        kprintf("Usage: run <path>\n");
+        vga_set_colour(WHITE, BLACK);
+        return;
+    }
+
+    pid_t pid = process_spawn(path);
+    if(pid == (pid_t)-1)
+    {
+        vga_set_colour(RED, BLACK);
+        kprintf("run: failed to start %s\n", path);
+        vga_set_colour(WHITE, BLACK);
+        return;
+    }
+
+    kprintf("\n");
+
+    // Foreground - block until the program exits before showing the prompt again
+    process_wait(pid);
+}
+
 // -- Command dispatch ----------------------------------------------------
 
 static command_t commands[] =
@@ -357,6 +387,7 @@ static command_t commands[] =
     {"cat", cmd_cat},
     {"mkdir", cmd_mkdir},
     {"rm", cmd_rm},
+    {"run", cmd_run},
     {0, 0}                   // Sentinel
 };
 

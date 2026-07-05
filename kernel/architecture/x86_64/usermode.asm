@@ -2,6 +2,7 @@
 
 global enter_usermode                   ; Make visible to C code
 global iret_to_usermode
+global enter_ring3
 
 ; enter_usermode(uint64_t entry, uint64_t stack)
 ; Arguments (C calling convention):
@@ -65,4 +66,26 @@ iret_to_usermode:
 
     ; Pop EIP, CS, EFLAGS, ESP, SS
     ; CPU sees CS RPL=3 and switches to ring 3
+    iretq
+
+; enter_ring3(process_t* proc) - never returns
+; RDI = pointer to a process_t whose cpu.rsp already points at a fully
+; built 5-field iretq frame (RIP, CS, RFLAGS, RSP, SS), as built by
+; elf_load(). Restores general registers from proc->cpu and iret's in.
+; This is the same restore sequence switch_context's ring 3 path uses
+; factored out here so process_exec can resuse it too.
+enter_ring3:
+    mov ax, 0x23                    ; User data segment
+    mov ds, ax
+    mov es, ax
+
+    mov rsp, [rdi+104]              ; cpu.rsp -> top of iret frame
+    mov rbx, [rdi+56]
+    mov rcx, [rdi+64]
+    mov rdx, [rdi+72]
+    mov rsi, [rdi+80]
+    mov rbp, [rdi+96]
+    mov rax, [rdi+48]
+    mov rdi, [rdi+88]               ; cpu.rdi resored LAST - clobbers our pointer
+
     iretq

@@ -2,6 +2,7 @@
 #include <architecture/x86_64/usermode.h>
 #include <drivers/serial.h>
 #include <drivers/vga.h>
+#include <kernel/core/elf.h>
 #include <kernel/core/kprintf.h>
 #include <kernel/core/panic.h>
 #include <kernel/core/string.h>
@@ -92,7 +93,10 @@ process_t* process_create(const char* name, void(*entry)(), uint64_t flags)
 
     // Step 3: zero out the PCB - clean slate
     kmemset(proc, 0, sizeof(process_t));
-    proc->parent_pid = 0;                       // Kernel processes have no parent
+
+    // Boot-time processes (idle/hello/shell) have no parent - current_process
+    // is NULL then. Anything created by a running process becomes it's child
+    proc->parent_pid = current_process ? current_process->pid : 0;  
 
     // Step 4: fill in the PCB fields
     proc->pid = next_pid++;                     // Assign next available PID
@@ -256,6 +260,83 @@ void process_wake(process_t* proc)
 
     // Mark as ready to run. Scheduler will pick it up on the next tick
     proc->state = PROCESS_READY;
+}
+
+// --- process_wait --------------------------------------------------
+// Blocks the calling process until the specific child (by PID) exits,
+// then frees its address space/kernel/stack and reaps its PCB.
+// sys_exit() wakes us via process_wake() when any child of ours dies
+// we just recheck whether it was the one we're actually waiting for.
+void process_wait(pid_t pid)
+{
+    if(!current_process)
+    {
+        return;
+    }
+
+    while(1)
+    {
+        for(int i = 0; i < MAX_PROCESSES; i++)
+        {
+            process_t* child = process_table[i];
+
+            if(child && child->pid == pid && child->state == PROCESS_DEAD)
+            {
+                paging_free_directory(child->page_dir);
+                pmm_free((void*)virtual_to_physical(child->stack));
+                process_table[i] = 0;
+                kfree(child);
+                return;
+            }
+        }
+
+        // Not dead yet - block until sys_exit wakes us, then check again
+        process_block(current_process);
+        scheduler_yield();
+    }
+}
+
+// --- process_spawn -------------------------------------------------
+// Creates a brand new process and loads the ELF binary at 'path' into
+// it, then adds it to the scheduler. Unlike exec(), this doesn't touch
+// the calling process - used by the shell to run a program as a child
+// while the shell keeps running.
+// Return the new process's PID, or -1 on failure.
+pid_t process_spawn(const char* path)
+{
+    if(!path)
+    {
+        return -1;
+    }
+
+    void (*dummy)() = (void(*)())0x400000UL;
+    process_t* proc = process_create(path, dummy, 0);
+    if(!proc)
+    {
+        return -1;
+    }
+
+    if(!elf_load_from_path(path, proc))
+    {
+        // Loading failed - tear down the half-built process
+        paging_free_directory(proc->page_dir);
+        pmm_free((void*)virtual_to_physical(proc->stack));
+
+        for(int i = 0; i < MAX_PROCESSES; i++)
+        {
+            if(process_table[i] == proc)
+            {
+                process_table[i] = 0;
+                break;
+            }
+        }
+
+        kfree(proc);
+        return -1;
+    }
+
+    scheduler_add(proc);
+    return proc->pid;
 }
 
 // --- process_user_create_process -----------------------------------
@@ -518,12 +599,18 @@ pid_t process_fork()
 }
 
 // --- process_exec -----------------------------------------
+// Replaces the current process's image with the ELF binary ayt 'path'
+// Builds the new address space and kernel stack alongside the old ones
+// (which keep running untouched) so a failed load leaves the calling
+// process exactly as it was. Only on success do we commit: switch CR3,
+// free the old image, and jump into the new one via enter_ring3() - the
+// same ring3 entry mechanism a freshly created process uses.
 
-int process_exec(void (*entry)())
+int process_exec(const char* path)
 {
-    if(!entry)
+    if(!path)
     {
-        kpanic("exec: null entry point!");
+        kpanic("exec: null path!");
         return -1;
     }
 
@@ -533,107 +620,67 @@ int process_exec(void (*entry)())
         return -1;
     }
 
-    kserial_printf("exec: PID=%d replacing with entry=0x%x\n", current_process->pid, (uint64_t)entry);
+    kserial_printf("exec: PID=%d replacing with '%s'\n", current_process->pid, path);
 
-    // Step 1: allocate user stack first
-    uint64_t new_stack = (uint64_t)pmm_alloc();
+    // Remember the old image so we can free it on success, or fall back
+    // to it if the new one fails to load
+    page_directory_t* old_page_dir = current_process->page_dir;
+    uint64_t old_stack = current_process->stack;
+    uint64_t old_stack_top = current_process->stack_top;
 
-    // Step 2: Allocate a fresh kernel stack
+    // Allocate a fresh kernel stack for the new image
     uint64_t new_kstack_physical = (uint64_t)pmm_alloc();
     uint64_t new_kstack = physical_to_virtual(new_kstack_physical);
     uint64_t new_kstack_top = new_kstack + PAGE_SIZE - 8;
 
-    // Step 3: allocate a new page directory
-    // We need a fresh address space for the new program
-    // Clone kernel mappings
-    // User space starts empty
+    // Allocate a fresh address space - kernel mappings shared, user space empty
     page_directory_t* new_dir = paging_clone_directory();
 
     if(!new_dir)
     {
         kpanic("exec: failed to allocate page directory!");
+        pmm_free((void*)new_kstack_physical);
         return -1;
     }
 
+    // Point the process at the new resources so elf_load builds the
+    // segments, user stack and iret frame in the new address space
+    current_process->stack = new_kstack;
+    current_process->stack_top = new_kstack_top;
+    current_process->page_dir = new_dir;
 
-    // Step 4: map user stack into new page directory
-    uint64_t user_stack_virt = 0xBFFFF000;
-    map_page_in(
-        new_dir,
-        user_stack_virt,
-        new_stack,
-        PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER
-    );
+    uint64_t entry = elf_load_from_path(path, current_process);
 
-    // Step 5: kernel mode or user mode?
-    if(current_process->cpu.cs == 0x08)
+    if(!entry)
     {
-        // --- Kernel Mode -------------------------------------
-        // Just redirect RIP - no iret frame needed
-        current_process->stack = new_kstack;
-        current_process->stack_top = new_kstack_top;
-        current_process->page_dir = new_dir;
+        kserial_printf("exec: failed to load '%s'\n", path);
 
-        current_process->cpu.rip = (uint64_t)entry;
-        current_process->cpu.rsp = new_kstack_top;
-        current_process->cpu.rbp = new_kstack_top;
-        current_process->cpu.rflags = 0x200;
-        current_process->cpu.rax = 0;
+        // Roll back - the old image is untouched, just discard the new one
+        current_process->stack = old_stack;
+        current_process->stack_top = old_stack_top;
+        current_process->page_dir = old_page_dir;
 
-        kserial_printf("exec: kernel mode redirect to 0x%lx\n", (uint64_t)entry);
+        paging_free_directory(new_dir);
+        pmm_free((void*)new_kstack_physical);
 
-        // Switch directly to new entry point - never return!
-        __asm__ volatile(
-            "mov %0, %%rsp\n\t"         // Switch to new kernel stack
-            "jmp *%1\n\t"               // Jump to new entry point
-            :
-            : "r"(new_kstack_top), "r"((uint64_t)entry)
-            : "memory"
-        );
+        return -1;
     }
-    else
-    {
-        // --- User Mode --------------------------------------------
-        // Set up iret frame to transition to ring 3 
-        uint64_t* kstack = (uint64_t*)new_kstack_top;
-        *kstack-- = 0x23;                                   // SS - user stack segment
-        *kstack-- = user_stack_virt + PAGE_SIZE - 8;        // ESP - top of the user stack
-        *kstack-- = 0x200;                                  // EFLAGS - interrupts enabled
-        *kstack-- = 0x2B;                                   // CS - user code segment
-        *kstack-- = (uint64_t)entry;                        // EIP - new entry point
-        *kstack-- = 0;                                      // EAX - return value
 
-        // Step 6: update process fields
-        current_process->stack = new_kstack;
-        current_process->stack_top = new_kstack_top;
-        current_process->page_dir = new_dir;
+    // Success - commit to the new image
+    tss_set_kernel_stack(current_process->stack_top);
+    paging_switch_directory(current_process->page_dir);
 
-        // Step 7: Update TSS with new kernel stack
-        tss_set_kernel_stack(new_kstack_top);
+    // Free the old image now that we've switched away from it
+    // Note: 'path' pointed into the OLD image's user space - it's no
+    // longer valid to dereference once we've freed old_page_dir, so
+    // don't reference it again below this point.
+    paging_free_directory(old_page_dir);
+    pmm_free((void*)virtual_to_physical(old_stack));
 
-        // Step 8: update CPU state to use new stack and entry point
-        uint64_t new_rsp = (uint64_t)(kstack + 1);
-        current_process->cpu.rsp = new_rsp;
-        current_process->cpu.rip = (uint64_t)iret_to_usermode;
-        current_process->cpu.rflags = 0x200;
-        current_process->cpu.cs = 0x08;
-        current_process->cpu.ds = 0x10;
-        current_process->cpu.ss = 0x10;
-        current_process->cpu.rax = 0;
+    kserial_printf("exec: PID=%d now running, entry=0x%lx\n", current_process->pid, entry);
 
-        kserial_printf("exec: user mode iret to 0x%lx\n", (uint64_t)entry);
-
-        // Step 9: Switch to new directory and jump
-        paging_switch_directory(new_dir);
-
-        __asm__ volatile(
-            "mov %0, %%rsp\n\t"             // Switch to new kernel stack (%0 = first input operand (2nd : below))
-            "jmp iret_to_usermode\n\t"      // Jump to user mode entry
-            :
-            : "r"(new_rsp)
-            : "memory"
-        );
-    }
+    // Never returns - enters ring 3 using the frame elf_load() just built
+    enter_ring3(current_process);
 
     // Never reached
     return -1;

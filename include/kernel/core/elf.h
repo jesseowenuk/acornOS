@@ -64,11 +64,18 @@ typedef struct __attribute__((packed))
 // --- ELF loader interface --------------------------------------------
 
 // Get the elf entry point
-uint64_t elf_get_entry(uint64_t physical_address);
+// data = kernel virtual pointer to the start of the ELF image in memory
+uint64_t elf_get_entry(uint8_t* data);
 
-// Load an ELF binary from disk
-// sector = starting disk sector of the ELF binary
+// Load an ELF64 image already resident in memory into a process's
+// address space. data = kernel virtual pointer to the start of the
+// ELF image (already-mapped physical memory, or a heap buffer).
 // Returns entry point address or 0 on failure
-uint64_t elf_load(uint64_t physical_address, process_t* process);
+uint64_t elf_load(uint8_t* data, process_t* process);
+
+// Load an ELF64 from a VFS path into a process's address space.
+// Reads the whole file into a temporary heap buffer, then calls elf_load().
+// Returns entry point address or 0 on failure (file missing, bad ELF, OOM)
+uint64_t elf_load_from_path(const char* path, process_t* process);
 
 #endif
