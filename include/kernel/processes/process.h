@@ -8,6 +8,8 @@
 // Size of the user space stack - 16KB
 #define USER_STACK_SIZE 16384
 
+#define PROCESS_USER 1
+
 // --- Process states -------------------------------------------
 typedef enum
 {

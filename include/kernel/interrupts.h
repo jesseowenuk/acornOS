@@ -42,4 +42,8 @@ void interrupts_disable();
 void isr_handler(registers_t* regs);
 void irq_handler(registers_t* regs);
 
+void syscall_set_kernel_stack(uint64_t stack);
+
+void syscall_msr_init();
+
 #endif

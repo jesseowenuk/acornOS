@@ -20,7 +20,7 @@ static void sys_exit(registers_t* regs)
         kpanic("sys_exit: no current process!");
     }
 
-    int exit_code = (int)regs->rbx;         // Get exit code from EBX
+    int exit_code = (int)regs->rdi;         // Get exit code from RDI
 
     kserial_printf("Syscall: exit(%d) PID=%d\n", exit_code, current_process->pid);
 
@@ -58,10 +58,10 @@ static void sys_exit(registers_t* regs)
 static void sys_write(registers_t* regs)
 {
     // EBX = pointer to the string
-    const char* str = (const char*)regs->rbx;
+    const char* str = (const char*)regs->rdi;
 
     // ECX = string length
-    uint32_t len = regs->rcx;
+    uint32_t len = regs->rsi;
 
     kserial_printf("sys_write: str=0x%x len=%d\n", (uint64_t)str, len);
 
@@ -238,9 +238,9 @@ static void sys_wait(registers_t* regs)
 static void sys_exec(registers_t* regs)
 {
     // EBX = entry point address
-    void (*entry)() = (void(*)())regs->rbx;
+    void (*entry)() = (void(*)())regs->rdi;
 
-    kserial_printf("sys_exec: rbx=0x%lx entry=0x%lx\n", regs->rbx, (uint64_t)entry);
+    kserial_printf("sys_exec: rbx=0x%lx entry=0x%lx\n", regs->rdi, (uint64_t)entry);
 
     if(!entry)
     {
@@ -260,8 +260,8 @@ static void sys_exec(registers_t* regs)
 // --- sys_open ------------------------------------------
 static void sys_open(registers_t* regs)
 {
-    const char* path = (const char*)regs->rbx;
-    uint32_t flags = (uint32_t)regs->rcx;
+    const char* path = (const char*)regs->rdi;
+    uint32_t flags = (uint32_t)regs->rsi;
 
     if(!path)
     {
@@ -276,15 +276,15 @@ static void sys_open(registers_t* regs)
 // --- sys_close -----------------------------------------
 static void sys_close(registers_t* regs)
 {
-    int file_descriptor = (int)regs->rbx;
+    int file_descriptor = (int)regs->rdi;
     regs->rax = vfs_close(file_descriptor);
 }
 
 // --- sys_seek ------------------------------------------
 static void sys_seek(registers_t* regs)
 {
-    int file_descriptor = (int)regs->rbx;
-    uint32_t offset = (uint32_t)regs->rcx;
+    int file_descriptor = (int)regs->rdi;
+    uint32_t offset = (uint32_t)regs->rsi;
     int whence = (int)regs->rdx;
     regs->rax = vfs_seek(file_descriptor, offset, whence);
 }
@@ -292,7 +292,7 @@ static void sys_seek(registers_t* regs)
 // --- sys_mkdir -----------------------------------------
 static void sys_mkdir(registers_t* regs)
 {
-    const char* path = (const char*)regs->rbx;
+    const char* path = (const char*)regs->rdi;
     if(!path)
     {
         regs->rax = -1;
@@ -304,8 +304,8 @@ static void sys_mkdir(registers_t* regs)
 // --- sys_readdir ---------------------------------------
 static void sys_readdir(registers_t* regs)
 {
-    int file_desciptor = (int)regs->rbx;
-    dentry_t* dentry = (dentry_t*)regs->rcx;
+    int file_desciptor = (int)regs->rdi;
+    dentry_t* dentry = (dentry_t*)regs->rsi;
     if(!dentry)
     {
         regs->rax = -1;
@@ -318,7 +318,7 @@ static void sys_readdir(registers_t* regs)
 // --- sys_delete ----------------------------------------
 static void sys_delete(registers_t* regs)
 {
-    const char* path = (const char*)regs->rbx;
+    const char* path = (const char*)regs->rdi;
     if(!path)
     {
         regs->rax = -1;

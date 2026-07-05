@@ -213,7 +213,6 @@ void scheduler_start()
     // We do this in assemnbly to have full control
     __asm__ volatile (
         "mov %0, %%rsp\n"           // Switch to the process's stack
-        "sti\n"                     // Enable interrupts
         "ret\n"                     // Return to the process entry point
                                     // (EIP was pushed onto the process stack
                                     // during process_create)

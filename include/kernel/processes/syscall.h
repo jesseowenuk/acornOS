@@ -13,17 +13,18 @@
 #define SYS_WAIT    6               // Wait for child to exit
 #define SYS_EXEC    7               // Replace process image
 #define SYS_OPEN    8
-#define SYS_SEEK    9
-#define SYS_MKDIR   10
-#define SYS_READDIR 11
-#define SYS_DELETE  12
+#define SYS_CLOSE   9
+#define SYS_SEEK    10
+#define SYS_MKDIR   11
+#define SYS_READDIR 12
+#define SYS_DELETE  13
 
 // --- Syscall handler ---------------------------------------------
-// Called from isr_handler when INT 0x80 fires
-// regs->rax    = syscall number
-// regs->rbx    = first argument
-// regs->rcx    = second argument
-// regs->rdx    = third argument
+// Called from syscall_entry when the SYSCALL instruction fires
+// regs->rax = syscall number
+// regs->rdi = first argument
+// regs->rsi = second argument
+// regs->rdx = third argument
 // return value goes into regs->rax
 void syscall_handler(registers_t* regs);
 

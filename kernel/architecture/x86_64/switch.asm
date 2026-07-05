@@ -86,35 +86,38 @@ switch_context:
     ; --- Restore new process state ---------------------------------
     ; RSI = new process pointer
 
-    ; Restore segment registers first
-    mov cx, word [rsi+136]          ; Load new DS value
-    mov ds, cx                      ; Restore DS
-    mov cx, word [rsi+144]          ; Load new SS value
-    mov ss, cx                      ; Restore SS
-                                    ; CS will be restored by the far return
+    ; Check if new process is ring 3 (CS RPL bits non-zero)
+    mov rax, [rsi+128]              ; Load new->cpu.cs
+    and rax, 3                      ; Check RPL bits
+    jnz .ring3_restore              ; Non-zero = ring 3
 
-    ; Restore RSP - switch to the new process's stack
-    mov rsp, [rsi+104]              ; Load new->cpu.rsp
-                                    ; From this point we're on the new stack!
+    ; --- Ring 0 restore ------------------------------------------
+    mov rsp, [rsi+104]              ; Switch to new process stack
+
+    mov rbx, [rsi+56]
+    mov rcx, [rsi+64]
+    mov rdx, [rsi+72]
+    mov rbp, [rsi+96]
+
+    push qword [rsi+112]            ; Push RIP
+    mov rax, [rsi+48]
+    mov rsi, [rsi+80]
+    ret
+
+.ring3_restore:
+    ; --- Ring 3 restore - use iretq ------------------------------------
+    ; Load data segments with user segment
+    mov ax, 0x23
+    mov ds, ax
+    mov es, ax
+
+    mov rsp, [rsi+104]              ; Load cpu.rsp (points to iretq frame)
 
     ; Restore general purpose registers
-    mov rbx, [rsi+56]               ; Restore RBX
-    mov rcx, [rsi+64]               ; Restore RCX
-    mov rdx, [rsi+72]               ; Restore RDX
-    mov rbp, [rsi+96]               ; Restore RBP
+    mov rbx, [rsi+56]
+    mov rcx, [rsi+64]
+    mov rdx, [rsi+72]
+    mov rbp, [rsi+96]
+    mov rsi, [rsi+80]
 
-    ; Note RSI restored last since we need it for indexing
-
-    ; Restore RFLAGS
-    push qword [rsi+120]            ; Push new->cpu.rflags
-    popfq                           ; Pop into RFLAGS register
-
-    ; Restore RIP by pushing return address and doing ret
-    push qword [rsi+112]             ; Push new->cpu.rip
-
-    ; Restore RAX and RSI last
-    mov rax, [rsi+48]               ; Restore RAX
-    mov rsi, [rsi+80]               ; Restore RSI - after this we lose PCB pointer
-
-    ret                             ; Pop RIP from stack and jump there
-                                    ; This resumes the new process
+    iretq

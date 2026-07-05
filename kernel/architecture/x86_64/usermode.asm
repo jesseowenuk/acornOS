@@ -34,8 +34,8 @@ enter_usermode:
     push 0x200                      ; EFLAGS - IF flag set (interrupts enabled)
                                     ; 0x200 = 0000 0010 0000 0000
                                     ; bit 9 = Interrupt Flag = 1
-    push 0x1B                       ; CS - user code segment (RPL = 3)
-                                    ; 0x1B = 0x18 | 3 (GDT entry 3 + RPL = 3)
+    push 0x2B                       ; CS - user code segment (RPL = 3)
+                                    ; 0x2B = 0x28 | 5 (GDT entry 5 + RPL = 3)
     push rdi                        ; RIP - entry point address
 
     iretq                           ; Pop all 5 values and jump to ring 3!

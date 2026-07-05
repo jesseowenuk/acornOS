@@ -35,12 +35,12 @@ void tss_init()
     );
 
     // Load the TSS selector into the TR (task Register)
-    // 0x28 = GDT entry 5 offset (5 * 8 = 40 = 0x28)
+    // 0x30 = GDT entry 6 offset (6 * 8 = 40 = 0x30)
     // The CPU reads TR to find the TSS on every ring transition
     __asm__ volatile(
         "ltr %%ax"                      // Load Task Register with TSS selector
         :                               // No output
-        : "a"(0x28)                     // Input: TSS selector = 0x28
+        : "a"(0x30)                     // Input: TSS selector = 0x28
     );
 
     kserial_printf("TSS: initialised at 0x%x\n", (uint64_t)&tss);

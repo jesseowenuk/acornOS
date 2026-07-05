@@ -46,6 +46,7 @@ static void shell_process()
 // This saves power and reduces heat vs spinning in a loop
 static void idle_process()
 {
+    __asm__ volatile("sti");            // Enable interrupts
     while(1)
     {
         // Sleep until next interrupt
@@ -74,45 +75,11 @@ static uint64_t syscall(uint64_t num, uint64_t arg1, uint64_t arg2)
     return rax;
 }
 
-static uint64_t sys_fork_call()
-{
-    register uint64_t rax __asm__("rax") = 5;
-
-    __asm__ volatile(
-        "int $0x80\n\t"
-        : "+r"(rax)
-        :
-        :
-    );
-
-    return rax;
-}
-
 // The program that exec() will load
 static void child_process()
 {
     kserial_printf("Child process running! PID=%d\n", current_process->pid);
     syscall(0, 0, 0);                   // SYS_EXIT
-    for(;;);
-}
-
-static void fork_test()
-{
-    kserial_printf("fork test: starting, PID=%d\n", current_process->pid);
-
-    uint64_t pid = sys_fork_call();
-    kserial_printf("fork_test: fork returned pid=%lu PID=%d\n", pid, current_process->pid);
-
-    if(pid == 0)
-    {
-        kserial_printf("fork_test: I am the child!\n");
-    }
-    else
-    {
-        kserial_printf("fork_test: I am the parent, child pid=%lu\n", pid);
-    }
-
-    syscall(0, 0, 0);           // SYS_EXIT
     for(;;);
 }
 
@@ -164,6 +131,13 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     kprintf(" [DONE]\n");
 
     vga_set_colour(WHITE, BLACK);
+    kprintf("Initialising SYSCALL/SYSRET...");
+    syscall_msr_init();
+    kserial_printf("SYSCALL/SYSRET initialised.\n");
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf(" [DONE]\n");
+
+    vga_set_colour(WHITE, BLACK);
     kprintf("Initialising PIC...");
     pic_init();                                 // Remap hardware interrupts
     kserial_printf("PIC initialised.\n");
@@ -197,6 +171,11 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     kserial_printf("PMM initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf(" [DONE]\n");
+
+    // Set kernel stack for SYSCALL entries
+    // Use a dedicated kernel stack page
+    uint64_t syscall_stack = (uint64_t)pmm_alloc() + 0xFFFF800000000000UL + PAGE_SIZE - 8;
+    syscall_set_kernel_stack(syscall_stack);
 
     vga_set_colour(WHITE, BLACK);
     kprintf("Initialising paging...");
@@ -459,10 +438,6 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
         vfs_close(proc_fd);
     }
 
-    // Enable hardware interrupts.
-    // From this point the CPU will respond to IRQs
-    __asm__ volatile ("sti"); 
-
     // Create and add the idle process first
     // PID 0 is always the idle process by convention
     // Idle runs when nothing else wants to
@@ -477,31 +452,19 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     idle->ticks_remaining = 1;
     scheduler_add(idle);
 
-    // Test fork independently
-    process_t* fork_proc = process_create("fork_test", fork_test, 0);
-    if(fork_proc)
-    {
-        scheduler_add(fork_proc);
-    }
-
     uint64_t elf_entry = elf_get_entry(HELLO_ELF_PHYSICAL_ADDRESS);
     kserial_printf("ELF entry point: 0x%lx\n", elf_entry);
 
     if(elf_entry)
     {
-        process_t* hello = process_create("hello", (void(*)())1, 0);        
+        void (*dummy)() = (void(*)())0x400000UL;
+        process_t* hello = process_create("hello", dummy, 0);        
         kserial_printf("hello page_dir virtual=0x%lx physical=0x%lx\n", (uint64_t)hello->page_dir, virtual_to_physical((uint64_t)hello->page_dir));
 
         if(hello && elf_load(HELLO_ELF_PHYSICAL_ADDRESS, hello))
         {
             scheduler_add(hello);
         }
-
-        // After elf_load, verify bytes at 0x400000
-uint64_t phys_400000 = get_physical_in(hello->page_dir, 0x400000);
-uint8_t* code = (uint8_t*)physical_to_virtual(phys_400000);
-kserial_printf("bytes at 0x400000: %x %x %x %x %x\n",
-    code[0], code[1], code[2], code[3], code[4]);
     }
 
     // Create and add the shell process

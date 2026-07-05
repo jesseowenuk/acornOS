@@ -82,6 +82,7 @@ static page_entry_t* get_pt_entry(page_directory_t* pml4, uint64_t vaddr, int cr
         pml4_entry->frame = table_to_physical(pdpt) >> 12;
         pml4_entry->present = 1;
         pml4_entry->writable = 1;
+        pml4_entry->user = 1;
     }
 
     // Level 2: PDPT
@@ -102,6 +103,7 @@ static page_entry_t* get_pt_entry(page_directory_t* pml4, uint64_t vaddr, int cr
         pdpt_entry->frame = table_to_physical(pd) >> 12;
         pdpt_entry->present = 1;
         pdpt_entry->writable = 1;
+        pdpt_entry->user = 1;
     }
 
     // Level 3: PD
@@ -122,6 +124,7 @@ static page_entry_t* get_pt_entry(page_directory_t* pml4, uint64_t vaddr, int cr
         pd_entry->frame = table_to_physical(pt) >> 12;
         pd_entry->present = 1;
         pd_entry->writable = 1;
+        pd_entry->user = 1;
     }
 
     // Level 4: PT
@@ -135,6 +138,10 @@ static page_entry_t* get_pt_entry(page_directory_t* pml4, uint64_t vaddr, int cr
 // Called after kernel boots - find Stage 2 page tables via CR3
 void paging_init()
 {
+    uint64_t efer;
+    __asm__ volatile("rdmsr" : "=A"(efer) : "c"(0xC0000080UL));
+    kserial_printf("paging: EFER=0x%lx NXE=%d\n", efer, (int)((efer >> 11) & 1));
+
     // Read CR3 to find the PML4 Stage 2 set up
     uint64_t cr3;
     __asm__ volatile("mov %%cr3, %0" : "=r"(cr3));
@@ -151,8 +158,8 @@ void paging_init()
 // Map a single 4KB virtual page to a physical page
 void map_page(uint64_t vaddr, uint64_t paddr, uint64_t flags)
 {
-    vaddr &= ~0xFFUL;       // Align to 4KB
-    paddr &= ~0xFFUL;
+    vaddr &= ~0xFFFUL;       // Align to 4KB
+    paddr &= ~0xFFFUL;
 
     page_entry_t* entry = get_pt_entry(kernel_pml4, vaddr, 1);
 
@@ -180,8 +187,8 @@ void map_page_in(page_directory_t* pml4, uint64_t vaddr, uint64_t paddr, uint64_
         kpanic("map_page_in: null PML4!");
     }
 
-    vaddr &= ~0xFFUL;       // Align to 4KB
-    paddr &= ~0xFFUL;
+    vaddr &= ~0xFFFUL;       // Align to 4KB
+    paddr &= ~0xFFFUL;
 
     page_entry_t* entry = get_pt_entry(pml4, vaddr, 1);
 
@@ -287,8 +294,11 @@ page_directory_t* paging_deep_copy_directory(page_directory_t* src)
         kpanic("paging_deep_copy: null source!");
     }
 
+    kserial_printf("paging_deep_copy: starting\n");
+
     // Allocate new PML4
     page_table_t* dst_pml4 = alloc_table();
+    kserial_printf("paging_deep_copy: allocated dst_pml4\n");
 
     // Copy kernel mappings (shared, upper half)
     for(int i = 256; i < 512; i++)

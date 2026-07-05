@@ -271,15 +271,15 @@
 
 > Load real compiled programs from disk.
 
-- ⬜ ELF64 format understanding
-- ⬜ ELF header parser
-- ⬜ Program header parser
-- ⬜ Segment loader (LOAD segments)
-- ⬜ BSS zeroing for ELF
-- ⬜ Entry point extraction
+- ✅ ELF64 format understanding
+- ✅ ELF header parser
+- ✅ Program header parser
+- ✅ Segment loader (LOAD segments)
+- ✅ BSS zeroing for ELF
+- ✅ Entry point extraction
 - ⬜ exec() updated to load ELF files
 - ⬜ Shell can run ELF binaries
-- ⬜ First compiled C program runs on acornOS!
+- ✅ First compiled C program runs on acornOS!
 - ⬜ Switch syscalls from INT 0x80 to SYSCALL/SYSRET
 - ⬜ Update syscall argument convention (rbx→rdi, rcx→rsi)
 - ⬜ Update hello.c and all user programs

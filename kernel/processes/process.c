@@ -55,8 +55,6 @@ void process_init()
 
 process_t* process_create(const char* name, void(*entry)(), uint64_t flags)
 {
-    (void)flags;                    // Not used yet - will be for ring 3
-
     // Guard against null entry point
     if(!entry)
     {
@@ -123,25 +121,34 @@ process_t* process_create(const char* name, void(*entry)(), uint64_t flags)
     kmemset(&proc->cpu, 0, sizeof(cpu_state_t));
     kserial_printf("process_create: cpu zeroed\n");
 
-    proc->cpu.rip = (uint64_t)entry;            // Start executing at entry function
-    proc->cpu.rsp = proc->stack_top;            // Stack starts at top and grows down
-    proc->cpu.rbp = proc->stack_top;            // Base pointer same as stack top
-    proc->cpu.rflags = 0x200;                   // Enable interrupts (IF flag = bit 9)
-                                                // 0x200 = 0000 0010 0000 0000
-                                                // bit 9 set = interrupts enabled
-    proc->cpu.cs = 0x08;                        // Kernel code segment selector
-    proc->cpu.ds = 0x10;                        // Kernel data segment selector
-    proc->cpu.ss = 0x10;                        // Kernel stack segment selector
+    if(flags & PROCESS_USER)
+    {
+        // Ring 3 process - elf_load will set up cpu state properly
+        // Just set defaults here, elf_load overrides them
+        proc->cpu.cs = 0x2B;
+        proc->cpu.ds = 0x23;
+        proc->cpu.ss = 0x23;
+        proc->cpu.rflags = 0x200;
+    }
+    else
+    {
+        // Ring 0 kernel process
+        proc->cpu.rip = (uint64_t)entry;            // Start executing at entry function
+        proc->cpu.rsp = proc->stack_top;            // Stack starts at top and grows down
+        proc->cpu.rbp = proc->stack_top;            // Base pointer same as stack top
+        proc->cpu.rflags = 0x200;                   // Enable interrupts (IF flag = bit 9)
+                                                    // 0x200 = 0000 0010 0000 0000
+                                                    // bit 9 set = interrupts enabled
+        proc->cpu.cs = 0x08;                        // Kernel code segment selector
+        proc->cpu.ds = 0x10;                        // Kernel data segment selector
+        proc->cpu.ss = 0x10;                        // Kernel stack segment selector
 
-    // Pre-load the entry point onto the process stack
-    // When scheduler_start does 'ret' it pops this address
-    // and jumps to the process_entry function
-    uint64_t* stack = (uint64_t*)(uintptr_t)proc->stack_top;
-    *stack = (uint64_t)entry;                   // Push entry point onto stack
-
-    proc->cpu.rsp = proc->stack_top;            // ESP points to the entry point
-    proc->cpu.rip = (uint64_t)entry;            // EIP also set for direct jump
-    proc->cpu.rbp = proc->stack_top;            // EBP same as ESP initially 
+        // Pre-load the entry point onto the process stack
+        // When scheduler_start does 'ret' it pops this address
+        // and jumps to the process_entry function
+        uint64_t* stack = (uint64_t*)(uintptr_t)proc->stack_top;
+        *stack = (uint64_t)entry;                   // Push entry point onto stack
+    }
 
     // Step 7: Each process gets own directory with kernel mappings shared
     proc->page_dir = paging_clone_directory();
@@ -337,9 +344,9 @@ process_t* create_user_process(const char* name, void (*entry)())
     uint64_t* kstack = (uint64_t*)(uintptr_t)proc->stack_top;
 
     *kstack-- = 0x23;                               // SS - user stack segment (RPL=3)
-    *kstack-- = user_stack_virt + PAGE_SIZE - 4;    // ESP - top of user stack
+    *kstack-- = user_stack_virt + PAGE_SIZE - 8;    // ESP - top of user stack
     *kstack-- = 0x200;                              // EFLAGS - interrupts enabled
-    *kstack-- = 0x1B;                               // CS - user code segment (RPL=3)
+    *kstack-- = 0x2B;                               // CS - user code segment (RPL=3)
     *kstack-- = (uint64_t)entry;                    // EIP - entry point
     *kstack-- = 0;                                  // EAX = 0 (initial value)
 
@@ -347,7 +354,7 @@ process_t* create_user_process(const char* name, void (*entry)())
     // When switch_context restores this process it will
     // restore these registers then ret to our iret stub
     kmemset(&proc->cpu, 0, sizeof(cpu_state_t));
-    proc->cpu.rsp = (uint64_t)kstack + 4;           // ESP points to the top of iret frame
+    proc->cpu.rsp = (uint64_t)(kstack + 1);         // ESP points to the top of iret frame
     proc->cpu.rip = (uint64_t)iret_to_usermode;     // First thing we do is iret to ring 3
     proc->cpu.rflags = 0x200;                       // Interrupts enabled
     proc->cpu.cs = 0x08;                            // Kernel code for now
@@ -481,12 +488,12 @@ pid_t process_fork()
         *kstack-- = current_process->user_esp;  // ESP - user stack pointer
         *kstack-- = 0x200;                      // EFLAGS - interrupts enabled only
                                                 // TF deliberatley cleared
-        *kstack-- = 0x1B;                       // CS - user code segment
+        *kstack-- = 0x2B;                       // CS - user code segment
         *kstack-- = current_process->user_eip;  // EIP - return after int $0x80
         *kstack-- = 0;                          // EAX = 0 (fork returns 0 to child)
 
         // Step 11: set up child CPU state
-        child->cpu.rsp = (uint64_t)kstack + 4;  // Points to top of iret frame
+        child->cpu.rsp = (uint64_t)(kstack + 1);        // Points to top of iret frame
         child->cpu.rip = (uint64_t)iret_to_usermode;    // child enters via iret
         child->cpu.rax = 0;
         child->cpu.rflags = 0x200;              // Clean EFLAGS
@@ -590,9 +597,9 @@ int process_exec(void (*entry)())
         // Set up iret frame to transition to ring 3 
         uint64_t* kstack = (uint64_t*)new_kstack_top;
         *kstack-- = 0x23;                                   // SS - user stack segment
-        *kstack-- = user_stack_virt + PAGE_SIZE - 4;        // ESP - top of the user stack
+        *kstack-- = user_stack_virt + PAGE_SIZE - 8;        // ESP - top of the user stack
         *kstack-- = 0x200;                                  // EFLAGS - interrupts enabled
-        *kstack-- = 0x1B;                                   // CS - user code segment
+        *kstack-- = 0x2B;                                   // CS - user code segment
         *kstack-- = (uint64_t)entry;                        // EIP - new entry point
         *kstack-- = 0;                                      // EAX - return value
 
@@ -605,7 +612,7 @@ int process_exec(void (*entry)())
         tss_set_kernel_stack(new_kstack_top);
 
         // Step 8: update CPU state to use new stack and entry point
-        uint64_t new_rsp = (uint64_t)kstack + 8;
+        uint64_t new_rsp = (uint64_t)(kstack + 1);
         current_process->cpu.rsp = new_rsp;
         current_process->cpu.rip = (uint64_t)iret_to_usermode;
         current_process->cpu.rflags = 0x200;

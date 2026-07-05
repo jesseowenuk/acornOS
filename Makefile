@@ -88,7 +88,8 @@ KERNEL_ASM_SRCS = \
 	$(KERNEL_DIR)/architecture/$(ARCH)/idt_flush.asm \
 	$(KERNEL_DIR)/architecture/$(ARCH)/isr.asm \
 	$(KERNEL_DIR)/architecture/$(ARCH)/switch.asm \
-	$(KERNEL_DIR)/architecture/$(ARCH)/usermode.asm
+	$(KERNEL_DIR)/architecture/$(ARCH)/usermode.asm \
+	$(KERNEL_DIR)/architecture/$(ARCH)/syscall_entry.asm
 
 # Drivers
 DRIVER_SRCS = \

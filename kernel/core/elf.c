@@ -4,6 +4,8 @@
 #include <kernel/memory/pmm.h>
 #include <kernel/paging.h>
 
+extern void iret_to_usermode();
+
 // Get the elf entry point
 uint64_t elf_get_entry(uint64_t physical_address)
 {
@@ -97,27 +99,21 @@ uint64_t elf_load(uint64_t physical_address, process_t* process)
             continue;
         }
 
-        kserial_printf("elf_load: LOAD segment %u vaddr=0x%lx filesz=%lu memsz=%lu\n", i, ph->p_vaddr, ph->p_filesz, ph->p_memsz);
-
-        // Calculate page flags
+        // Page flags
         uint64_t flags = PAGE_PRESENT | PAGE_USER;
         if(ph->p_flags & PF_W)
         {
             flags |= PAGE_WRITABLE;
         }
 
-        kserial_printf("segment: offset=0x%lx vaddress=0x%lx filesz=%lu memsz=%lu\n", ph->p_offset, ph->p_vaddr, ph->p_filesz, ph->p_memsz);
-
-        // Allocate and map pages for this segment
+        // Align to page boundaries
         uint64_t virtual_address = ph->p_vaddr & ~0xFFFUL;          // Align down to a page
         uint64_t virtual_address_end = ((ph->p_vaddr + ph->p_memsz + 0xFFF) & ~0xFFFUL) + PAGE_SIZE;
 
-        kserial_printf("va=0x%lx va_end=0x%lx\n", virtual_address, virtual_address_end);
-
+        // Allocate and map pages, zeroing each via direct map
         for(uint64_t va = virtual_address; va < virtual_address_end; va += PAGE_SIZE)
         {
             uint64_t physical = (uint64_t)pmm_alloc();
-            kserial_printf("elf_load: mapping va=0x%lx -> physical=0x%lx\n", va, physical);
             map_page_in(process->page_dir, va, physical, flags);
 
             // Zero all allocated pages first via direct map
@@ -196,14 +192,28 @@ uint64_t elf_load(uint64_t physical_address, process_t* process)
         stack_page[k] = 0;
     }
 
+    // User stack top
+    uint64_t user_stack_top = stack_virtual + PAGE_SIZE - 8;
+
+    // Set up iret frame on kernel stack for ring 3 entry
+    // switch_context will use iret_to_usermode to enter ring 3
+    uint64_t* kstack = (uint64_t*)process->stack_top;
+    *kstack-- = 0x23;                               // SS - user stack segment
+    *kstack-- = user_stack_top;                     // RSP - user stack pointer
+    *kstack-- = 0x200;                              // RFLAGS - interrupts enabled
+    *kstack-- = 0x2B;                               // CS - user code segment
+    *kstack-- = header->e_entry;                    // RIP - program entry point
+
     // Update process CPU state
-    process->cpu.rip = header->e_entry;
-    process->cpu.rsp = stack_virtual + PAGE_SIZE - 8;
+    // cpu.rsp points to iret frame, cpu.rip = iret_to_usermode
+    process->stack_top = (uint64_t)(kstack + 1);
+    process->cpu.rsp = process->stack_top;
+    process->cpu.rip = process->stack_top;
     process->cpu.rflags = 0x200;                // Interrupts enabled
-    process->cpu.cs = 0x08;                     // kernel code for now
-    process->cpu.ds = 0x10;
-    process->cpu.ss = 0x10;
-    
+    process->cpu.cs = 0x2B;                     // User code segment (ring 3)
+    process->cpu.ds = 0x10;                     // User data segment (ring 3)
+    process->cpu.ss = 0x10;                     // User stack segment (ring 3)
+
     kserial_printf("elf_load: loaded OK entry=0x%lx stack=0x%lx\n", header->e_entry, process->cpu.rsp);
 
     return header->e_entry;

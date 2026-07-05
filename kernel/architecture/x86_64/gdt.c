@@ -3,7 +3,7 @@
 
 // In 64-bit mode the TSS descriptor is 16 bytes (two slots)
 // So we need 7 entries, null, kcode, kdata, ucode, udata, tss_low, tss_high
-#define GDT_ENTRIES 7
+#define GDT_ENTRIES 8
 
 static gdt_entry_t gdt[GDT_ENTRIES];
 static gdt_descriptor_t descriptor;
@@ -35,32 +35,37 @@ void gdt_init()
     // 2: Kernel data (64-bit)
     // Access: 0x92 = present, ring 0, data, writable
     // Granularity: 0x00 (data segments ignore L bit)
-    set_entry(2, 0x92, 0x00);     
+    set_entry(2, 0x92, 0x00);  
+    
+    // 3: Placeholder (unused) - never loaded into a segment register
+    // Exists so SYSRET's fixed CS=base+16 / SS=base+8 math lands on the
+    // right descriptors below. See syscall_msr_init() STAR MSR setup
+    set_entry(3, 0x00, 0x00);
 
-    // 3: User code (64-bit, ring 3)
-    // Access: 0xFA = present, ring 3, code, executable, readable
-    set_entry(3, 0xFA, 0x20);
-
-    // 4: User data (ring 3)
-    // Access: 0xF2 = present, ring 3, data, writable
+    // 4: User Data (ring 3)
+    // Access: 0xF2 = present, ring 3, data, wriable
     set_entry(4, 0xF2, 0x00);
 
-    // 5 & 6: TSS - 16-byte descriptor in 64-bit mode (filled by tss_init)
-    gdt[5].base_low = 0;
-    gdt[5].base_mid = 0;
-    gdt[5].base_high = 0;
-    gdt[5].limit_low = 0;
-    gdt[5].granularity = 0;
-    gdt[5].access = 0;
+    // 5: User code (64-bit, ring 3)
+    // Access: 0xFA = present, ring 3, data, writable
+    set_entry(5, 0xFA, 0x20);
 
-    // Entry 6 = upper 8 bytes of TSS descriptor
-    // Treated as a raw uint64_t by tss_init
+    // 6 & 7: TSS - 16-byte descriptor in 64-bit mode (filled by tss_init)
     gdt[6].base_low = 0;
     gdt[6].base_mid = 0;
     gdt[6].base_high = 0;
     gdt[6].limit_low = 0;
     gdt[6].granularity = 0;
     gdt[6].access = 0;
+
+    // Entry 7 = upper 8 bytes of TSS descriptor
+    // Treated as a raw uint64_t by tss_init
+    gdt[7].base_low = 0;
+    gdt[7].base_mid = 0;
+    gdt[7].base_high = 0;
+    gdt[7].limit_low = 0;
+    gdt[7].granularity = 0;
+    gdt[7].access = 0;
 
     descriptor.limit = sizeof(gdt) - 1;             // Size of GDT minus 1
     descriptor.base = (uint64_t)&gdt;               // Address of GDT
@@ -78,16 +83,16 @@ void gdt_set_tss_entry(uint64_t base, uint64_t limit)
 {
     // TSS descriptor is 16 bytes spread across two GDT entries
     // Entry 5: lower 8 bytes
-    gdt[5].limit_low        = limit & 0xFFFF;
-    gdt[5].base_low         = base & 0xFFFF;
-    gdt[5].base_mid         = (base >> 16) & 0xFF;
-    gdt[5].access           = 0x89;         // Present, ring 0, TSS type
-    gdt[5].granularity      = (limit >> 16) & 0x0F;
-    gdt[5].base_high        = (base >> 24) & 0xFF;
+    gdt[6].limit_low        = limit & 0xFFFF;
+    gdt[6].base_low         = base & 0xFFFF;
+    gdt[6].base_mid         = (base >> 16) & 0xFF;
+    gdt[6].access           = 0x89;         // Present, ring 0, TSS type
+    gdt[6].granularity      = (limit >> 16) & 0x0F;
+    gdt[6].base_high        = (base >> 24) & 0xFF;
 
     // Entry 6: upper8 bytes (base bits 63:32 + reserved)
     // Reinterpret as uint64_t for simplicity
-    uint64_t* tss_high = (uint64_t*)&gdt[6];
+    uint64_t* tss_high = (uint64_t*)&gdt[7];
     *tss_high = (base >> 32) & 0xFFFFFFFF;
 
     // Reload the GDT with the new TSS entry

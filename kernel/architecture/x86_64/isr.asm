@@ -43,6 +43,8 @@ ISR_NOERR 3
 ISR_NOERR 128               ; INT 0x80 (system call)
 
 ; Page fault (interrupt 14) pushes a real error code
+ISR_ERR 8
+ISR_ERR 13
 ISR_ERR 14
 
 IRQ 0, 32           ; Timer
