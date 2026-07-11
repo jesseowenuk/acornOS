@@ -252,6 +252,21 @@
 
 ---
 
+## Phase 7.5 — Real-Time Clock (⬜)
+
+> Know what time it actually is. Only the 100Hz scheduler tick exists
+> right now - no wall-clock time anywhere, so file timestamps
+> (created/modified/accessed - already fields on every inode) can't be
+> real.
+
+- ⬜ RTC (CMOS clock) driver
+- ⬜ Read current date/time at boot
+- ⬜ /devices/rtc (read current time)
+- ⬜ Real timestamps for shadowFS/barkFS (created/modified/accessed)
+- ⬜ Shell `date` command
+
+---
+
 ## Phase 8 — procFS (⬜)
 
 > Process information as files. Live kernel data.
@@ -302,6 +317,60 @@
 
 ---
 
+## Phase 10.5 — Process & Program Fundamentals (⬜)
+
+> The missing pieces every real program expects. Do this before Phase 11
+> (games) - Snake/Tetris/Pong all want at least argc/argv and sleep().
+
+- ⬜ Pass argc/argv to exec'd programs (currently main(void) - no arguments)
+  - ⬜ Shell parses command line into argv
+  - ⬜ exec()/process_spawn() pass argv through to the new process
+  - ⬜ crt0 unpacks argv before calling main(int argc, char** argv)
+- ⬜ Environment variables
+  - ⬜ getenv() / setenv() in libc
+  - ⬜ Environment block passed at exec time
+  - ⬜ PATH variable - shell searches it for commands
+- ⬜ SYS_SLEEP - block a process for N milliseconds
+  - ⬜ sleep() / usleep() in libc
+  - ⬜ Timer-driven wakeup (not busy-waiting)
+- ⬜ Per-process file descriptor tables
+  - ⬜ Move file_table from a single global array into process_t
+        (file_system/vfs/vfs.c already says "For now a global table -
+        later each process gets its own")
+  - ⬜ fork() copies the parent's fd table
+- ⬜ TTY line discipline
+  - ⬜ Shared canonical-mode input handling (backspace, line buffering) -
+        currently reimplemented ad-hoc inside the shell
+  - ⬜ Raw mode (for games reading single keypresses without Enter)
+
+---
+
+## Phase 10.6 — Process Lifecycle, Signals & Safety (⬜)
+
+> Making sure a broken process is a contained problem, not a hung
+> system - worth having before games exist to crash.
+
+- ⬜ Complete process_exit() cleanup
+  - ⬜ Free a process's stack/page directory/PCB even if nothing ever
+        calls wait() on it (currently only reclaimed via process_wait())
+- ⬜ Kernel stack guard pages
+  - ⬜ Leave an unmapped page below each process's kernel stack so a
+        stack overflow page-faults cleanly instead of silently
+        corrupting adjacent memory
+- ⬜ Signals
+  - ⬜ SIGKILL - force-terminate a process
+  - ⬜ SIGSEGV - delivered on a page/GP fault instead of hanging
+  - ⬜ SIGINT - Ctrl+C support
+  - ⬜ Default handlers (terminate, ignore) + basic signal() registration
+- ⬜ Shell: Ctrl+C interrupts the running foreground program
+- ⬜ Kernel panic improvements
+  - ⬜ Stack backtrace on panic (GDB doesn't work on this hardware - see
+        docs/CLAUDE_CODE_HANDOFF.md - so this is the primary debugging
+        tool going forward)
+  - ⬜ Graceful recovery vs hard halt where possible
+
+---
+
 ## Phase 11 — First Games! (⬜)
 
 > Text mode games. The first real acornOS applications.
@@ -321,6 +390,26 @@
 - ⬜ 🎮 Minesweeper
 - ⬜ 🎮 Chess (with AI)
 - ⬜ 🎮 Roguelike dungeon crawler
+
+---
+
+## Phase 11.5 — Kernel Robustness & Testing (⬜)
+
+> Verification has been 100% manual (build, boot in QEMU, read the
+> serial log) for every change so far. That's fine today; it won't
+> scale as acornOS grows. Do this once there's something fun (Phase 11)
+> to protect, before tackling bigger subsystems (disk drivers, real
+> filesystems) that are much harder to debug by hand.
+
+- ⬜ Automated boot-test harness (script QEMU + assert on serial output)
+- ⬜ Regression test suite - one test per fixed bug at minimum
+- ⬜ CI pipeline (run the test suite on every commit)
+- ⬜ Full x86_64 exception table coverage audit (all 32 CPU exceptions
+      handled explicitly, not just the handful wired up so far)
+- ⬜ pmm_alloc() fails gracefully instead of panicking the kernel
+      (tracked separately as its own task)
+- ⬜ Audit every other allocation call site for the same assumption
+      ("this can never fail")
 
 ---
 
@@ -346,6 +435,49 @@
 - ⬜ Write files to FAT32
 - ⬜ ls, cat, cp working on FAT32
 - ⬜ 🎮 Load game assets from USB stick!
+
+---
+
+## Phase 13.5 — Advanced Memory Management (⬜)
+
+> Needs a real disk (Phase 12/13) for swap space to make sense.
+
+- ⬜ Copy-on-write fork()
+  - ⬜ Share physical pages between parent/child, marked read-only
+  - ⬜ Page fault handler copies-on-write when either side writes
+  - ⬜ Replaces today's full deep-copy fork (works, but O(process size)
+        in time and memory on every single fork)
+- ⬜ Demand paging (map pages lazily, not all up front)
+- ⬜ Swap to disk (page out when physical memory runs low)
+- ⬜ Memory-mapped files (mmap) - map a file's contents directly into
+      a process's address space
+
+---
+
+## Phase 13.6 — Inter-Process Communication (⬜)
+
+> `ls | grep` isn't possible yet - no way for processes to talk to each
+> other beyond fork/exec/wait exit codes.
+
+- ⬜ Pipes (anonymous, for shell `|` support)
+- ⬜ Named pipes / FIFOs (via VFS)
+- ⬜ Shared memory segments
+- ⬜ Shell: pipe support (`cmd1 | cmd2`)
+
+---
+
+## Phase 13.7 — Threads & Synchronization (⬜)
+
+> Multiple execution contexts sharing one address space - and the
+> primitives to coordinate them safely, needed by IPC (13.6) and every
+> concurrent subsystem after this point.
+
+- ⬜ Kernel-level threads (share page directory, separate stack/registers)
+- ⬜ Thread-local storage (TLS)
+- ⬜ Mutexes
+- ⬜ Condition variables
+- ⬜ Spinlocks (for use inside the kernel itself)
+- ⬜ pthread-style libc API (thread_create, mutex_lock etc.)
 
 ---
 
@@ -430,6 +562,22 @@
 
 ---
 
+## Phase 17.5 — FPU / SIMD Support & Math Library (⬜)
+
+> No floating point context switching exists at all right now - SSE/MMX
+> are deliberately disabled for every user program (-mno-sse -mno-mmx)
+> to avoid corrupting state across context switches. Audio/MIDI (18) and
+> 3D graphics (22) both need real floating point math - this phase is a
+> hard prerequisite for both.
+
+- ⬜ FXSAVE/FXRSTOR-based FPU state save/restore per process
+- ⬜ Re-enable SSE/SSE2 for user programs safely
+- ⬜ libm - sin, cos, sqrt, pow, floor, ceil etc.
+- ⬜ Verify float/double math works correctly across context switches
+  under scheduler preemption (the actual risk this phase exists to fix)
+
+---
+
 ## Phase 18 — Audio (⬜)
 
 > Sound! Music! Your MIDI keyboard!
@@ -506,6 +654,21 @@
 - ⬜ 🎮 Graphical Tetris!
 - ⬜ 🖼️ Simple image viewer
 - ⬜ 📝 Simple text editor (acornEdit)
+
+---
+
+## Phase 20.5 — Dynamic Linking & Shared Libraries (⬜)
+
+> Every program currently statically links the whole of acornlibc.
+> Fine while there's one small libc; won't scale once acornUI (20) and
+> bigger programs exist - and updating libc currently means recompiling
+> every program that uses it.
+
+- ⬜ Shared library format (ELF .so-equivalent)
+- ⬜ Dynamic linker/loader
+- ⬜ PLT/GOT (lazy symbol resolution)
+- ⬜ acornlibc as a shared library
+- ⬜ ldd-style tool (list a binary's dependencies)
 
 ---
 
@@ -678,6 +841,26 @@
 
 ---
 
+## Phase 27.5 — SMP / Multi-core Support (⬜)
+
+> The kernel already has a standing TODO for this (per-CPU data was
+> called out explicitly while fixing the syscall entry path - see
+> syscall_entry.asm history) - it's referenced in the code without
+> being a tracked phase anywhere. Best tackled once single-core acornOS
+> is very mature, since it touches almost everything: scheduler, locks,
+> memory management.
+
+- ⬜ ACPI/MP table parsing (discover other CPU cores)
+- ⬜ AP (application processor) bootstrap
+- ⬜ Per-CPU data structures (replacing remaining global scratch state)
+- ⬜ Kernel spinlocks for real cross-CPU critical sections
+  ("disable interrupts" alone stops working the moment a second core
+  can run concurrently)
+- ⬜ SMP-aware scheduler (per-CPU run queues or a shared one with locking)
+- ⬜ 🎮 Multi-core game AI / physics!
+
+---
+
 ## Phase 28 — 64-bit to ARM (⬜)
 
 > Run on more hardware.
@@ -697,11 +880,14 @@
 
 > Use acornOS as your main OS. The ultimate goal.
 
+- ⬜ ACPI shutdown / reboot
 - ⬜ WiFi driver
 - ⬜ Bluetooth driver
 - ⬜ Suspend / resume
 - ⬜ Multiple monitor support
 - ⬜ Hardware detection / plug and play
+- ⬜ User accounts and login
+- ⬜ Enforce file permissions (uid/gid/mode already exist on every inode - currently unused/unenforced)
 - ⬜ Installer (install to real hardware)
 - ⬜ Package manager (acornPkg)
 - ⬜ App store (acornStore)
@@ -819,4 +1005,23 @@ acornOS — built entirely from scratch
             fd-aware file I/O (open/read/write/close/seek working
             against real files). malloc/free and buffered stdio
             (fopen/fread/fwrite) still open
+
+11th July 2026
+            Roadmap comprehensiveness pass - reviewed the whole plan
+            for foundational OS gaps and inserted new phases so
+            nothing important gets skipped as we accelerate:
+              Phase 7.5  - Real-Time Clock
+              Phase 10.5 - Process & Program Fundamentals
+              Phase 10.6 - Process Lifecycle, Signals & Safety
+              Phase 11.5 - Kernel Robustness & Testing
+              Phase 13.5 - Advanced Memory Management
+              Phase 13.6 - Inter-Process Communication
+              Phase 13.7 - Threads & Synchronization
+              Phase 17.5 - FPU / SIMD Support & Math Library
+              Phase 20.5 - Dynamic Linking & Shared Libraries
+              Phase 27.5 - SMP / Multi-core Support
+            Also added ACPI shutdown/reboot, user accounts/login, and
+            file permission enforcement to Phase 29 (Daily Driveable).
+            No renumbering of existing phases - new phases use decimal
+            numbers and slot in between their neighbours.
 ```
