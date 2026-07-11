@@ -73,6 +73,12 @@ typedef struct process
                                             // 0 = kernel (kernel process)
     int                 exit_code;          // Exit code when process dies
                                             // Set by sys_exit, read by wait()
+    int                 is_user;            // 1 = fundamentally a ring 3 process, set once by
+                                            // elf_load() and never changed again. cpu.cs is NOT
+                                            // reliable for this: switch_context's save path always
+                                            // records cpu.cs=0x08 for a process paused mid-syscall
+                                            // (it's genuinly in ring 0 at that instant), even if
+                                            // the process is a ring 3 program the rest of the time 
 } process_t;
 
 // --- Process table --------------------------------------

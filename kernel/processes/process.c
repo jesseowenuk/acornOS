@@ -546,7 +546,7 @@ pid_t process_fork()
     // Step 10: Set up child's kernel stack with a fresh iret frame
     // Child resumes at same point in user space as parent
     // but fork() returns 0 to the child
-    if(current_process->cpu.cs == 0x08)
+    if(!current_process->is_user)
     {
         // kernel mode process - simple resume
         // Just copy parent's CPU state, but return 0 from fork()

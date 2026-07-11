@@ -213,6 +213,7 @@ uint64_t elf_load(uint8_t* data, process_t* process)
     process->cpu.cs = 0x2B;                     // User code segment (ring 3)
     process->cpu.ds = 0x10;                     // User data segment (ring 3)
     process->cpu.ss = 0x10;                     // User stack segment (ring 3)
+    process->is_user = 1;                       // Permanently a ring 3 process
 
     kserial_printf("elf_load: loaded OK entry=0x%lx stack=0x%lx\n", header->e_entry, process->cpu.rsp);
 

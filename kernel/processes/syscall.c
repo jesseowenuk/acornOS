@@ -1,6 +1,4 @@
-#include <drivers/keyboard.h>
 #include <drivers/serial.h>
-#include <drivers/vga.h>
 #include <file_system/vfs.h>
 #include <kernel/core/kprintf.h>
 #include <kernel/core/panic.h>
@@ -51,59 +49,60 @@ static void sys_exit(registers_t* regs)
 }
 
 // --- sys_write ---------------------------------------------------
-// Write a string to the screen
-// arg1 (ebx) = pointer to the string
-// arg2 (ecx) = length of the string
-// returns number of characters written in EAX
+// Write 'count' bytes from buffer to a file descriptor
+// arg1 (RDI) = file descriptor (1=stdout, 2=stderr, or any fd from open())
+// arg2 (RSI) = pointer to the buffer
+// arg3 (RDX) = number of bytes to write
+// returns number of bytes written in RAX, or -1 on error
 static void sys_write(registers_t* regs)
 {
-    // EBX = pointer to the string
-    const char* str = (const char*)regs->rdi;
+    int fd = (int)regs->rdi;
+    const void* buf = (const void*)regs->rsi;
+    uint32_t count = (int32_t)regs->rdx;
 
-    // ECX = string length
-    uint32_t len = regs->rsi;
-
-    kserial_printf("sys_write: str=0x%x len=%d\n", (uint64_t)str, len);
-
-    if(!str)
+    if(!buf)
     {
-        // NULL pointer check
-        regs->rax = -1;
-
-        // return error
-        return;
-    }
-
-    // Guard against absurdly large writes
-    if(len > 4096)
-    {
-        kserial_printf("sys_write: suspicous length %d\n", len);
         regs->rax = -1;
         return;
     }
 
-    uint32_t written = 0;
-    while(written < len && str[written])
+    // Guard aginst absurdly large writes
+    if(count > 4096)
     {
-        // Write each character to VGA
-        kprintf("%c", str[written]);
-        written++;
+        kserial_printf("sys_write: suspicious length %d\n", count);
+        regs->rax = -1;
+        return;
     }
 
-    // Return number of chars written
-    regs->rax = written;
+    regs->rax = vfs_write(fd, buf, count);
+
 }
 
 // --- sys_read ----------------------------------------
-// Read a single character from the keyboard
-// returns character in eax
+// Read up to 'count' bytes from a file descriptor into a buffer
+// arg1 (RDI) = file descriptor (0=stdin or any fd from open())
+// arg2 (RSI) = pointer to the buffer
+// arg3 (RDX) = number of bytes to read
+// returns number of bytes read in RAX, or -1 on error
 static void sys_read(registers_t* regs)
 {
-    // Block until key available
-    char c = keyboard_getchar();
+    int fd = (int)regs->rdi;
+    void* buf = (void*)regs->rsi;
+    uint32_t count = (uint32_t)regs->rdx;
 
-    // Return character in EAX
-    regs->rax = (uint32_t)c;
+    if(!buf)
+    {
+        regs->rax = -1;
+        return;
+    }
+
+    if(count > 4096)
+    {
+        regs->rax = -1;
+        return;
+    }
+
+    regs->rax = vfs_read(fd, buf, count);
 }
 
 // --- sys_pid ------------------------------------------

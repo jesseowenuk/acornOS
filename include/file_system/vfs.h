@@ -201,6 +201,10 @@ int vfs_unmount(const char* path);
 // Returns fd >= 0 on success, -1 on failure
 int vfs_open(const char* path, uint32_t flags);
 
+// Like vfs_open, but installs the file at a specific fd instead of
+// allocating one. Used to set up fd 0/1/2 (stdin/stdout/stderr) at boot.
+int vfs_open_at(const char* path, uint32_t flags, int fd);
+
 // Close a file descriptor
 // Returns 0 on success, -1 on failure
 int vfs_close(int fd);

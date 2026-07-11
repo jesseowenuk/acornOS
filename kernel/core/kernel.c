@@ -172,11 +172,6 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf(" [DONE]\n");
 
-    // Set kernel stack for SYSCALL entries
-    // Use a dedicated kernel stack page
-    uint64_t syscall_stack = (uint64_t)pmm_alloc() + 0xFFFF800000000000UL + PAGE_SIZE - 8;
-    syscall_set_kernel_stack(syscall_stack);
-
     vga_set_colour(WHITE, BLACK);
     kprintf("Initialising paging...");
     paging_init();
@@ -262,6 +257,18 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     vga_set_colour(WHITE, BLACK);
     kprintf("Registering /devices/serial...");
     devfs_register("/devices", "serial", dev_serial_read, dev_serial_write);
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf(" [DONE]\n");
+
+    // Set up fd 0/1/2 (stdin/stdout/stderr) for every process, backed by
+    // the console devices, vfs_alloc_fd() never hands out 0/1/2 to a
+    // normal open() (it starts searching from 3), so these are installed
+    // directly at boot instead.
+    vga_set_colour(WHITE, BLACK);
+    kprintf("Setting up stdio...");
+    vfs_open_at("/devices/keyboard", O_RDONLY, 0);              // stdin
+    vfs_open_at("/devices/display", O_WRONLY, 1);               // stdout
+    vfs_open_at("/devices/display", O_WRONLY, 2);                // stderr
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf(" [DONE]\n");
 

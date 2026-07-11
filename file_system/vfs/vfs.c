@@ -301,9 +301,12 @@ file_t* vfs_get_file(int fd)
     return file_table[fd];
 }
 
-// --- vfs_open ---------------------------------------------
+// --- vfs_open_file ---------------------------------------------
+// Shared by vfs_open() and vfs_open_at() - resolves/creates the inode
+// and builds a file_t for it, but it does NOT allocate a file descriptor.
+// Returns the new file_t, or NULL on failure.
 
-int vfs_open(const char* path, uint32_t flags)
+static file_t* vfs_open_file(const char* path, uint32_t flags)
 {
     // Step 1: find the inode for this path
     inode_t* inode = vfs_resolve_path(path);
@@ -316,7 +319,7 @@ int vfs_open(const char* path, uint32_t flags)
             kserial_printf("VFS: file not found: %s\n", path);
 
             // File doesn't exist and no O_CREAT
-            return -1;
+            return 0;
         }
 
         // Find the parent directory
@@ -366,14 +369,14 @@ int vfs_open(const char* path, uint32_t flags)
         if(!parent)
         {
             kserial_printf("VFS: parent directory not found: %s\n", parent_path);
-            return -1;
+            return 0;
         }
 
         // Create the file
         if(!parent->ops || parent->ops->create == 0)
         {
             kserial_printf("VFS: filesystem doesn't support create!\n");
-            return -1;
+            return 0;
         }
 
         inode = parent->ops->create(parent, filename, VFS_TYPE_FILE);
@@ -381,7 +384,7 @@ int vfs_open(const char* path, uint32_t flags)
         if(!inode)
         {
             kserial_printf("VFS: failed to create file: %s\n", path);
-            return -1;
+            return 0;
         }
     }
 
@@ -391,7 +394,7 @@ int vfs_open(const char* path, uint32_t flags)
     if(!file)
     {
         kserial_printf("VFS: failed to allocate file struct!\n");
-        return -1;
+        return 0;
     }
 
     // Step 4: fill in the file struct
@@ -431,7 +434,7 @@ int vfs_open(const char* path, uint32_t flags)
         {
             kserial_printf("VFS: filesystem open() failed!\n");
             kfree(file);
-            return -1;
+            return 0;
         }
     }
 
@@ -442,7 +445,20 @@ int vfs_open(const char* path, uint32_t flags)
         file->position = inode->size;
     }
 
-    // Step 8: allocate a file descriptor
+    return file;
+}
+
+// --- vfs_open ------------------------------------------------
+
+int vfs_open(const char* path, uint32_t flags)
+{
+    file_t* file = vfs_open_file(path, flags);
+
+    if(!file)
+    {
+        return -1;
+    }
+
     int fd = vfs_alloc_fd(file);
 
     if(fd < 0)
@@ -454,7 +470,40 @@ int vfs_open(const char* path, uint32_t flags)
 
     kserial_printf("VFS: opened %s fd=%d\n", path, fd);
 
-    // Return file descriptor to caller
+    return fd;
+}
+
+// --- vfs_open_at ----------------------------------------------
+// Like vfs_open(), but installs the resulting file at a SPECIFIC fd
+// instead of allocating one. Used at boot to set up fd 0/1/2
+// (stdin/stdout/stderr) - vfs_alloc_fd() deliberatley never hands those
+// out (it starts searching from 3), so a normal vfs_open() can't reach
+// them.
+
+int vfs_open_at(const char* path, uint32_t flags, int fd)
+{
+    if(fd < 0 || fd >= VFS_MAX_FDS)
+    {
+        return -1;
+    }
+
+    file_t* file = vfs_open_file(path, flags);
+
+    if(!file)
+    {
+        return -1;
+    }
+
+    if(file_table[fd])
+    {
+        // Slot already occupied - don't leak the old file
+        kfree(file_table[fd]);
+    }
+
+    file_table[fd] = file;
+
+    kserial_printf("VFS: opended %s at fixed fd=%d\n", path, fd);
+
     return fd;
 }
 

@@ -160,25 +160,40 @@ check-size: $(BUILD_DIR)/kernel.bin
 	fi
 
 # --- User programs -----------------------------------------------
-# Compiled as standalone ELF64 binaries
-# No standard library, no crt0
+# Compiled as standalone ELF64 binaries against acornlibc (libc/)
 # Linked at user space virtual address 0x400000
+
+LIBC_DIR = libc
+
+LIBC_SRCS = \
+	$(LIBC_DIR)/src/crt0.c \
+	$(LIBC_DIR)/src/syscall.c \
+	$(LIBC_DIR)/src/string.c \
+	$(LIBC_DIR)/src/stdio.c
 
 USER_CC_FLAGS = \
 	-ffreestanding \
 	-nostdlib \
 	-mno-red-zone \
+	-mno-mmx \
+	-mno-sse \
+	-mno-sse2 \
 	-O1 \
 	-Wall \
-	-Wextra
+	-Wextra \
+	-fno-builtin \
+	-fno-stack-protector \
+	-fno-pie \
+	-fno-pic \
+	-I $(LIBC_DIR)/include
 
-$(BUILD_DIR)/apps/hello/hello.elf: apps/hello/hello.c
+$(BUILD_DIR)/apps/hello/hello.elf: apps/hello/hello.c $(LIBC_SRCS)
 	@mkdir -p $(BUILD_DIR)/apps/hello
 	$(CC) $(USER_CC_FLAGS) \
 	-e _start \
 	-Ttext 0x400000 \
 	-o $(BUILD_DIR)/apps/hello/hello.elf \
-	apps/hello/hello.c
+	apps/hello/hello.c $(LIBC_SRCS)
 
 # --- Disk image --------------------------------------------------
 $(BUILD_DIR)/os.img: $(BUILD_DIR)/boot.bin $(BUILD_DIR)/stage2.bin \
