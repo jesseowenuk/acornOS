@@ -4,6 +4,8 @@
 #include <kernel/core/panic.h>
 #include <kernel/interrupts.h>
 #include <kernel/memory/mem.h>
+#include <kernel/memory/pmm.h>
+#include <kernel/paging.h>
 #include <kernel/processes/process.h>
 #include <kernel/processes/scheduler.h>
 #include <kernel/processes/syscall.h>
@@ -327,6 +329,70 @@ static void sys_delete(registers_t* regs)
     regs->rax = vfs_delete(path);
 }
 
+// --- sys_heap_grow -------------------------------------
+// Grows the calling process's heap by 'increment' bytes, mapping
+// whatever new pages are needed, and returns the address where the
+// newly availble memory begins (the OLD heap end).
+//
+// arg1 (RDI) = increment in bytes. 0 just queries the current break
+// without growing anything. Negative increments (shrinking) aren't
+// supported yet - the heap only ever grows for now: free()'d memory is
+// reused within the process via the libc's own free list instead of
+// being handed back to the kernel.
+static void sys_heap_grow(registers_t* regs)
+{
+    int64_t increment = (uint64_t)regs->rdi;
+
+    if(!current_process)
+    {
+        regs->rax = (uint64_t)-1;
+        return;
+    }
+
+    uint64_t old_end = current_process->heap_end;
+
+    if(increment == 0)
+    {
+        // Just asking where the break currently is
+        regs->rax = old_end;
+        return;
+    }
+
+    if(increment < 0)
+    {
+        kserial_printf("sys_heap_grow: shrinking not supported\n");
+        regs->rax = (uint64_t)-1;
+        return;
+    }
+
+    uint64_t new_end = old_end + (uint64_t)increment;
+
+    // Pages up to this address are already mapped (rounds old_end UP to
+    // the next page boundary - see the walkthrough for why this is safe.)
+    uint64_t mapped_up_to = (old_end + 0xFFF) & ~0xFFFUL;
+    uint64_t new_mapped_up_to = (new_end + 0xFFF) & ~0xFFFUL;
+
+    for(uint64_t va = mapped_up_to; va < new_mapped_up_to; va += PAGE_SIZE)
+    {
+        uint64_t physical = (uint64_t)pmm_alloc();
+
+        map_page_in(current_process->page_dir, va, physical, PAGE_PRESENT | PAGE_WRITABLE | PAGE_USER);
+
+        // Zero the new page via the direct map, so malloc() never hands
+        // out memory with leftover physical-page contents in it.
+        uint8_t* page = (uint8_t*)physical_to_virtual(physical);
+
+        for(int i = 0; i < PAGE_SIZE; i++)
+        {
+            page[i] = 0;
+        }
+    }
+
+    current_process->heap_end = new_end;
+
+    regs->rax = old_end;
+}
+
 // --- Syscall dispatch table ----------------------------
 // Array of function pointers - index = syscall number
 // Makes adding new syscalls as simple as adding an entry here
@@ -348,6 +414,7 @@ static syscall_fn syscall_table[] =
     sys_mkdir,              // 11 - SYS_MKDIR
     sys_readdir,            // 12 - SYS_READDIR
     sys_delete,             // 13 - SYS_DELETE
+    sys_heap_grow,          // 14 - SYS_HEAP_GROW
 };
 
 // Number of syscalls in the table

@@ -1,7 +1,7 @@
 # acornOS Roadmap
 > Living document — updated as milestones are completed.
 > Follows acornOS Engineering Principles — see docs/principles.md
-> Last updated: June 2026
+> Last updated: 11th July 2026
 
 ---
 
@@ -267,7 +267,7 @@
 
 ---
 
-## Phase 9 — ELF Loader (🔄)
+## Phase 9 — ELF Loader (✅)
 
 > Load real compiled programs from disk.
 
@@ -278,7 +278,7 @@
 - ✅ BSS zeroing for ELF
 - ✅ Entry point extraction
 - ✅ exec() updated to load ELF files
-- ⬜ Shell can run ELF binaries
+- ✅ Shell can run ELF binaries
 - ✅ First compiled C program runs on acornOS!
 - ✅ Switch syscalls from INT 0x80 to SYSCALL/SYSRET
 - ✅ Update syscall argument convention (rbx→rdi, rcx→rsi)
@@ -286,17 +286,19 @@
 
 ---
 
-## Phase 10 — Basic libc (⬜)
+## Phase 10 — Basic libc (🔄)
 
 > Minimal C library for user space programs.
 
-- ⬜ libc design (acornlibc)
-- ⬜ syscall wrappers (open, read, write, close, exit)
-- ⬜ printf (uses SYS_WRITE)
-- ⬜ malloc / free (uses brk syscall)
-- ⬜ string functions (strlen, strcpy, strcmp etc.)
-- ⬜ Basic file I/O (fopen, fclose, fread, fwrite)
-- ⬜ Hello World compiles and runs!
+- ✅ libc design (acornlibc)
+- ✅ syscall wrappers (open, read, write, close, exit - plus getpid,
+      yield, fork, wait, exec)
+- ✅ printf (uses SYS_WRITE)
+- ✅ malloc / free (uses brk syscall)
+- ✅ string functions (strlen, strcpy, strcmp etc.)
+- ✅ Raw file I/O (open/read/write/close/seek) - fd-aware, real files
+- ⬜ Buffered stdio (fopen, fclose, fread, fwrite)
+- ✅ Hello World compiles and runs!
 
 ---
 
@@ -806,4 +808,15 @@ acornOS — built entirely from scratch
 
 ```
 5th July 2026
+            Phase 9 (ELF Loader) - SYSCALL/SYSRET, ring 3, exec()
+            loading real ELF files, hello.c updated
+
+11th July 2026
+            Phase 9 complete - shell 'run' command loads and runs
+            ELF binaries
+            Phase 10 (Basic libc) mostly complete - acornlibc with
+            crt0, syscall wrappers, printf, string functions, and
+            fd-aware file I/O (open/read/write/close/seek working
+            against real files). malloc/free and buffered stdio
+            (fopen/fread/fwrite) still open
 ```

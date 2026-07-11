@@ -4,20 +4,21 @@
 #include <kernel/interrupts.h>
 
 // --- Syscall numbers ---------------------------------------------
-#define SYS_EXIT    0               // Terminate current process
-#define SYS_WRITE   1               // Write string to screen
-#define SYS_READ    2               // Read character from keyboard
-#define SYS_GETPID  3               // Get current process ID
-#define SYS_YIELD   4               // Voluntarily yield the CPU
-#define SYS_FORK    5               // Fork current process
-#define SYS_WAIT    6               // Wait for child to exit
-#define SYS_EXEC    7               // Replace process image
-#define SYS_OPEN    8
-#define SYS_CLOSE   9
-#define SYS_SEEK    10
-#define SYS_MKDIR   11
-#define SYS_READDIR 12
-#define SYS_DELETE  13
+#define SYS_EXIT        0               // Terminate current process
+#define SYS_WRITE       1               // Write string to screen
+#define SYS_READ        2               // Read character from keyboard
+#define SYS_GETPID      3               // Get current process ID
+#define SYS_YIELD       4               // Voluntarily yield the CPU
+#define SYS_FORK        5               // Fork current process
+#define SYS_WAIT        6               // Wait for child to exit
+#define SYS_EXEC        7               // Replace process image
+#define SYS_OPEN        8
+#define SYS_CLOSE       9
+#define SYS_SEEK        10
+#define SYS_MKDIR       11
+#define SYS_READDIR     12
+#define SYS_DELETE      13
+#define SYS_HEAP_GROW   14              // Grow the process heap by N bytes - see sys_heap_grow()
 
 // --- Syscall handler ---------------------------------------------
 // Called from syscall_entry when the SYSCALL instruction fires

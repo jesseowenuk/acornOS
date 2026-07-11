@@ -1,6 +1,7 @@
 // Hello World - acornlib smoke test
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -54,6 +55,45 @@ int main(void)
 
     int bad_fd = open("/temp/does_not_exist.txt", O_RDONLY);
     printf("open(missing)=%d\n", bad_fd);
+
+    // malloc/free basics - allocate, write, read back
+    char* a = (char*)malloc(32);
+    strcpy(a, "malloc works");
+    printf("malloc a=%s\n", a);
+
+    // A second allocation should land in different memory
+    char* b = (char*)malloc(32);
+    strcpy(b, "second block");
+    printf("malloc b=%s a_still=%s\n", b, a);
+
+    // Free a, then allocate something the same size - first-fit should
+    // reuse a's slot rather than growing the heap again
+    free(a);
+    char* c = (char*)malloc(32);
+    printf("reuse: c==a? %d\n", c == a);
+    strcpy(c, "reused block");
+    printf("malloc c=%s\n", c);
+
+    // A big allocation that needs more than one page from the kernel
+    char* big = (char*)malloc(9000);
+    for(int i = 0; i < 9000; i++)
+    {
+        big[i] = 'z';
+    }
+
+    big[8999] = 0;
+    printf("big len=%d first=%c last=%c\n", (int)strlen(big), big[0], big[8998]);
+
+    // Free everything, then allocate something bigger than any single
+    // freed piece but smaller than all of them combined - only works if
+    // forward coalesing actually merged the freed blocks back together
+    free(b);
+    free(c);
+    free(big);
+    char* merged = (char*)malloc(64);
+    strcpy(merged, "coalesced ok");
+    printf("coalesed=%s\n", merged);
+    free(merged);
 
     // Yield - just to confirm it doesn't crash
     yield();

@@ -89,6 +89,10 @@ uint64_t elf_load(uint8_t* data, process_t* process)
     // Walk program headers looking for PT_LOAD segments
     elf64_phdr_t* pheaders = (elf64_phdr_t*)(file + header->e_phoff);
 
+    // Tracks the highest address touched by any LOAD segment - the heap
+    // starts right after this.
+    uint64_t heap_start = 0;
+
     for(uint16_t i = 0; i < header->e_phnum; i++)
     {
         elf64_phdr_t* ph = &pheaders[i];
@@ -109,6 +113,11 @@ uint64_t elf_load(uint8_t* data, process_t* process)
         // Align to page boundaries
         uint64_t virtual_address = ph->p_vaddr & ~0xFFFUL;          // Align down to a page
         uint64_t virtual_address_end = ((ph->p_vaddr + ph->p_memsz + 0xFFF) & ~0xFFFUL) + PAGE_SIZE;
+
+        if(virtual_address_end > heap_start)
+        {
+            heap_start = virtual_address_end;
+        }
 
         // Allocate and map pages, zeroing each via direct map
         for(uint64_t va = virtual_address; va < virtual_address_end; va += PAGE_SIZE)
@@ -214,6 +223,8 @@ uint64_t elf_load(uint8_t* data, process_t* process)
     process->cpu.ds = 0x10;                     // User data segment (ring 3)
     process->cpu.ss = 0x10;                     // User stack segment (ring 3)
     process->is_user = 1;                       // Permanently a ring 3 process
+    process->heap_start = heap_start;           // Heap starts empty, right after
+    process->heap_end = heap_start;             // the last LOAD segment (page-aligned)
 
     kserial_printf("elf_load: loaded OK entry=0x%lx stack=0x%lx\n", header->e_entry, process->cpu.rsp);
 

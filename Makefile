@@ -169,7 +169,8 @@ LIBC_SRCS = \
 	$(LIBC_DIR)/src/crt0.c \
 	$(LIBC_DIR)/src/syscall.c \
 	$(LIBC_DIR)/src/string.c \
-	$(LIBC_DIR)/src/stdio.c
+	$(LIBC_DIR)/src/stdio.c \
+	$(LIBC_DIR)/src/malloc.c
 
 USER_CC_FLAGS = \
 	-ffreestanding \

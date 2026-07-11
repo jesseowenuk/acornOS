@@ -16,6 +16,7 @@
 #define SYS_MKDIR       11
 #define SYS_READDIR     12
 #define SYS_DELETE      13
+#define SYS_HEAP_GROW   14      
 
 // --- Raw syscall wrappers ------------------------------------------
 // One per argument count actually in use today (max 3 args)

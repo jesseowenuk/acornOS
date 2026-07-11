@@ -79,6 +79,10 @@ typedef struct process
                                             // records cpu.cs=0x08 for a process paused mid-syscall
                                             // (it's genuinly in ring 0 at that instant), even if
                                             // the process is a ring 3 program the rest of the time 
+    uint64_t            heap_start;         // Base of this process's heap - fixed once by
+                                            // elf_load(), right after its last LOAD segment
+    uint64_t            heap_end;           // Current end of the heap ("the break").
+                                            // See sys_heap_grow()
 } process_t;
 
 // --- Process table --------------------------------------
