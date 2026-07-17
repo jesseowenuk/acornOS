@@ -38,6 +38,10 @@ typedef struct
     uint64_t cs;                        // Code segment selector
     uint64_t ds;                        // Data segment selector
     uint64_t ss;                        // Stack segment selector
+    uint64_t r12;                       // Callee-saved per the SysV ABI (with
+    uint64_t r13;                       // rbx/rbp above)
+    uint64_t r14;                       
+    uint64_t r15;                     
 } cpu_state_t;
 
 // --- Process ID ------------------------------------------
@@ -128,13 +132,17 @@ void process_wait(pid_t pid);
 
 // Replace current process image with the ELF binary at the given path
 // path = VFS path to an ELF64 executable
+// ARGV = NULL-terminated argument array *argv[0] = program name, set by
+// the caller), or NULL for no arguments.
 // Returns -1 on failure (current process keeps running its old image)
 // Never returns on success - jumps straight into the new program
-int process_exec(const char* path);
+int process_exec(const char* path, char** argv);
 
 // Create a brand new process running the ELF binary at 'path' and add
 // it to the scheduler. Does not affect the calling process.
+// ARGV = NULL-terminated argument array *argv[0] = program name, set by
+// the caller), or NULL for no arguments.
 // Returns the new process's PID, or -1 on failure
-pid_t process_spawn(const char* path); 
+pid_t process_spawn(const char* path, char** argv); 
 
 #endif

@@ -367,7 +367,7 @@ load_hello_elf:
     ; Read just 4 sectors (2KB) - plenty for our tiny test program
     mov dword [packet_hello + 8], HELLO_ELF_SECTOR          ; LBA start
     mov dword [packet_hello + 12], 0                        ; LBA high = 0
-    mov word [packet_hello + 2], 16                         ; 16 sectors
+    mov word [packet_hello + 2], 128                        ; 128 sectors
     mov word [packet_hello + 4], 0x0000                     ; Buffer offset
     mov word [packet_hello + 6], 0x2000                     ; Physical = 0x2000*16 = 0x20000
 
@@ -495,7 +495,7 @@ protected_mode_entry:
     rep movsb                               ; copy
 
     ; Copy hello.elf from 0x20000 to 0x300000
-    mov ecx, 16 * 512                        ; 4 sectors * 512
+    mov ecx, 128 * 512                      ; 128 sectors * 512
     mov esi, 0x20000                        ; source
     mov edi, 0x300000                       ; destination
     rep movsb                               ; copy

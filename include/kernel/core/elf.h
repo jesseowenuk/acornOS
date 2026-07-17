@@ -11,6 +11,14 @@
 // load ELF binaries from disk via the VFS instead
 #define HELLO_ELF_PHYSICAL_ADDRESS 0x300000
 
+// Must match the sector count in boot/stage2.asm's load_elf (and
+// its matching copy-to-0x300000 step) - the whole boot-time buffer,
+// including trailing zero padding past the real ELF content. Used to
+// also write hello.elf into shadowFS at boot, so it's runnable (and
+// re-runnable, with different argv) via the shell's 'run' command -
+// not just the fixed boot-time slot above
+#define HELLO_ELF_SIZE (128 * 512)
+
 // --- ELF64 magic --------------------------------------
 #define ELF_MAGIC           0x464C457F          // \x7fELF in little endian
 #define ELF_CLASS_64        2                   // 64-bit
@@ -70,12 +78,17 @@ uint64_t elf_get_entry(uint8_t* data);
 // Load an ELF64 image already resident in memory into a process's
 // address space. data = kernel virtual pointer to the start of the
 // ELF image (already-mapped physical memory, or a heap buffer).
+// argv = NULL-terminated array of argument strings (argv[0] is
+// conventionally the program name - the caller's job to set that, not
+// this function's); or NULL for no arguments. Strings are copied onto
+// the new process's stack before this returns, so the caller's argv
+// array and strings only need to stay valid until then.
 // Returns entry point address or 0 on failure
-uint64_t elf_load(uint8_t* data, process_t* process);
+uint64_t elf_load(uint8_t* data, process_t* process, char** argv);
 
 // Load an ELF64 from a VFS path into a process's address space.
 // Reads the whole file into a temporary heap buffer, then calls elf_load().
 // Returns entry point address or 0 on failure (file missing, bad ELF, OOM)
-uint64_t elf_load_from_path(const char* path, process_t* process);
+uint64_t elf_load_from_path(const char* path, process_t* process, char** argv);
 
 #endif

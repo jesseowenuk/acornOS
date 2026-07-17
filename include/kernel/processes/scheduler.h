@@ -10,6 +10,10 @@ void scheduler_init();
 // Add a process to the run queue
 void scheduler_add(process_t* proc);
 
+// Remove a process from the run queue - must be called before freeing
+// any process_t that scheduler_add() ever added
+void scheduler_remove(process_t* proc);
+
 // Called by the timer IRQ every tick
 // Decrements the current process's time slice
 // Switches to the next process when the slice expires

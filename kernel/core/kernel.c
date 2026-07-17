@@ -465,11 +465,26 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
 
     if(elf_entry)
     {
+        // Also write hello.elf's bytes into shadowFS, so it can be run
+        // (and re-run, with different argv) via the shell's 'run'
+        // command - not just the fixed boot-time slot below. Writes
+        // the whole HELLO_ELF_SIZE buffer (real ELF + trailing zero
+        // padding) - elf_load() only ever reads up to each segment's
+        // own p_offset/p_filesz, so the padding is harmless.
+        int hello_fd = vfs_open("/temp/hello.elf", O_WRONLY | O_CREAT| O_TRUNC);
+        if(hello_fd >= 0)
+        {
+            vfs_write(hello_fd, hello_elf_data, HELLO_ELF_SIZE);
+            vfs_close(hello_fd);
+        }
+
         void (*dummy)() = (void(*)())0x400000UL;
         process_t* hello = process_create("hello", dummy, 0);        
         kserial_printf("hello page_dir virtual=0x%lx physical=0x%lx\n", (uint64_t)hello->page_dir, virtual_to_physical((uint64_t)hello->page_dir));
 
-        if(hello && elf_load(hello_elf_data, hello))
+        char* hello_argv[] = { "hello", 0};
+
+        if(hello && elf_load(hello_elf_data, hello, hello_argv))
         {
             scheduler_add(hello);
         }

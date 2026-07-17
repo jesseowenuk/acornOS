@@ -1,19 +1,40 @@
 // Hello World - acornlib smoke test
+//
+// Each test below exercises one libc/kernel feature. Run just one via
+// 'run hello <name>' (e.g. 'run hello malloc'), or run everything in
+// sequence via 'run hello' (no args) or 'run hello all'
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-int main(void)
+static void test_argv(int argc, char** argv)
 {
-    printf("=== acornlib test ===\n");
+    // argc/argv - passed via RDI/RSI at process_entry, see crt0.c
+    printf("argc=%d\n", argc);
+
+    for(int i = 0; i < argc; i++)
+    {
+        printf("argv[%d]=%s\n", i, argv[i]);
+    }
+}
+
+static void test_printf(int argc, char** argv)
+{
+    (void)argc;
+    (void)argv;
 
     // printf formats
     printf("int=%d neg=%d, hex=%lx str=%s char=%c pct=%%\n",
         42, -7, 0xCAFEUL, "world", 'Q');
+}
 
-    // string.h
+static void test_string(int argc, char** argv)
+{
+    (void)argc;
+    (void)argv;
+
     char buf[32];
     strcpy(buf, "hello");
     printf("strlen=%d strcpy=%s cmp_eq=%d cmp_ne=%d\n",
@@ -26,8 +47,13 @@ int main(void)
     char dst[8];
     memcpy(dst, "copy!", 6);
     printf("memcpy=%s memcmp_eq=%d\n", dst, memcmp(dst, "copy!", 6));
+}
 
-    // Process info
+static void test_fileio(int argc, char** argv)
+{
+    (void)argc;
+    (void)argv;
+
     printf("pid=%d\n", getpid());
 
     // open/close/seek against a file the kernel's own boot self-test creates
@@ -55,6 +81,79 @@ int main(void)
 
     int bad_fd = open("/temp/does_not_exist.txt", O_RDONLY);
     printf("open(missing)=%d\n", bad_fd);
+}
+
+static void test_stdio(int argc, char** argv)
+{
+    (void)argc;
+    (void)argv;
+
+    // Buffered stdio - fopen/fwrite/fread/fclose
+    // Write more than one internal buffer's worth (FILE_BUF_SIZE=512) in
+    // several fwrite() calls, to prove the write behind buffer flushes
+    // mid-stream rather than only on fclose().
+    FILE* wf = fopen("/temp/stdio_test.txt", "w");
+    printf("fopen(w) ok=%d\n", wf != NULL);
+
+    fwrite("HEAD-", 1, 5, wf);
+
+    for(int i = 0; i < 60; i++)
+    {
+        fwrite("AAAAAAAAAA", 1, 10, wf);        // 60 * 10 = 600 bytes, spans the buffer
+    }
+
+    fwrite("-TAIL", 1, 5, wf);
+    fclose(wf);
+
+    // Read it all back in small chunks, smaller than the file, to prove
+    // the read-ahead buffer refills correctly  across multiple fread() calls
+    FILE* rf = fopen("/temp/stdio_test.txt", "r");
+    char stdio_buf[700];
+    size_t stdio_total = 0;
+    size_t got;
+
+    while((got = fread(stdio_buf + stdio_total, 1, 100, rf)) > 0)
+    {
+        stdio_total += got;
+    }
+
+    stdio_buf[stdio_total] = 0;
+    fclose(rf);
+
+    printf("stdio len=%d head=%c%c%c%c%c tail=%c%c%c%c%c\n",
+        (int)stdio_total,
+        stdio_buf[0], stdio_buf[1], stdio_buf[2], stdio_buf[3], stdio_buf[4],
+        stdio_buf[stdio_total - 5], stdio_buf[stdio_total - 4], stdio_buf[stdio_total - 3],
+        stdio_buf[stdio_total - 2], stdio_buf[stdio_total - 1]);
+
+    // Append mode - open the same file "a", write more, and confrm the
+    // original contents are still there with the new data on the end
+    FILE* af = fopen("/temp/stdio_test.txt", "a");
+    fwrite("+MORE", 1, 5, af);
+    fclose(af);
+
+    FILE* rf2 = fopen("/temp/stdio_test.txt", "r");
+    char append_buf[720];
+    size_t append_total = 0;
+
+    while((got = fread(append_buf + append_total, 1, 100, rf2)) > 0)
+    {
+        append_total += got;
+    }
+
+    append_buf[append_total] = 0;
+    fclose(rf2);
+
+    printf("append len=%d tail=%c%c%c%c%c\n",
+        (int)append_total,
+        append_buf[append_total - 5], append_buf[append_total - 4], append_buf[append_total - 3],
+        append_buf[append_total - 2], append_buf[append_total - 1]);
+}
+
+static void test_malloc(int argc, char** argv)
+{
+    (void)argc;
+    (void)argv;
 
     // malloc/free basics - allocate, write, read back
     char* a = (char*)malloc(32);
@@ -94,6 +193,12 @@ int main(void)
     strcpy(merged, "coalesced ok");
     printf("coalesed=%s\n", merged);
     free(merged);
+}
+
+static void test_proc(int argc, char** argv)
+{
+    (void)argc;
+    (void)argv;
 
     // Yield - just to confirm it doesn't crash
     yield();
@@ -111,6 +216,73 @@ int main(void)
         printf("parent pid=%d child=%d\n", getpid(), (int)pid);
         int status = wait();
         printf("wait returned=%d\n", status);
+    }
+}
+
+typedef struct
+{
+    const char* name;
+    void (*fn)(int argc, char** argv);
+} test_t;
+
+static test_t tests[] =
+{
+    {"argv",    test_argv},
+    {"printf",  test_printf},
+    {"string",  test_string},
+    {"fileio",  test_fileio},
+    {"stdio",   test_stdio},
+    {"malloc",  test_malloc},
+    {"proc",    test_proc},
+    {0, 0}
+};
+
+static void run_test(test_t* t, int argc, char** argv)
+{
+    printf("--- %s ---\n", t->name);
+    t->fn(argc, argv);
+}
+
+int main(int argc, char** argv)
+{
+    printf("=== acornlib test ===\n");
+
+    // No extra args, or explicitly "all": run every test in sequence
+    // (full regression coverage). Otherwise run just the named one.
+    const char* which = (argc > 1) ? argv[1] : "all";
+
+    if(strcmp(which, "all") == 0)
+    {
+        for(int i = 0; tests[i].name; i++)
+        {
+            run_test(&tests[i], argc, argv);
+        }
+    }
+    else
+    {
+        int found = 0;
+
+        for(int i = 0; tests[i].name; i++)
+        {
+            if(strcmp(which, tests[i].name) == 0)
+            {
+                run_test(&tests[i], argc, argv);
+                found = 1;
+                break;
+            }
+        }
+
+        if(!found)
+        {
+            printf("unknown test '%s'. available:", which);
+
+            for(int i = 0; tests[i].name; i++)
+            {
+                printf(" %s", tests[i].name);
+            }
+
+            printf(" all\n");
+        }
     }
 
     printf("=== done ===\n");

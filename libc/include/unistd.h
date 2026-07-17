@@ -47,8 +47,11 @@ pid_t fork(void);
 // Block until any child process exits - returns exit code
 int wait(void);
 
-// Replace the current process image with the ELF at 'path' - never returns on success
-int exec(const char* path);
+// Replace the current process image with the ELF at 'path'. argv is a 
+// NULL-terminated array of argument strings - argv[0] is conventionally
+// the program's own name (your job to set, not exec's). Never returns
+// on success.
+int exec(const char* path, char* const argv[]);
 
 // Open a file - returns a file descriptor, or -1 on error
 int open(const char* path, int flags);

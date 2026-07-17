@@ -10,7 +10,7 @@ Linker script and memory map
 
                 0xffffffff80100000                . = 0xffffffff80100000
 
-.text           0xffffffff80100000     0x9304
+.text           0xffffffff80100000     0x9704
  *(.text.boot)
  .text.boot     0xffffffff80100000       0x48 build/kernel/architecture/x86_64/start.asm.o
                 0xffffffff80100000                _start
@@ -34,369 +34,370 @@ Linker script and memory map
                 0xffffffff801000b5                irq0
                 0xffffffff801000bc                irq1
  *fill*         0xffffffff8010016f        0x1 
- .text          0xffffffff80100170       0xa0 build/kernel/architecture/x86_64/switch.asm.o
+ .text          0xffffffff80100170       0xd8 build/kernel/architecture/x86_64/switch.asm.o
                 0xffffffff80100170                switch_context
- .text          0xffffffff80100210       0x52 build/kernel/architecture/x86_64/usermode.asm.o
-                0xffffffff80100210                enter_usermode
-                0xffffffff80100229                iret_to_usermode
-                0xffffffff80100238                enter_ring3
- *fill*         0xffffffff80100262        0xe 
- .text          0xffffffff80100270       0x90 build/kernel/architecture/x86_64/syscall_entry.asm.o
-                0xffffffff80100270                syscall_entry
- .text          0xffffffff80100300      0xf53 build/kernel/core/kernel.o
-                0xffffffff80100326                kernel_main
- *fill*         0xffffffff80101253       0x2d 
- .text          0xffffffff80101280      0x8a6 build/kernel/core/kprintf.o
-                0xffffffff80101409                kvsnprintf
-                0xffffffff801019be                kprintf
-                0xffffffff80101a4a                kserial_printf
-                0xffffffff80101af0                ksnprintf
- .text          0xffffffff80101b26       0x6f build/kernel/core/panic.o
-                0xffffffff80101b26                kpanic
- *fill*         0xffffffff80101b95        0xb 
- .text          0xffffffff80101ba0      0x2e6 build/kernel/memory/mem.o
-                0xffffffff80101ba0                mem_init
-                0xffffffff80101c06                kmalloc
-                0xffffffff80101d22                kfree
-                0xffffffff80101d96                mem_print_stats
- *fill*         0xffffffff80101e86       0x1a 
- .text          0xffffffff80101ea0      0x4e7 build/kernel/memory/pmm.o
-                0xffffffff80101ee6                pmm_init
-                0xffffffff80102223                pmm_alloc
-                0xffffffff801022ae                pmm_free
-                0xffffffff801022cb                pmm_free_pages
-                0xffffffff801022da                pmm_used_pages
-                0xffffffff801022e2                pmm_print_stats
- *fill*         0xffffffff80102387       0x39 
- .text          0xffffffff801023c0      0xe20 build/kernel/processes/process.o
-                0xffffffff801023c0                process_init
-                0xffffffff80102419                process_create
-                0xffffffff8010271f                process_exit
-                0xffffffff80102747                process_print_all
-                0xffffffff8010281c                process_block
-                0xffffffff80102829                process_wake
-                0xffffffff8010283c                process_wait
-                0xffffffff801028e6                process_spawn
-                0xffffffff801029a7                create_user_process
-                0xffffffff80102c49                process_fork
-                0xffffffff80103014                process_exec
- .text          0xffffffff801031e0      0x2b6 build/kernel/processes/scheduler.o
-                0xffffffff801031e0                scheduler_init
-                0xffffffff8010320d                scheduler_add
-                0xffffffff8010328c                scheduler_tick
-                0xffffffff801033ab                scheduler_yield
-                0xffffffff801033d2                scheduler_start
- *fill*         0xffffffff80103496        0xa 
- .text          0xffffffff801034a0      0x6d2 build/kernel/processes/syscall.o
-                0xffffffff80103adc                syscall_handler
-                0xffffffff80103b5b                syscall_init
- .text          0xffffffff80103b72      0x227 build/kernel/architecture/x86_64/gdt.o
-                0xffffffff80103b72                gdt_init
-                0xffffffff80103d3f                gdt_set_tss_entry
- *fill*         0xffffffff80103d99        0x1 
- .text          0xffffffff80103d9a      0x314 build/kernel/architecture/x86_64/idt.o
-                0xffffffff80103d9a                idt_set_entry
-                0xffffffff80103dd4                idt_init
-                0xffffffff80103eed                syscall_msr_init
-                0xffffffff80103f2d                isr_handler
-                0xffffffff8010405a                irq_handler
- .text          0xffffffff801040ae       0xb8 build/kernel/architecture/x86_64/pic.o
-                0xffffffff801040ae                pic_init
-                0xffffffff8010411a                pic_send_eoi
-                0xffffffff8010412e                pic_mask
-                0xffffffff8010414e                pic_unmask
- *fill*         0xffffffff80104166        0xa 
- .text          0xffffffff80104170       0x92 build/kernel/architecture/x86_64/tss.o
-                0xffffffff80104170                tss_init
-                0xffffffff801041fa                tss_set_kernel_stack
- *fill*         0xffffffff80104202       0x1e 
- .text          0xffffffff80104220      0xd18 build/kernel/architecture/x86_64/paging.o
-                0xffffffff801044da                physical_to_virtual
-                0xffffffff801044e8                virtual_to_physical
-                0xffffffff801044f6                paging_init
-                0xffffffff8010455a                map_page
-                0xffffffff8010462c                map_page_in
-                0xffffffff80104717                unmap_page
-                0xffffffff8010474e                get_physical
-                0xffffffff801047de                get_physical_in
-                0xffffffff80104864                paging_clone_directory
-                0xffffffff801048c5                paging_switch_directory
-                0xffffffff80104901                paging_deep_copy_directory
-                0xffffffff80104c76                paging_free_directory
-                0xffffffff80104e0e                page_fault_handler
- .text          0xffffffff80104f38       0x3f build/kernel/architecture/x86_64/usermode.o
-                0xffffffff80104f38                jump_to_usermode
- *fill*         0xffffffff80104f77        0x9 
- .text          0xffffffff80104f80      0x5da build/kernel/core/elf.o
-                0xffffffff80104f80                elf_get_entry
-                0xffffffff8010503d                elf_load
-                0xffffffff80105433                elf_load_from_path
- *fill*         0xffffffff8010555a        0x6 
- .text          0xffffffff80105560      0x247 build/drivers/display/vga.o
-                0xffffffff80105560                vga_set_colour
-                0xffffffff8010556d                vga_clear
-                0xffffffff801055b1                vga_putchar
-                0xffffffff80105725                vga_print
-                0xffffffff80105754                vga_init
-                0xffffffff8010576b                dev_display_write
- .text          0xffffffff801057a7       0xe0 build/drivers/input/keyboard.o
-                0xffffffff801057a7                keyboard_handler
-                0xffffffff801057e4                keyboard_init
-                0xffffffff801057e5                keyboard_wait
-                0xffffffff80105810                keyboard_getchar
-                0xffffffff80105847                dev_keyboard_read
- *fill*         0xffffffff80105887       0x19 
- .text          0xffffffff801058a0      0x12b build/drivers/timer/timer.o
-                0xffffffff801058a0                timer_handler
-                0xffffffff8010599c                timer_get_ticks
-                0xffffffff801059a3                timer_get_seconds
-                0xffffffff801059b5                timer_init
- .text          0xffffffff801059cb      0x10f build/drivers/serial/serial.o
-                0xffffffff801059cb                serial_putchar
-                0xffffffff801059de                serial_print
-                0xffffffff80105a1a                serial_println
-                0xffffffff80105a31                serial_init
-                0xffffffff80105a98                dev_serial_read
-                0xffffffff80105a9e                dev_serial_write
- .text          0xffffffff80105ada        0x9 build/drivers/null/null.o
-                0xffffffff80105ada                dev_null_read
-                0xffffffff80105ae0                dev_null_write
- *fill*         0xffffffff80105ae3       0x1d 
- .text          0xffffffff80105b00       0xbe build/drivers/random/random.o
-                0xffffffff80105b00                dev_random_read
- *fill*         0xffffffff80105bbe        0x2 
- .text          0xffffffff80105bc0      0xf6d build/file_system/vfs/vfs.o
-                0xffffffff80105bc0                vfs_init
-                0xffffffff80105c6d                vfs_mount
-                0xffffffff80105df0                vfs_find_mount
-                0xffffffff80105ea5                vfs_resolve_path
-                0xffffffff80106327                vfs_alloc_fd
-                0xffffffff80106384                vfs_free_fd
-                0xffffffff8010639c                vfs_get_file
-                0xffffffff801063b6                vfs_open
-                0xffffffff8010642b                vfs_open_at
-                0xffffffff801064a2                vfs_close
-                0xffffffff8010652e                vfs_read
-                0xffffffff801065cf                vfs_seek
-                0xffffffff80106656                vfs_write
-                0xffffffff801066f7                vfs_mkdir
-                0xffffffff801068ce                vfs_readdir
-                0xffffffff8010695d                vfs_delete
- *fill*         0xffffffff80106b2d       0x13 
- .text          0xffffffff80106b40      0xc6d build/file_system/shadowfs/shadowfs.o
-                0xffffffff801075e7                shadowfs_get_ops
-                0xffffffff801075ef                shadowfs_mount
-                0xffffffff8010776a                shadowfs_stats
- *fill*         0xffffffff801077ad       0x13 
- .text          0xffffffff801077c0      0x518 build/file_system/devfs/devfs.o
-                0xffffffff80107a79                devfs_get_ops
-                0xffffffff80107a81                devfs_mount
-                0xffffffff80107b99                devfs_register
- *fill*         0xffffffff80107cd8       0x28 
- .text          0xffffffff80107d00      0xb90 build/file_system/procfs/procfs.o
-                0xffffffff801087d0                procfs_get_ops
-                0xffffffff801087d8                procfs_mount
- *fill*         0xffffffff80108890       0x10 
- .text          0xffffffff801088a0      0xa64 build/apps/shell/shell.o
-                0xffffffff80109112                shell_handle_key
-                0xffffffff801092ea                shell_init
+ *fill*         0xffffffff80100248        0x8 
+ .text          0xffffffff80100250       0x52 build/kernel/architecture/x86_64/usermode.asm.o
+                0xffffffff80100250                enter_usermode
+                0xffffffff80100269                iret_to_usermode
+                0xffffffff80100278                enter_ring3
+ *fill*         0xffffffff801002a2        0xe 
+ .text          0xffffffff801002b0       0x90 build/kernel/architecture/x86_64/syscall_entry.asm.o
+                0xffffffff801002b0                syscall_entry
+ .text          0xffffffff80100340      0xfa2 build/kernel/core/kernel.o
+                0xffffffff80100366                kernel_main
+ *fill*         0xffffffff801012e2       0x1e 
+ .text          0xffffffff80101300      0x8a6 build/kernel/core/kprintf.o
+                0xffffffff80101489                kvsnprintf
+                0xffffffff80101a3e                kprintf
+                0xffffffff80101aca                kserial_printf
+                0xffffffff80101b70                ksnprintf
+ .text          0xffffffff80101ba6       0x6f build/kernel/core/panic.o
+                0xffffffff80101ba6                kpanic
+ *fill*         0xffffffff80101c15        0xb 
+ .text          0xffffffff80101c20      0x2e6 build/kernel/memory/mem.o
+                0xffffffff80101c20                mem_init
+                0xffffffff80101c86                kmalloc
+                0xffffffff80101da2                kfree
+                0xffffffff80101e16                mem_print_stats
+ *fill*         0xffffffff80101f06       0x1a 
+ .text          0xffffffff80101f20      0x4e7 build/kernel/memory/pmm.o
+                0xffffffff80101f66                pmm_init
+                0xffffffff801022a3                pmm_alloc
+                0xffffffff8010232e                pmm_free
+                0xffffffff8010234b                pmm_free_pages
+                0xffffffff8010235a                pmm_used_pages
+                0xffffffff80102362                pmm_print_stats
+ *fill*         0xffffffff80102407       0x39 
+ .text          0xffffffff80102440      0xdbe build/kernel/processes/process.o
+                0xffffffff80102440                process_init
+                0xffffffff80102499                process_create
+                0xffffffff8010279f                process_exit
+                0xffffffff801027c7                process_print_all
+                0xffffffff8010289c                process_block
+                0xffffffff801028a9                process_wake
+                0xffffffff801028bc                process_wait
+                0xffffffff80102974                process_spawn
+                0xffffffff80102a47                create_user_process
+                0xffffffff80102cc9                process_fork
+                0xffffffff8010302a                process_exec
+ *fill*         0xffffffff801031fe        0x2 
+ .text          0xffffffff80103200      0x34b build/kernel/processes/scheduler.o
+                0xffffffff80103200                scheduler_init
+                0xffffffff8010322d                scheduler_add
+                0xffffffff801032ac                scheduler_remove
+                0xffffffff80103341                scheduler_tick
+                0xffffffff80103460                scheduler_yield
+                0xffffffff80103487                scheduler_start
+ *fill*         0xffffffff8010354b       0x15 
+ .text          0xffffffff80103560      0x6c7 build/kernel/processes/syscall.o
+                0xffffffff80103b91                syscall_handler
+                0xffffffff80103c10                syscall_init
+ .text          0xffffffff80103c27      0x227 build/kernel/architecture/x86_64/gdt.o
+                0xffffffff80103c27                gdt_init
+                0xffffffff80103df4                gdt_set_tss_entry
+ .text          0xffffffff80103e4e      0x314 build/kernel/architecture/x86_64/idt.o
+                0xffffffff80103e4e                idt_set_entry
+                0xffffffff80103e88                idt_init
+                0xffffffff80103fa1                syscall_msr_init
+                0xffffffff80103fe1                isr_handler
+                0xffffffff8010410e                irq_handler
+ .text          0xffffffff80104162       0xb8 build/kernel/architecture/x86_64/pic.o
+                0xffffffff80104162                pic_init
+                0xffffffff801041ce                pic_send_eoi
+                0xffffffff801041e2                pic_mask
+                0xffffffff80104202                pic_unmask
+ *fill*         0xffffffff8010421a        0x6 
+ .text          0xffffffff80104220       0x92 build/kernel/architecture/x86_64/tss.o
+                0xffffffff80104220                tss_init
+                0xffffffff801042aa                tss_set_kernel_stack
+ *fill*         0xffffffff801042b2        0xe 
+ .text          0xffffffff801042c0      0xd18 build/kernel/architecture/x86_64/paging.o
+                0xffffffff8010457a                physical_to_virtual
+                0xffffffff80104588                virtual_to_physical
+                0xffffffff80104596                paging_init
+                0xffffffff801045fa                map_page
+                0xffffffff801046cc                map_page_in
+                0xffffffff801047b7                unmap_page
+                0xffffffff801047ee                get_physical
+                0xffffffff8010487e                get_physical_in
+                0xffffffff80104904                paging_clone_directory
+                0xffffffff80104965                paging_switch_directory
+                0xffffffff801049a1                paging_deep_copy_directory
+                0xffffffff80104d16                paging_free_directory
+                0xffffffff80104eae                page_fault_handler
+ .text          0xffffffff80104fd8       0x3f build/kernel/architecture/x86_64/usermode.o
+                0xffffffff80104fd8                jump_to_usermode
+ *fill*         0xffffffff80105017        0x9 
+ .text          0xffffffff80105020      0x8bb build/kernel/core/elf.o
+                0xffffffff801052a4                elf_get_entry
+                0xffffffff80105361                elf_load
+                0xffffffff801057ac                elf_load_from_path
+ *fill*         0xffffffff801058db        0x5 
+ .text          0xffffffff801058e0      0x247 build/drivers/display/vga.o
+                0xffffffff801058e0                vga_set_colour
+                0xffffffff801058ed                vga_clear
+                0xffffffff80105931                vga_putchar
+                0xffffffff80105aa5                vga_print
+                0xffffffff80105ad4                vga_init
+                0xffffffff80105aeb                dev_display_write
+ .text          0xffffffff80105b27       0xe0 build/drivers/input/keyboard.o
+                0xffffffff80105b27                keyboard_handler
+                0xffffffff80105b64                keyboard_init
+                0xffffffff80105b65                keyboard_wait
+                0xffffffff80105b90                keyboard_getchar
+                0xffffffff80105bc7                dev_keyboard_read
+ *fill*         0xffffffff80105c07       0x19 
+ .text          0xffffffff80105c20      0x12b build/drivers/timer/timer.o
+                0xffffffff80105c20                timer_handler
+                0xffffffff80105d1c                timer_get_ticks
+                0xffffffff80105d23                timer_get_seconds
+                0xffffffff80105d35                timer_init
+ .text          0xffffffff80105d4b      0x10f build/drivers/serial/serial.o
+                0xffffffff80105d4b                serial_putchar
+                0xffffffff80105d5e                serial_print
+                0xffffffff80105d9a                serial_println
+                0xffffffff80105db1                serial_init
+                0xffffffff80105e18                dev_serial_read
+                0xffffffff80105e1e                dev_serial_write
+ .text          0xffffffff80105e5a        0x9 build/drivers/null/null.o
+                0xffffffff80105e5a                dev_null_read
+                0xffffffff80105e60                dev_null_write
+ *fill*         0xffffffff80105e63       0x1d 
+ .text          0xffffffff80105e80       0xbe build/drivers/random/random.o
+                0xffffffff80105e80                dev_random_read
+ *fill*         0xffffffff80105f3e        0x2 
+ .text          0xffffffff80105f40      0xf6d build/file_system/vfs/vfs.o
+                0xffffffff80105f40                vfs_init
+                0xffffffff80105fed                vfs_mount
+                0xffffffff80106170                vfs_find_mount
+                0xffffffff80106225                vfs_resolve_path
+                0xffffffff801066a7                vfs_alloc_fd
+                0xffffffff80106704                vfs_free_fd
+                0xffffffff8010671c                vfs_get_file
+                0xffffffff80106736                vfs_open
+                0xffffffff801067ab                vfs_open_at
+                0xffffffff80106822                vfs_close
+                0xffffffff801068ae                vfs_read
+                0xffffffff8010694f                vfs_seek
+                0xffffffff801069d6                vfs_write
+                0xffffffff80106a77                vfs_mkdir
+                0xffffffff80106c4e                vfs_readdir
+                0xffffffff80106cdd                vfs_delete
+ *fill*         0xffffffff80106ead       0x13 
+ .text          0xffffffff80106ec0      0xc6d build/file_system/shadowfs/shadowfs.o
+                0xffffffff80107967                shadowfs_get_ops
+                0xffffffff8010796f                shadowfs_mount
+                0xffffffff80107aea                shadowfs_stats
+ *fill*         0xffffffff80107b2d       0x13 
+ .text          0xffffffff80107b40      0x518 build/file_system/devfs/devfs.o
+                0xffffffff80107df9                devfs_get_ops
+                0xffffffff80107e01                devfs_mount
+                0xffffffff80107f19                devfs_register
+ *fill*         0xffffffff80108058       0x28 
+ .text          0xffffffff80108080      0xb90 build/file_system/procfs/procfs.o
+                0xffffffff80108b50                procfs_get_ops
+                0xffffffff80108b58                procfs_mount
+ *fill*         0xffffffff80108c10       0x10 
+ .text          0xffffffff80108c20      0xae4 build/apps/shell/shell.o
+                0xffffffff80109512                shell_handle_key
+                0xffffffff801096ea                shell_init
 
-.rodata         0xffffffff80109320     0x2ed3
+.rodata         0xffffffff80109720     0x2f33
  *(.rodata)
- .rodata        0xffffffff80109320      0x160 build/kernel/core/kprintf.o
- .rodata        0xffffffff80109480       0x78 build/kernel/processes/syscall.o
- *fill*         0xffffffff801094f8        0x8 
- .rodata        0xffffffff80109500       0x3b build/drivers/input/keyboard.o
- *fill*         0xffffffff8010953b        0x5 
- .rodata        0xffffffff80109540       0x20 build/file_system/procfs/procfs.o
- .rodata        0xffffffff80109560       0xd0 build/apps/shell/shell.o
+ .rodata        0xffffffff80109720      0x160 build/kernel/core/kprintf.o
+ .rodata        0xffffffff80109880       0x78 build/kernel/processes/syscall.o
+ *fill*         0xffffffff801098f8        0x8 
+ .rodata        0xffffffff80109900       0x3b build/drivers/input/keyboard.o
+ *fill*         0xffffffff8010993b        0x5 
+ .rodata        0xffffffff80109940       0x20 build/file_system/procfs/procfs.o
+ .rodata        0xffffffff80109960       0xd0 build/apps/shell/shell.o
  *(.rodata.*)
  .rodata.str1.1
-                0xffffffff80109630      0x4f4 build/kernel/core/kernel.o
- *fill*         0xffffffff80109b24        0x4 
+                0xffffffff80109a30      0x504 build/kernel/core/kernel.o
+ *fill*         0xffffffff80109f34        0x4 
  .rodata.str1.8
-                0xffffffff80109b28      0x2bd build/kernel/core/kernel.o
+                0xffffffff80109f38      0x2bd build/kernel/core/kernel.o
  .rodata.str1.1
-                0xffffffff80109de5       0x18 build/kernel/core/kprintf.o
+                0xffffffff8010a1f5       0x18 build/kernel/core/kprintf.o
  .rodata.str1.1
-                0xffffffff80109dfd       0x55 build/kernel/core/panic.o
+                0xffffffff8010a20d       0x55 build/kernel/core/panic.o
  .rodata.str1.1
-                0xffffffff80109e52       0xe0 build/kernel/memory/mem.o
- *fill*         0xffffffff80109f32        0x6 
+                0xffffffff8010a262       0xe0 build/kernel/memory/mem.o
+ *fill*         0xffffffff8010a342        0x6 
  .rodata.str1.8
-                0xffffffff80109f38       0x6f build/kernel/memory/mem.o
+                0xffffffff8010a348       0x6f build/kernel/memory/mem.o
  .rodata.str1.1
-                0xffffffff80109fa7      0x1f8 build/kernel/memory/pmm.o
- *fill*         0xffffffff8010a19f        0x1 
+                0xffffffff8010a3b7      0x1f8 build/kernel/memory/pmm.o
+ *fill*         0xffffffff8010a5af        0x1 
  .rodata.str1.8
-                0xffffffff8010a1a0       0xdb build/kernel/memory/pmm.o
- *fill*         0xffffffff8010a27b        0x5 
+                0xffffffff8010a5b0       0xdb build/kernel/memory/pmm.o
+ *fill*         0xffffffff8010a68b        0x5 
  .rodata.str1.8
-                0xffffffff8010a280      0x347 build/kernel/processes/process.o
+                0xffffffff8010a690      0x347 build/kernel/processes/process.o
  .rodata.str1.1
-                0xffffffff8010a5c7      0x13d build/kernel/processes/process.o
+                0xffffffff8010a9d7      0x13d build/kernel/processes/process.o
  .rodata.str1.1
-                0xffffffff8010a704       0x86 build/kernel/processes/scheduler.o
- *fill*         0xffffffff8010a78a        0x6 
+                0xffffffff8010ab14       0x86 build/kernel/processes/scheduler.o
+ *fill*         0xffffffff8010ab9a        0x6 
  .rodata.str1.8
-                0xffffffff8010a790       0xbf build/kernel/processes/scheduler.o
- *fill*         0xffffffff8010a84f        0x1 
+                0xffffffff8010aba0       0xbf build/kernel/processes/scheduler.o
+ *fill*         0xffffffff8010ac5f        0x1 
  .rodata.str1.8
-                0xffffffff8010a850       0xf1 build/kernel/processes/syscall.o
+                0xffffffff8010ac60       0xe9 build/kernel/processes/syscall.o
  .rodata.str1.1
-                0xffffffff8010a941      0x104 build/kernel/processes/syscall.o
+                0xffffffff8010ad49       0xed build/kernel/processes/syscall.o
  .rodata.str1.1
-                0xffffffff8010aa45       0x34 build/kernel/architecture/x86_64/gdt.o
+                0xffffffff8010ae36       0x34 build/kernel/architecture/x86_64/gdt.o
  .rodata.str1.1
-                0xffffffff8010aa79       0x90 build/kernel/architecture/x86_64/idt.o
- *fill*         0xffffffff8010ab09        0x7 
+                0xffffffff8010ae6a       0x90 build/kernel/architecture/x86_64/idt.o
+ *fill*         0xffffffff8010aefa        0x6 
  .rodata.str1.8
-                0xffffffff8010ab10       0x2a build/kernel/architecture/x86_64/idt.o
+                0xffffffff8010af00       0x2a build/kernel/architecture/x86_64/idt.o
  .rodata.str1.1
-                0xffffffff8010ab3a       0x29 build/kernel/architecture/x86_64/tss.o
- *fill*         0xffffffff8010ab63        0x5 
+                0xffffffff8010af2a       0x29 build/kernel/architecture/x86_64/tss.o
+ *fill*         0xffffffff8010af53        0x5 
  .rodata.str1.8
-                0xffffffff8010ab68      0x1f4 build/kernel/architecture/x86_64/paging.o
+                0xffffffff8010af58      0x1f4 build/kernel/architecture/x86_64/paging.o
  .rodata.str1.1
-                0xffffffff8010ad5c      0x114 build/kernel/architecture/x86_64/paging.o
+                0xffffffff8010b14c      0x114 build/kernel/architecture/x86_64/paging.o
  .rodata.str1.8
-                0xffffffff8010ae70       0x28 build/kernel/architecture/x86_64/usermode.o
+                0xffffffff8010b260       0x28 build/kernel/architecture/x86_64/usermode.o
+ .rodata.str1.8
+                0xffffffff8010b288      0x16d build/kernel/core/elf.o
  .rodata.str1.1
-                0xffffffff8010ae98       0x5f build/kernel/core/elf.o
- *fill*         0xffffffff8010aef7        0x1 
- .rodata.str1.8
-                0xffffffff8010aef8       0xfd build/kernel/core/elf.o
+                0xffffffff8010b3f5       0x5f build/kernel/core/elf.o
  .rodata.str1.1
-                0xffffffff8010aff5       0x3e build/drivers/serial/serial.o
- *fill*         0xffffffff8010b033        0x5 
+                0xffffffff8010b454       0x3e build/drivers/serial/serial.o
+ *fill*         0xffffffff8010b492        0x6 
  .rodata.str1.8
-                0xffffffff8010b038       0x1f build/drivers/random/random.o
+                0xffffffff8010b498       0x1f build/drivers/random/random.o
  .rodata.str1.1
-                0xffffffff8010b057      0x184 build/file_system/vfs/vfs.o
- *fill*         0xffffffff8010b1db        0x5 
+                0xffffffff8010b4b7      0x184 build/file_system/vfs/vfs.o
+ *fill*         0xffffffff8010b63b        0x5 
  .rodata.str1.8
-                0xffffffff8010b1e0      0x3cb build/file_system/vfs/vfs.o
- *fill*         0xffffffff8010b5ab        0x5 
+                0xffffffff8010b640      0x3cb build/file_system/vfs/vfs.o
+ *fill*         0xffffffff8010ba0b        0x5 
  .rodata.str1.8
-                0xffffffff8010b5b0      0x296 build/file_system/shadowfs/shadowfs.o
+                0xffffffff8010ba10      0x296 build/file_system/shadowfs/shadowfs.o
  .rodata.str1.1
-                0xffffffff8010b846      0x109 build/file_system/shadowfs/shadowfs.o
- *fill*         0xffffffff8010b94f        0x1 
+                0xffffffff8010bca6      0x109 build/file_system/shadowfs/shadowfs.o
+ *fill*         0xffffffff8010bdaf        0x1 
  .rodata.str1.8
-                0xffffffff8010b950      0x127 build/file_system/devfs/devfs.o
+                0xffffffff8010bdb0      0x127 build/file_system/devfs/devfs.o
  .rodata.str1.1
-                0xffffffff8010ba77       0x68 build/file_system/devfs/devfs.o
+                0xffffffff8010bed7       0x68 build/file_system/devfs/devfs.o
  .rodata.str1.1
-                0xffffffff8010badf       0xe7 build/file_system/procfs/procfs.o
- *fill*         0xffffffff8010bbc6        0x2 
+                0xffffffff8010bf3f       0xe7 build/file_system/procfs/procfs.o
+ *fill*         0xffffffff8010c026        0x2 
  .rodata.str1.8
-                0xffffffff8010bbc8      0x1d6 build/file_system/procfs/procfs.o
+                0xffffffff8010c028      0x1d6 build/file_system/procfs/procfs.o
  .rodata.str1.1
-                0xffffffff8010bd9e      0x220 build/apps/shell/shell.o
- *fill*         0xffffffff8010bfbe        0x2 
+                0xffffffff8010c1fe      0x220 build/apps/shell/shell.o
+ *fill*         0xffffffff8010c41e        0x2 
  .rodata.str1.8
-                0xffffffff8010bfc0      0x233 build/apps/shell/shell.o
+                0xffffffff8010c420      0x233 build/apps/shell/shell.o
 
-.eh_frame       0xffffffff8010c1f8     0x1bb0
- .eh_frame      0xffffffff8010c1f8       0x68 build/kernel/core/kernel.o
- .eh_frame      0xffffffff8010c260      0x108 build/kernel/core/kprintf.o
- .eh_frame      0xffffffff8010c368       0x38 build/kernel/core/panic.o
- .eh_frame      0xffffffff8010c3a0       0xa0 build/kernel/memory/mem.o
- .eh_frame      0xffffffff8010c440      0x108 build/kernel/memory/pmm.o
- .eh_frame      0xffffffff8010c548      0x1e8 build/kernel/processes/process.o
- .eh_frame      0xffffffff8010c730       0xd0 build/kernel/processes/scheduler.o
- .eh_frame      0xffffffff8010c800      0x2b0 build/kernel/processes/syscall.o
- .eh_frame      0xffffffff8010cab0       0x58 build/kernel/architecture/x86_64/gdt.o
- .eh_frame      0xffffffff8010cb08       0xb0 build/kernel/architecture/x86_64/idt.o
- .eh_frame      0xffffffff8010cbb8       0x68 build/kernel/architecture/x86_64/pic.o
- .eh_frame      0xffffffff8010cc20       0x50 build/kernel/architecture/x86_64/tss.o
- .eh_frame      0xffffffff8010cc70      0x278 build/kernel/architecture/x86_64/paging.o
- .eh_frame      0xffffffff8010cee8       0x40 build/kernel/architecture/x86_64/usermode.o
- .eh_frame      0xffffffff8010cf28       0xb0 build/kernel/core/elf.o
- .eh_frame      0xffffffff8010cfd8       0xc8 build/drivers/display/vga.o
- .eh_frame      0xffffffff8010d0a0       0xb8 build/drivers/input/keyboard.o
- .eh_frame      0xffffffff8010d158       0x78 build/drivers/timer/timer.o
- .eh_frame      0xffffffff8010d1d0       0xd8 build/drivers/serial/serial.o
- .eh_frame      0xffffffff8010d2a8       0x40 build/drivers/null/null.o
- .eh_frame      0xffffffff8010d2e8       0x48 build/drivers/random/random.o
- .eh_frame      0xffffffff8010d330      0x2d0 build/file_system/vfs/vfs.o
- .eh_frame      0xffffffff8010d600      0x250 build/file_system/shadowfs/shadowfs.o
- .eh_frame      0xffffffff8010d850      0x188 build/file_system/devfs/devfs.o
- .eh_frame      0xffffffff8010d9d8      0x158 build/file_system/procfs/procfs.o
- .eh_frame      0xffffffff8010db30      0x278 build/apps/shell/shell.o
+.eh_frame       0xffffffff8010c658     0x1c28
+ .eh_frame      0xffffffff8010c658       0x68 build/kernel/core/kernel.o
+ .eh_frame      0xffffffff8010c6c0      0x108 build/kernel/core/kprintf.o
+ .eh_frame      0xffffffff8010c7c8       0x38 build/kernel/core/panic.o
+ .eh_frame      0xffffffff8010c800       0xa0 build/kernel/memory/mem.o
+ .eh_frame      0xffffffff8010c8a0      0x108 build/kernel/memory/pmm.o
+ .eh_frame      0xffffffff8010c9a8      0x1f0 build/kernel/processes/process.o
+ .eh_frame      0xffffffff8010cb98       0xe0 build/kernel/processes/scheduler.o
+ .eh_frame      0xffffffff8010cc78      0x2b8 build/kernel/processes/syscall.o
+ .eh_frame      0xffffffff8010cf30       0x58 build/kernel/architecture/x86_64/gdt.o
+ .eh_frame      0xffffffff8010cf88       0xb0 build/kernel/architecture/x86_64/idt.o
+ .eh_frame      0xffffffff8010d038       0x68 build/kernel/architecture/x86_64/pic.o
+ .eh_frame      0xffffffff8010d0a0       0x50 build/kernel/architecture/x86_64/tss.o
+ .eh_frame      0xffffffff8010d0f0      0x278 build/kernel/architecture/x86_64/paging.o
+ .eh_frame      0xffffffff8010d368       0x40 build/kernel/architecture/x86_64/usermode.o
+ .eh_frame      0xffffffff8010d3a8      0x108 build/kernel/core/elf.o
+ .eh_frame      0xffffffff8010d4b0       0xc8 build/drivers/display/vga.o
+ .eh_frame      0xffffffff8010d578       0xb8 build/drivers/input/keyboard.o
+ .eh_frame      0xffffffff8010d630       0x78 build/drivers/timer/timer.o
+ .eh_frame      0xffffffff8010d6a8       0xd8 build/drivers/serial/serial.o
+ .eh_frame      0xffffffff8010d780       0x40 build/drivers/null/null.o
+ .eh_frame      0xffffffff8010d7c0       0x48 build/drivers/random/random.o
+ .eh_frame      0xffffffff8010d808      0x2d0 build/file_system/vfs/vfs.o
+ .eh_frame      0xffffffff8010dad8      0x250 build/file_system/shadowfs/shadowfs.o
+ .eh_frame      0xffffffff8010dd28      0x188 build/file_system/devfs/devfs.o
+ .eh_frame      0xffffffff8010deb0      0x158 build/file_system/procfs/procfs.o
+ .eh_frame      0xffffffff8010e008      0x278 build/apps/shell/shell.o
 
-.data           0xffffffff8010ddc0      0x140
+.data           0xffffffff8010e280      0x140
  *(.data)
- .data          0xffffffff8010ddc0       0x10 build/kernel/architecture/x86_64/syscall_entry.asm.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/core/kernel.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/core/kprintf.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/core/panic.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/memory/mem.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/memory/pmm.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/processes/process.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/processes/scheduler.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/processes/syscall.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/architecture/x86_64/gdt.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/architecture/x86_64/idt.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/architecture/x86_64/pic.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/architecture/x86_64/tss.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/architecture/x86_64/paging.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/architecture/x86_64/usermode.o
- .data          0xffffffff8010ddd0        0x0 build/kernel/core/elf.o
- .data          0xffffffff8010ddd0        0x0 build/drivers/display/vga.o
- .data          0xffffffff8010ddd0        0x0 build/drivers/input/keyboard.o
- .data          0xffffffff8010ddd0        0x0 build/drivers/timer/timer.o
- .data          0xffffffff8010ddd0        0x0 build/drivers/serial/serial.o
- .data          0xffffffff8010ddd0        0x0 build/drivers/null/null.o
- .data          0xffffffff8010ddd0        0x0 build/drivers/random/random.o
- .data          0xffffffff8010ddd0        0x0 build/file_system/vfs/vfs.o
- *fill*         0xffffffff8010ddd0       0x10 
- .data          0xffffffff8010dde0       0x60 build/file_system/shadowfs/shadowfs.o
- .data          0xffffffff8010de40       0x60 build/file_system/devfs/devfs.o
- .data          0xffffffff8010dea0       0x60 build/file_system/procfs/procfs.o
- .data          0xffffffff8010df00        0x0 build/apps/shell/shell.o
+ .data          0xffffffff8010e280       0x10 build/kernel/architecture/x86_64/syscall_entry.asm.o
+ .data          0xffffffff8010e290        0x0 build/kernel/core/kernel.o
+ .data          0xffffffff8010e290        0x0 build/kernel/core/kprintf.o
+ .data          0xffffffff8010e290        0x0 build/kernel/core/panic.o
+ .data          0xffffffff8010e290        0x0 build/kernel/memory/mem.o
+ .data          0xffffffff8010e290        0x0 build/kernel/memory/pmm.o
+ .data          0xffffffff8010e290        0x0 build/kernel/processes/process.o
+ .data          0xffffffff8010e290        0x0 build/kernel/processes/scheduler.o
+ .data          0xffffffff8010e290        0x0 build/kernel/processes/syscall.o
+ .data          0xffffffff8010e290        0x0 build/kernel/architecture/x86_64/gdt.o
+ .data          0xffffffff8010e290        0x0 build/kernel/architecture/x86_64/idt.o
+ .data          0xffffffff8010e290        0x0 build/kernel/architecture/x86_64/pic.o
+ .data          0xffffffff8010e290        0x0 build/kernel/architecture/x86_64/tss.o
+ .data          0xffffffff8010e290        0x0 build/kernel/architecture/x86_64/paging.o
+ .data          0xffffffff8010e290        0x0 build/kernel/architecture/x86_64/usermode.o
+ .data          0xffffffff8010e290        0x0 build/kernel/core/elf.o
+ .data          0xffffffff8010e290        0x0 build/drivers/display/vga.o
+ .data          0xffffffff8010e290        0x0 build/drivers/input/keyboard.o
+ .data          0xffffffff8010e290        0x0 build/drivers/timer/timer.o
+ .data          0xffffffff8010e290        0x0 build/drivers/serial/serial.o
+ .data          0xffffffff8010e290        0x0 build/drivers/null/null.o
+ .data          0xffffffff8010e290        0x0 build/drivers/random/random.o
+ .data          0xffffffff8010e290        0x0 build/file_system/vfs/vfs.o
+ *fill*         0xffffffff8010e290       0x10 
+ .data          0xffffffff8010e2a0       0x60 build/file_system/shadowfs/shadowfs.o
+ .data          0xffffffff8010e300       0x60 build/file_system/devfs/devfs.o
+ .data          0xffffffff8010e360       0x60 build/file_system/procfs/procfs.o
+ .data          0xffffffff8010e3c0        0x0 build/apps/shell/shell.o
 
-.bss            0xffffffff8010e000     0x4480
-                0xffffffff8010e000                __bss_start = .
+.bss            0xffffffff8010f000     0x4480
+                0xffffffff8010f000                __bss_start = .
  *(.bss)
- .bss           0xffffffff8010e000        0x0 build/kernel/core/kernel.o
- .bss           0xffffffff8010e000        0x0 build/kernel/core/kprintf.o
- .bss           0xffffffff8010e000        0x0 build/kernel/core/panic.o
- .bss           0xffffffff8010e000       0x10 build/kernel/memory/mem.o
- .bss           0xffffffff8010e010       0x10 build/kernel/memory/pmm.o
- .bss           0xffffffff8010e020       0xa0 build/kernel/processes/process.o
-                0xffffffff8010e020                next_pid
-                0xffffffff8010e028                current_process
-                0xffffffff8010e040                process_table
- .bss           0xffffffff8010e0c0       0x10 build/kernel/processes/scheduler.o
- .bss           0xffffffff8010e0d0        0x0 build/kernel/processes/syscall.o
- *fill*         0xffffffff8010e0d0       0x10 
- .bss           0xffffffff8010e0e0       0x60 build/kernel/architecture/x86_64/gdt.o
- .bss           0xffffffff8010e140     0x1020 build/kernel/architecture/x86_64/idt.o
- .bss           0xffffffff8010f160        0x0 build/kernel/architecture/x86_64/pic.o
- .bss           0xffffffff8010f160       0x68 build/kernel/architecture/x86_64/tss.o
- .bss           0xffffffff8010f1c8        0x8 build/kernel/architecture/x86_64/paging.o
-                0xffffffff8010f1c8                kernel_pml4
- *fill*         0xffffffff8010f1d0      0xe30 
- .bss           0xffffffff80110000     0x1000 build/kernel/architecture/x86_64/usermode.o
- .bss           0xffffffff80111000        0x0 build/kernel/core/elf.o
- .bss           0xffffffff80111000        0xc build/drivers/display/vga.o
- *fill*         0xffffffff8011100c        0x4 
- .bss           0xffffffff80111010        0x9 build/drivers/input/keyboard.o
-                0xffffffff80111010                keyboard_waiting
- *fill*         0xffffffff80111019        0x3 
- .bss           0xffffffff8011101c        0x4 build/drivers/timer/timer.o
- .bss           0xffffffff80111020        0x0 build/drivers/serial/serial.o
- .bss           0xffffffff80111020        0x0 build/drivers/null/null.o
- .bss           0xffffffff80111020        0x0 build/drivers/random/random.o
- .bss           0xffffffff80111020      0xe20 build/file_system/vfs/vfs.o
- .bss           0xffffffff80111e40        0x0 build/file_system/shadowfs/shadowfs.o
- .bss           0xffffffff80111e40      0x518 build/file_system/devfs/devfs.o
- .bss           0xffffffff80112358        0x0 build/file_system/procfs/procfs.o
- *fill*         0xffffffff80112358        0x8 
- .bss           0xffffffff80112360      0x120 build/apps/shell/shell.o
+ .bss           0xffffffff8010f000        0x0 build/kernel/core/kernel.o
+ .bss           0xffffffff8010f000        0x0 build/kernel/core/kprintf.o
+ .bss           0xffffffff8010f000        0x0 build/kernel/core/panic.o
+ .bss           0xffffffff8010f000       0x10 build/kernel/memory/mem.o
+ .bss           0xffffffff8010f010       0x10 build/kernel/memory/pmm.o
+ .bss           0xffffffff8010f020       0xa0 build/kernel/processes/process.o
+                0xffffffff8010f020                next_pid
+                0xffffffff8010f028                current_process
+                0xffffffff8010f040                process_table
+ .bss           0xffffffff8010f0c0       0x10 build/kernel/processes/scheduler.o
+ .bss           0xffffffff8010f0d0        0x0 build/kernel/processes/syscall.o
+ *fill*         0xffffffff8010f0d0       0x10 
+ .bss           0xffffffff8010f0e0       0x60 build/kernel/architecture/x86_64/gdt.o
+ .bss           0xffffffff8010f140     0x1020 build/kernel/architecture/x86_64/idt.o
+ .bss           0xffffffff80110160        0x0 build/kernel/architecture/x86_64/pic.o
+ .bss           0xffffffff80110160       0x68 build/kernel/architecture/x86_64/tss.o
+ .bss           0xffffffff801101c8        0x8 build/kernel/architecture/x86_64/paging.o
+                0xffffffff801101c8                kernel_pml4
+ *fill*         0xffffffff801101d0      0xe30 
+ .bss           0xffffffff80111000     0x1000 build/kernel/architecture/x86_64/usermode.o
+ .bss           0xffffffff80112000        0x0 build/kernel/core/elf.o
+ .bss           0xffffffff80112000        0xc build/drivers/display/vga.o
+ *fill*         0xffffffff8011200c        0x4 
+ .bss           0xffffffff80112010        0x9 build/drivers/input/keyboard.o
+                0xffffffff80112010                keyboard_waiting
+ *fill*         0xffffffff80112019        0x3 
+ .bss           0xffffffff8011201c        0x4 build/drivers/timer/timer.o
+ .bss           0xffffffff80112020        0x0 build/drivers/serial/serial.o
+ .bss           0xffffffff80112020        0x0 build/drivers/null/null.o
+ .bss           0xffffffff80112020        0x0 build/drivers/random/random.o
+ .bss           0xffffffff80112020      0xe20 build/file_system/vfs/vfs.o
+ .bss           0xffffffff80112e40        0x0 build/file_system/shadowfs/shadowfs.o
+ .bss           0xffffffff80112e40      0x518 build/file_system/devfs/devfs.o
+ .bss           0xffffffff80113358        0x0 build/file_system/procfs/procfs.o
+ *fill*         0xffffffff80113358        0x8 
+ .bss           0xffffffff80113360      0x120 build/apps/shell/shell.o
  *(COMMON)
-                0xffffffff80112480                __bss_end = .
+                0xffffffff80113480                __bss_end = .
 LOAD build/kernel/architecture/x86_64/start.asm.o
 LOAD build/kernel/architecture/x86_64/gdt_flush.asm.o
 LOAD build/kernel/architecture/x86_64/idt_flush.asm.o

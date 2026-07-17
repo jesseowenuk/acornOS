@@ -62,6 +62,57 @@ void scheduler_add(process_t* proc)
     kserial_printf("Scheduler: added process '%s' to run queue.\n", proc->name);
 }
 
+// --- scheduler_remove ------------------------------------
+// Remove a process from the circular run queue. Must be called before
+// freeing any process_t that scheduler_add() ever added - otherwise the
+// queue is left holding a dangling pointer into freed memory, which
+// corrupts scheduling the next time the queue is walked (process_wait()
+// used to kfree() a reaped child without this, which is exactly what
+// let a dead process's node linger in the queue and corrupt it).
+
+void scheduler_remove(process_t* proc)
+{
+    if(!proc || !run_queue_head)
+    {
+        return;
+    }
+
+    if(run_queue_head == proc && run_queue_head == run_queue_tail)
+    {
+        // Only process in the queue
+        run_queue_head = 0;
+        run_queue_tail = 0;
+        return;
+    }
+
+    // Find the node just before 'proc' so we can splice it out
+    process_t* prev = run_queue_tail;
+    process_t* node = run_queue_head;
+
+    for(int i = 0; i < MAX_PROCESSES; i++)
+    {
+        if(node == proc)
+        {
+            prev->next = node->next;
+
+            if(run_queue_head == proc)
+            {
+                run_queue_head = node->next;
+            }
+
+            if(run_queue_tail == proc)
+            {
+                run_queue_tail = prev;
+            }
+
+            return;
+        }
+
+        prev = node;
+        node = node->next;
+    }
+}
+
 // --- scheduler_tick --------------------------------------
 // Called every timer tick - handles preemption
 // This is called from irq_handler in idt.c

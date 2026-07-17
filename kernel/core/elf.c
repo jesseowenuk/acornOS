@@ -8,6 +8,114 @@
 
 extern void iret_to_usermode();
 
+// Most bytes of argv strings + the pointer array allowed to fit onto
+// the single-page user stack elf_load() builds. Generous for shell
+// command arguments; enforced explicitly rather than silently
+// overflowing into the program's own stack usage.
+#define MAX_ARGV_BLOCK_SIZE 2048
+
+// Most argv entries accepted so string_addr[] below can be a fixed
+// size array instead of a variable-length one.
+#define MAX_ARGV_COUNT 32
+
+// --- build_argv_stack ------------------------------------------------
+// Writes argv's strings and a NULL-terminated pointer array onto the
+// top of a process's freshly mapped, single-page user stack - via the
+// kernel's physical direct map, the same technique elf_load() already
+// uses to populate segments before the new page directory is active.
+//
+// argv[0] is conventionally the program's own namel setting that is
+// the caller's job, not this function's - it just copies whatever
+// NULL-terminated array it's given.
+//
+// On success, *out_argc and *out_stack_top (the address of the argv
+// pointer array itself, which also becomes the process's initial RSP -
+// its own stack usage grows down from there) are filled in.
+// Returns 1 on success, 0 on failure (no argv given, too many
+// arguments, or the block doesn't fit in MAX_ARGV_BLOCK_SIZE)
+static int build_argv_stack(page_directory_t* page_dir, uint64_t stack_virtual, char** argv, int* out_argc, uint64_t* out_stack_top)
+{
+    if(!argv || !argv[0])
+    {
+        return 0;
+    }
+
+    int argc = 0;
+
+    while(argv[argc])
+    {
+        argc++;
+
+        if(argc >= MAX_ARGV_COUNT)
+        {
+            kserial_printf("build_argv_stack: too many arguments, dropping argv\n");
+            return 0;
+        }
+    }
+
+    uint64_t page_top = stack_virtual + PAGE_SIZE;
+    uint8_t* page_base = (uint8_t*)physical_to_virtual(get_physical_in(page_dir, stack_virtual));
+    uint64_t cursor = page_top;
+    uint64_t string_addr[MAX_ARGV_COUNT];
+
+    // Place strings from the top of the page downward, recording each
+    // one's final user-space address for the pointer array that follows.
+    for(int i = argc - 1; i >= 0; i--)
+    {
+        uint64_t len = 0;
+
+        while(argv[i][len])
+        {
+            len++;
+        }
+
+        len++;                      // include the null terminator
+
+        if(page_top - (cursor - len) > MAX_ARGV_BLOCK_SIZE)
+        {
+            kserial_printf("build_argv_stack: argv too large, dropping argv\n");
+            return 0;
+        }
+
+        cursor -= len;
+
+        for(uint64_t j = 0; j < len; j++)
+        {
+            page_base[(cursor & 0xFFF) + j] = argv[i][j];
+        }
+
+        string_addr[i] = cursor;
+    }
+
+    // Pointer array sits just below the strings, 8-byte aligned, argc+1
+    // entries (argv[argc] = NULL - the standard convention, even though
+    // there's no envp/auxv here yet
+    cursor &= ~0x7UL;
+    uint64_t pointer_array_bytes = (uint64_t)(argc + 1) * 8;
+
+    if(page_top - (cursor - pointer_array_bytes) > MAX_ARGV_BLOCK_SIZE)
+    {
+        kserial_printf("build_argv_stack: argv too large, dropping argv\n");
+        return 0;
+    }
+
+    cursor -= pointer_array_bytes;
+
+    uint64_t* pointer_array = (uint64_t*)(page_base + (cursor & 0xFFF));
+
+    for(int i = 0; i < argc; i++)
+    {
+        pointer_array[i] = string_addr[i];
+    }
+
+    pointer_array[argc] = 0;
+
+    *out_argc = argc;
+    *out_stack_top = cursor;
+
+    return 1;
+}
+
 // Get the elf entry point
 uint64_t elf_get_entry(uint8_t* data)
 {
@@ -51,7 +159,7 @@ uint64_t elf_get_entry(uint8_t* data)
 // Loads an ELF64 binary already present in physical memory
 // physical_address = physical address where the ELF file starts
 // Returns entry point virtual address, or 0 on failure
-uint64_t elf_load(uint8_t* data, process_t* process)
+uint64_t elf_load(uint8_t* data, process_t* process, char** argv)
 {
     // Access the ELF via the direct physical map
     uint8_t* file = data;
@@ -112,7 +220,7 @@ uint64_t elf_load(uint8_t* data, process_t* process)
 
         // Align to page boundaries
         uint64_t virtual_address = ph->p_vaddr & ~0xFFFUL;          // Align down to a page
-        uint64_t virtual_address_end = ((ph->p_vaddr + ph->p_memsz + 0xFFF) & ~0xFFFUL) + PAGE_SIZE;
+        uint64_t virtual_address_end = ((ph->p_vaddr + ph->p_memsz + 0xFFF) & ~0xFFFUL);
 
         if(virtual_address_end > heap_start)
         {
@@ -201,8 +309,16 @@ uint64_t elf_load(uint8_t* data, process_t* process)
         stack_page[k] = 0;
     }
 
-    // User stack top
+    // User stack top - argc/argv (if any) get written onto this same
+    // page first, and the true starting RSP moves down below them
+    int argc = 0;
     uint64_t user_stack_top = stack_virtual + PAGE_SIZE - 8;
+    uint64_t argv_user_addr = 0;
+
+    if(build_argv_stack(process->page_dir, stack_virtual, argv, &argc, &user_stack_top))
+    {
+        argv_user_addr = user_stack_top;
+    }
 
     // Set up iret frame on kernel stack for ring 3 entry
     // switch_context will use iret_to_usermode to enter ring 3
@@ -226,6 +342,12 @@ uint64_t elf_load(uint8_t* data, process_t* process)
     process->heap_start = heap_start;           // Heap starts empty, right after
     process->heap_end = heap_start;             // the last LOAD segment (page-aligned)
 
+    // enter_ring3()/iret_to_usermode restore RDI/RSI from cpu state right
+    // before iret - so _start(argc, argv) recieves them exactly as if it
+    // had been called normally, no special stack based ABI needed
+    process->cpu.rdi = (uint64_t)argc;
+    process->cpu.rsi = argv_user_addr;
+
     kserial_printf("elf_load: loaded OK entry=0x%lx stack=0x%lx\n", header->e_entry, process->cpu.rsp);
 
     return header->e_entry;
@@ -236,7 +358,7 @@ uint64_t elf_load(uint8_t* data, process_t* process)
 // then hands it to elf_load. The buffer is only staging - elf_load()
 // copies segment data out of it into the process's own pages, so it's
 // safe to free once elf_load() returns.
-uint64_t elf_load_from_path(const char* path, process_t* process)
+uint64_t elf_load_from_path(const char* path, process_t* process, char** argv)
 {
     int fd = vfs_open(path, O_RDONLY);
     if(fd < 0)
@@ -272,7 +394,7 @@ uint64_t elf_load_from_path(const char* path, process_t* process)
         return 0;
     }
 
-    uint64_t entry = elf_load(buffer, process);
+    uint64_t entry = elf_load(buffer, process, argv);
 
     kfree(buffer);
 

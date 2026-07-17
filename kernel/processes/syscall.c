@@ -27,6 +27,22 @@ static void sys_exit(registers_t* regs)
     // Save exit code for parent to read
     current_process->exit_code = exit_code;
 
+    // Disable interrupts for "mark dead, then wake parent" - marking
+    // dead must happen BEFORE checking/waking the parent: if the 
+    // parent were woken first and a timer interrupt preempted us right
+    // here (scheduling the now-READY parent in before  we'd actually
+    // marked ourselves dead, it would find us still "alive" on its
+    // recheck, block itself again, and never be woken again - this
+    // wake-parent check only ever runs once, right here. The "memory"
+    // clobber matters - without it the compiler is free to reorder or
+    // cache memory reads/writes across a bare asm("cli"), since
+    // volatile alone only stops it deleting the instructions, not
+    // reordering surrounding code around it).
+    __asm__ volatile("cli" ::: "memory");
+
+    // Mark process as dead
+    process_exit(current_process); 
+
     // Wake parent if it's waiting
     if(current_process->parent_pid > 0)
     {
@@ -43,8 +59,7 @@ static void sys_exit(registers_t* regs)
         }
     }
 
-    // Mark process as dead
-    process_exit(current_process);   
+    __asm__ volatile("sti" ::: "memory");  
     
     // Switch to the next process, this call never returns
     scheduler_yield();
@@ -168,80 +183,80 @@ static void sys_fork(registers_t* regs)
 
 static void sys_wait(registers_t* regs)
 {
-    (void)regs;
-
     kserial_printf("wait: PID=%d waiting for children\n", current_process->pid);
 
-    // Look for any dead children first
-    // If child already exited before we called wait - no need to block
-    for(int i = 0; i < MAX_PROCESSES; i++)
+    while(1)
     {
-        if(process_table[i] && process_table[i]->parent_pid == current_process->pid && process_table[i]->state == PROCESS_DEAD)
+        // Disable interrupts for the check-then-block sequence below -
+        // otherwise the child could exit (via a timer interrupt
+        // preempting us right here) and try to wake us in the gap
+        // between "not dead yet" and actually marking ourselves
+        // BLOCKED - a classic lost-wakeup race. The "memory" clobber
+        // matters - without it the compiler is free to reorder or
+        // cache memory reads/writes across a bare asm("cli").
+        __asm__ volatile("cli" ::: "memory");
+
+        for(int i = 0; i < MAX_PROCESSES; i++)
         {
-            // Found a dead child - collect its exit code
-            int exit_code = process_table[i]->exit_code;
-            kserial_printf("wait: child PID=%d already dead exit=%d\n", process_table[i]->pid, exit_code);
+            process_t* child = process_table[i];
 
-            // Clean up the child
+            if(child && child->parent_pid == current_process->pid && child->state == PROCESS_DEAD)
+            {
+                __asm__ volatile("sti" ::: "memory");
 
-            // Remove from the process table
-            process_table[i] = 0;
+                int exit_code = child->exit_code;
+                kserial_printf("wait: child PID=%d exited=%d\n", (int)child->pid, exit_code);
 
-            // Return exit code to parent
-            regs->rax = exit_code;
+                // Must unlink from the scheduler's run queue and free
+                // every resource the child owned before kfree()-ing it -
+                // otherwise its page tables, stack and run-queue slot
+                // leak on every single wait.
+                scheduler_remove(child);
+                paging_free_directory(child->page_dir);
+                pmm_free((void*)virtual_to_physical(child->stack));
+                process_table[i] = 0;
+                kfree(child);
 
+                regs->rax = exit_code;
+                return;
+            }
+        }
+
+        int has_children = 0;
+        for(int i = 0; i < MAX_PROCESSES; i++)
+        {
+            if(process_table[i] && process_table[i]->parent_pid == current_process->pid)
+            {
+                has_children = 1;
+                break;
+            }
+        }
+
+        if(!has_children)
+        {
+            __asm__ volatile("sti" ::: "memory");
+            kserial_printf("wait: no children\n");
+            regs->rax = -1;
             return;
         }
+
+        // Block until a child exits - sys_exit will wake us
+        kserial_printf("wait: blocking until child exits\n");
+        process_block(current_process);
+        __asm__ volatile("sti" ::: "memory");
+        scheduler_yield();
     }
-
-    // No dead children yet - check if we have any children at all
-    int has_children = 0;
-    for(int i = 0; i < MAX_PROCESSES;  i++)
-    {
-        if(process_table[i] && process_table[i]->parent_pid == current_process->pid)
-        {
-            has_children = 1;
-            break;
-        }
-    }
-
-    if(!has_children)
-    {
-        // No children - return error
-        kserial_printf("wait: no children!\n");
-        regs->rax = -1;
-        return;
-    }
-
-    // Block until a child exits
-    // sys_exit will wake us up when a child dies
-    kserial_printf("wait: blocking until child exits\n");
-    process_block(current_process);
-    scheduler_yield();
-
-    // When we wake up a child has exited - find it
-    for(int i = 0; i < MAX_PROCESSES; i++)
-    {
-        if(process_table[i] && process_table[i]->parent_pid == current_process->pid && process_table[i]->state == PROCESS_DEAD)
-        {
-            int exit_code = process_table[i]->exit_code;
-            kserial_printf("wait: child PID=%d exited=%d\n", process_table[i]->pid, exit_code);
-            regs->rax = exit_code;
-            return;
-        }
-    }
-
-    // Something went wrong
-    regs->rax = -1;
 }
 
 // --- sys_exec ------------------------------------------
 static void sys_exec(registers_t* regs)
 {
     // RDI = pointer to a path string naming the ELF binary to run
+    // RSI = pointer to a NULL-terminated argv array, or NULL for none
     const char* path = (const char*)regs->rdi;
+    char** argv = (char**)regs->rsi;
 
-    kserial_printf("sys_exec: path=0x%lx\n", regs->rdi);
+    kserial_printf("sys_exec: path=0x%lx argv=0x%lx\n", regs->rdi, regs->rsi);
 
     if(!path)
     {
@@ -252,7 +267,7 @@ static void sys_exec(registers_t* regs)
 
     // Replace current process image with the ELF at 'path'
     // Never returns on success
-    process_exec(path);
+    process_exec(path, argv);
 
     // Only reached on failure
     regs->rax = -1;

@@ -342,8 +342,13 @@ static void cmd_rm(const char* path)
     }
 }
 
+// Most arguments a 'run' command line can be split into
+#define SHELL_MAX_ARGS 16
+
 static void cmd_run(const char* path)
 {
+    // Skip any number of leading spaces - not just one - so "run  snake"
+    // (or more) doesn't leave a spurious empty argv[0] before "snake" 
     if(*path == ' ')
     {
         path++;
@@ -357,7 +362,38 @@ static void cmd_run(const char* path)
         return;
     }
 
-    pid_t pid = process_spawn(path);
+    // Tokenise the rest of the line into argv, in place - 'path' points
+    // into the shell's own input buffer, which is safe to mutate here:
+    // process_spawn() copies everything it needs before returning, and
+    // buffer_clear() resets the buffer before the next command anyway
+    char* argv[SHELL_MAX_ARGS];
+    int argc = 0;
+    char* cursor = (char*)path;
+
+    while(*cursor && argc < SHELL_MAX_ARGS - 1)
+    {
+        argv[argc++] = cursor;
+
+        while(*cursor && *cursor != ' ')
+        {
+            cursor++;
+        }
+
+        if(*cursor == ' ')
+        {
+            *cursor = 0;
+            cursor++;
+
+            while(*cursor == ' ')
+            {
+                cursor++;
+            }
+        }
+    }
+
+    argv[argc] = 0;
+
+    pid_t pid = process_spawn(path, argv);
     if(pid == (pid_t)-1)
     {
         vga_set_colour(RED, BLACK);

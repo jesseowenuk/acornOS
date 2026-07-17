@@ -301,7 +301,7 @@
 
 ---
 
-## Phase 10 — Basic libc (🔄)
+## Phase 10 — Basic libc (✅)
 
 > Minimal C library for user space programs.
 
@@ -312,20 +312,21 @@
 - ✅ malloc / free (uses brk syscall)
 - ✅ string functions (strlen, strcpy, strcmp etc.)
 - ✅ Raw file I/O (open/read/write/close/seek) - fd-aware, real files
-- ⬜ Buffered stdio (fopen, fclose, fread, fwrite)
+- ✅ Buffered stdio (fopen, fclose, fread, fwrite)
 - ✅ Hello World compiles and runs!
 
 ---
 
 ## Phase 10.5 — Process & Program Fundamentals (⬜)
 
-> The missing pieces every real program expects. Do this before Phase 11
-> (games) - Snake/Tetris/Pong all want at least argc/argv and sleep().
+> The missing pieces every real program expects. Do this now, since
+> every program written from here on (games included, Phase 14.5) wants
+> at least argc/argv and sleep().
 
-- ⬜ Pass argc/argv to exec'd programs (currently main(void) - no arguments)
-  - ⬜ Shell parses command line into argv
-  - ⬜ exec()/process_spawn() pass argv through to the new process
-  - ⬜ crt0 unpacks argv before calling main(int argc, char** argv)
+- ✅ Pass argc/argv to exec'd programs (currently main(void) - no arguments)
+  - ✅ Shell parses command line into argv
+  - ✅ exec()/process_spawn() pass argv through to the new process
+  - ✅ crt0 unpacks argv before calling main(int argc, char** argv)
 - ⬜ Environment variables
   - ⬜ getenv() / setenv() in libc
   - ⬜ Environment block passed at exec time
@@ -371,35 +372,56 @@
 
 ---
 
-## Phase 11 — First Games! (⬜)
+## Phase 10.7 — Users & Permissions (Foundations) (⬜)
 
-> Text mode games. The first real acornOS applications.
+> The inode struct has carried unused uid/gid/permissions fields since
+> Phase 3 (see file_system/vfs.h) - nothing has ever read them. Enforcing
+> them now, while there's only one process tree and one filesystem to
+> retrofit, is far cheaper than doing it after Phases 11-28 have all
+> built more code on top of an ownership-free world. Real accounts and
+> login (Phase 29) build on top of this once persistent storage exists
+> to make them survive a reboot.
 
-- ⬜ 🎮 Snake
-  - ⬜ VGA character graphics
-  - ⬜ Keyboard input
-  - ⬜ Score tracking
-  - ⬜ Runs via fork/exec from shell
-- ⬜ 🎮 Tetris
-  - ⬜ Rotation and collision
-  - ⬜ Line clearing
-  - ⬜ Score and levels
-- ⬜ 🎮 Pong
-  - ⬜ Two player
-  - ⬜ Simple AI opponent
-- ⬜ 🎮 Minesweeper
-- ⬜ 🎮 Chess (with AI)
-- ⬜ 🎮 Roguelike dungeon crawler
+- ⬜ uid/gid fields on process_t (defaults to a single built-in root
+      user, uid=0, until Phase 29 adds real accounts)
+- ⬜ fork()/exec() inherit the calling process's uid/gid
+- ⬜ VFS permission enforcement - open/read/write/delete check the
+      calling process's uid/gid against the inode's existing
+      permissions/uid/gid fields (owner/group/other rwx bits)
+- ⬜ Sensible default permissions for newly created files/directories
+- ⬜ SYS_GETUID / SYS_SETUID (root-only) syscalls
+- ⬜ chmod/chown shell commands
+- ⬜ Permission-denied error path surfaced through libc (EACCES-style)
 
 ---
 
-## Phase 11.5 — Kernel Robustness & Testing (⬜)
+## Phase 10.8 — Core OS Utilities (⬜)
+
+> Classic Unix-style utilities. Useful on their own, and exactly what
+> the shell scripting language (13.8) and BASIC interpreter (13.9) will
+> want to lean on later.
+
+- ⬜ grep (pattern search)
+- ⬜ find (search the filesystem tree)
+- ⬜ wc (word/line/byte count)
+- ⬜ head / tail
+- ⬜ sort
+- ⬜ diff
+- ⬜ du / df (disk/filesystem usage)
+- ⬜ kill (send a signal to a process, once signals exist - Phase 10.6)
+- ⬜ top-style live process viewer
+
+---
+
+## Phase 11 — Kernel Robustness & Testing (⬜)
 
 > Verification has been 100% manual (build, boot in QEMU, read the
 > serial log) for every change so far. That's fine today; it won't
-> scale as acornOS grows. Do this once there's something fun (Phase 11)
-> to protect, before tackling bigger subsystems (disk drivers, real
-> filesystems) that are much harder to debug by hand.
+> scale as acornOS grows. Do this now, before tackling bigger subsystems
+> (disk drivers, real filesystems) that are much harder to debug by
+> hand - and before First Games (moved to Phase 14.5, once there's
+> persistent storage to load/save them properly) gives the test suite
+> something extra to cover.
 
 - ⬜ Automated boot-test harness (script QEMU + assert on serial output)
 - ⬜ Regression test suite - one test per fixed bug at minimum
@@ -410,6 +432,42 @@
       (tracked separately as its own task)
 - ⬜ Audit every other allocation call site for the same assumption
       ("this can never fail")
+
+---
+
+## Phase 11.6 — In-Kernel Debugger (⬜)
+
+> GDB doesn't work against this hardware/hypervisor combo (see
+> docs/CLAUDE_CODE_HANDOFF.md), so kernel panic dumps and serial
+> printf-debugging have been the only tools so far. A debugger baked
+> directly into the OS - reachable via a hotkey or from the panic
+> screen - lets us inspect a stuck or crashed kernel without any of
+> that.
+
+- ⬜ Debug console overlay (hotkey breaks in from any screen)
+- ⬜ Register dump viewer (general purpose, control and segment registers)
+- ⬜ Memory inspector (view/edit physical and virtual memory by address)
+- ⬜ Stack walker / call stack viewer
+- ⬜ Symbol resolution (map addresses back to function names using the
+      existing kernel.map)
+- ⬜ Breakpoints (software int3-based) and single-step execution
+- ⬜ Basic x86_64 disassembler (instructions near RIP)
+
+---
+
+## Phase 11.7 — Time-Travel Debugging (⬜)
+
+> A serious stretch goal built on top of Phase 11.6. Would have made
+> chasing this session's ELF-loading bug and the earlier SYSCALL/SYSRET
+> migration bugs dramatically faster - both were "corrupt some memory
+> now, notice the symptom minutes of execution later" bugs.
+
+- ⬜ Deterministic replay - record all non-deterministic inputs (timer
+      ticks, keyboard, disk reads) so a run can be replayed exactly
+- ⬜ Execution snapshotting (save/restore full machine state at a point
+      in time)
+- ⬜ Step backwards through execution history
+- ⬜ Reverse-search ("what was the last write to this memory address?")
 
 ---
 
@@ -481,6 +539,39 @@
 
 ---
 
+## Phase 13.8 — Shell Scripting Language (⬜)
+
+> The shell can run commands and, since 13.6, pipe them together -
+> giving it real variables, conditionals and loops turns it into an
+> actual scripting language, the way sh/bash grew out of an
+> interactive shell.
+
+- ⬜ Variables and string interpolation
+- ⬜ Conditionals (if/else)
+- ⬜ Loops (while/for)
+- ⬜ Functions / reusable script blocks
+- ⬜ Script files (#!-style, run via shell run/exec)
+- ⬜ Exit codes and error handling in scripts
+
+---
+
+## Phase 13.9 — Boot-to-BASIC Interpreter (⬜)
+
+> Classic 8-bit home computers (C64, Apple II, BBC Micro) booted
+> straight into a BASIC prompt where you could type and run a program
+> immediately - no separate compile step. A tiny BASIC interpreter
+> living in acornOS is a fun, very on-brand homage, and it's buildable
+> without needing any later phases.
+
+- ⬜ BASIC lexer/parser (line numbers, classic keywords)
+- ⬜ PRINT, INPUT, LET, IF/THEN, GOTO, FOR/NEXT
+- ⬜ Variables (numeric and string)
+- ⬜ Arrays
+- ⬜ Simple graphics/sound hooks once available (PLOT, BEEP)
+- ⬜ 🎮 Optional boot mode: straight to a BASIC prompt, shell one command away
+
+---
+
 ## Phase 14 — barkFS v1 (⬜)
 
 > Our own persistent filesystem. The bark of the tree — always present.
@@ -497,6 +588,42 @@
 - ⬜ Directory operations
 - ⬜ Versioning (read file@v1, file@v2 etc.)
 - ⬜ 🎮 Save game progress to barkFS!
+
+---
+
+## Phase 14.5 — First Games! (⬜)
+
+> Text mode games. The first real acornOS applications. Deliberately
+> placed here rather than right after basic libc (Phase 10): each game
+> is its own ELF binary, and until now the only way to get a program's
+> compiled bytes onto the system at all was hello.elf's boot-time
+> hardcoded-sector hack (see Phase 10's changelog entry) - which does
+> not scale to six separate games without repeating that same fragile
+> trick six times. Real persistent storage (Phase 12-14) plus barkFS
+> means each game can just be installed onto a real filesystem and
+> loaded via the exec()/elf_load_from_path() path that already exists,
+> and "Score tracking" / "Save game progress" (Phase 14 above) actually
+> means something once a reboot doesn't erase it.
+
+- ⬜ 🎮 Snake
+  - ⬜ VGA character graphics
+  - ⬜ Keyboard input
+  - ⬜ Score tracking (persisted via barkFS)
+  - ⬜ Runs via fork/exec from shell
+- ⬜ 🎮 Tetris
+  - ⬜ Rotation and collision
+  - ⬜ Line clearing
+  - ⬜ Score and levels
+- ⬜ 🎮 Pong
+  - ⬜ Two player
+  - ⬜ Simple AI opponent
+- ⬜ 🎮 Minesweeper
+- ⬜ 🎮 Chess (with AI)
+- ⬜ 🎮 Roguelike dungeon crawler
+- ⬜ 🐾 Digital pet - a background daemon with its own state machine,
+      fed by timer ticks, that remembers you across reboots via barkFS
+- ⬜ 🖼️ ASCII art image viewer - converts a real image file (loaded from
+      barkFS) into text-mode art, no framebuffer needed
 
 ---
 
@@ -522,7 +649,9 @@
 - ⬜ 🎮 Space Invaders
 - ⬜ 🎮 Breakout/Arkanoid
 - ⬜ 🎮 Scrolling RPG (Zelda-style)
-- ⬜ Screensaver (bouncing acorn logo)
+- ⬜ Screensavers - bouncing acorn logo, starfield, pipes, plasma
+- ⬜ Graphical boot splash (replaces the current text boot log)
+- ⬜ 🏖️ Falling-sand physics sandbox (Powder Toy-style cellular automaton)
 
 ---
 
@@ -559,6 +688,8 @@
 - ⬜ 🎮 Multiplayer Snake!
 - ⬜ 🎮 Simple HTTP server
 - ⬜ wget / curl equivalent
+- ⬜ Telnet/BBS-style server - remote-login into acornOS over the
+      network, nostalgic multiplayer for the games in Phase 14.5
 
 ---
 
@@ -604,6 +735,30 @@
 - ⬜ 🎮 Rhythm game using MIDI input!
 - ⬜ 🎵 Multi-track recorder
 - ⬜ 🎵 Export to WAV
+- ⬜ Music visualiser (waveform/spectrum, driven by the framebuffer
+      from Phase 15)
+
+---
+
+## Phase 18.5 — Emulation (CHIP-8 → Game Boy) (⬜)
+
+> The classic hobby-OS rite of passage. CHIP-8 first - tiny (64x32
+> monochrome, ~35 opcodes), exercises CPU timing, graphics and input
+> all at once without needing much. Game Boy is the natural next step
+> once that works, and needs the audio (18) and framebuffer (15) work
+> already done by this point.
+
+- ⬜ CHIP-8 interpreter
+  - ⬜ Opcode interpreter loop
+  - ⬜ 64x32 monochrome display
+  - ⬜ Hex keypad input mapping
+  - ⬜ 🎮 Play classic CHIP-8 games (Pong, Tetris, Space Invaders clones!)
+- ⬜ Game Boy emulator
+  - ⬜ Sharp LR35902 (Z80-ish) CPU interpreter
+  - ⬜ PPU (tile/sprite rendering)
+  - ⬜ APU (4-channel sound)
+  - ⬜ Cartridge/ROM loading (MBC1 at minimum)
+  - ⬜ 🎮 Play a real Game Boy game on acornOS!
 
 ---
 
@@ -684,6 +839,7 @@
 - ⬜ Terminal emulator
 - ⬜ Settings app
 - ⬜ Themes and wallpapers
+- ⬜ Idle detection - triggers the screensavers built in Phase 15
 - ⬜ 🎮 Games launcher!
 - ⬜ 🎵 Music player with visualiser
 - ⬜ 🎹 MIDI sequencer GUI
@@ -716,6 +872,13 @@
 - ⬜ 🎮 Hardware accelerated 3D games!
 - ⬜ 🎮 Racing game!
 - ⬜ 🎮 Space sim!
+
+### Ray Tracing & 3D Modelling
+- ⬜ Ray tracer (spheres/planes, reflections, shadows) - a from-scratch
+      math workout that's good prep for the modeller below
+- ⬜ acornModel - a native 3D modeller (mesh editing, primitives,
+      export), the OS's own DCC tool
+- ⬜ 🎮 Render a shiny sphere - the classic ray tracer showcase!
 
 ---
 
@@ -797,6 +960,32 @@
 
 ---
 
+## Phase 25.5 — acornAI: On-Device Assistant & Semantic Search (⬜)
+
+> A phone-style "search everything, ask it questions" assistant baked
+> into the OS - deliberately local-only, not a cloud API client. This
+> is about your own files and connected devices, not someone else's
+> servers, so it's explicitly out of scope to send personal data
+> off-device to make this work. The exact "how" (a genuinely tiny local
+> model vs. a smarter local index without a model at all) is still
+> open - this entry exists to keep the idea alive and hold the door
+> open for whatever's actually feasible on our own hardware by the time
+> we get here, without compromising on the local-only constraint.
+
+- ⬜ Local content index across barkFS (files, metadata, versions)
+- ⬜ Extend the index to connected devices/peripherals as they're
+      plugged in (USB storage, etc.)
+- ⬜ Natural-language query parsing (keyword/semantic search first,
+      no cloud round-trip)
+- ⬜ Research spike: is any form of on-device model inference realistic
+      on our own hardware/FPU work (17.5), or does this stay a smart
+      local index forever - revisit once the rest of the OS and
+      hardware support has matured
+- ⬜ `ask` shell command / assistant UI
+- ⬜ 🔍 "Find that file from three weeks ago" - first real query win
+
+---
+
 ## Phase 26 — More Filesystems (⬜)
 
 > Compatibility with the world.
@@ -838,6 +1027,8 @@
 - ⬜ Encryption
 - ⬜ Network replication
 - ⬜ barkFS over network (like NFS but ours)
+- ⬜ acornVCS - a real branch/diff tool built on barkFS's existing
+      versioning (file@v1, file@v2), our own git-alike from scratch
 
 ---
 
@@ -874,6 +1065,18 @@
 - ⬜ 🎮 Boot on Raspberry Pi!
 - ⬜ Apple Silicon support (future)
 
+### Robotics & GPIO
+> The classic embedded-hobbyist payoff of the Raspberry Pi port -
+> acornOS controlling real physical hardware, not just booting on it.
+
+- ⬜ GPIO driver
+- ⬜ 🤖 Blink an LED from acornOS - the "it's alive on real hardware" milestone
+- ⬜ PWM output (motor/servo control)
+- ⬜ I2C/SPI drivers (sensors, displays)
+- ⬜ Robotics dev kit - write and deploy robot control code using
+      acornOS's own toolchain (acornCC, Phase 23)
+- ⬜ 🤖 Drive a simple robot (motors + a sensor loop) from acornOS!
+
 ---
 
 ## Phase 29 — Daily Driveable (⬜)
@@ -886,8 +1089,10 @@
 - ⬜ Suspend / resume
 - ⬜ Multiple monitor support
 - ⬜ Hardware detection / plug and play
-- ⬜ User accounts and login
-- ⬜ Enforce file permissions (uid/gid/mode already exist on every inode - currently unused/unenforced)
+- ⬜ User accounts and login (builds on the uid/gid/permission
+      enforcement laid down in Phase 10.7)
+- ⬜ Persistent /etc/passwd-style user store on real storage, so
+      accounts survive a reboot
 - ⬜ Installer (install to real hardware)
 - ⬜ Package manager (acornPkg)
 - ⬜ App store (acornStore)
@@ -916,7 +1121,7 @@ Phase 30: More features!!!!
 
 > The games, apps and drivers that make this worthwhile.
 
-### Text Mode Games (Phase 11)
+### Text Mode Games (Phase 14.5)
 - ⬜ 🎮 Snake
 - ⬜ 🎮 Tetris
 - ⬜ 🎮 Pong
@@ -1024,4 +1229,70 @@ acornOS — built entirely from scratch
             file permission enforcement to Phase 29 (Daily Driveable).
             No renumbering of existing phases - new phases use decimal
             numbers and slot in between their neighbours.
+
+12th July 2026
+            Phase 10 (Basic libc) complete - buffered stdio
+            (fopen/fclose/fread/fwrite) added over the existing raw
+            read/write syscalls. Along the way, found and fixed a
+            hardcoded 16-sector boot loader cap in stage2.asm that
+            hello.elf had silently outgrown (truncating .rodata, so
+            every string constant loaded as zero) and a stray extra
+            page in elf.c's segment page-count math.
+
+12th July 2026
+            Added Phase 10.7 - Users & Permissions (Foundations),
+            between Phase 10.6 and Phase 11. Splits the users/
+            permissions work: basic enforcement (uid/gid on processes,
+            VFS permission checks against the uid/gid/permissions
+            fields inodes have carried unused since Phase 3) lands
+            early since it's cheap now and expensive to retrofit
+            later; full accounts/login stays at Phase 29 once
+            persistent storage exists to make them survive a reboot.
+
+12th July 2026
+            Moved First Games from Phase 11 to Phase 14.5 (right after
+            barkFS v1, before VESA/VBE Graphics). Reason: each game is
+            a separate ELF binary, and the only program-loading
+            mechanism that exists today is hello.elf's hardcoded boot-
+            sector hack - doesn't scale to six games without repeating
+            that same bug six times. Real persistent storage (Phase
+            12-14) lets games load through the exec()/
+            elf_load_from_path() path that already works, and makes
+            "score tracking" / "save game progress" actually persist
+            across a reboot. Phase 11.5 (Kernel Robustness & Testing)
+            was renumbered to Phase 11 to fill the gap, since it no
+            longer needs to sit between games and disk drivers.
+
+12th July 2026
+            Fun-brainstorm pass - added a batch of long-term "keep the
+            roadmap growing" ideas:
+              Phase 10.8  - Core OS Utilities
+              Phase 11.6  - In-Kernel Debugger
+              Phase 11.7  - Time-Travel Debugging
+              Phase 13.8  - Shell Scripting Language
+              Phase 13.9  - Boot-to-BASIC Interpreter
+              Phase 18.5  - Emulation (CHIP-8 -> Game Boy)
+              Phase 25.5  - acornAI: On-Device Assistant & Semantic
+                            Search (explicitly local-only, not a cloud
+                            API client - personal data stays on-device)
+            Plus additions to existing phases: digital pet and ASCII
+            art viewer (14.5), boot splash and falling-sand sandbox
+            (15), telnet/BBS server (17), music visualiser (18),
+            idle-triggered screensavers (21), ray tracer + acornModel
+            3D modeller (22), acornVCS (27), and GPIO/robotics support
+            (28). No renumbering of existing phases.
+
+12th July 2026
+            Phase 10.5 (Process & Program Fundamentals) - argc/argv
+            landed. Programs launched via exec() or the shell's 'run'
+            command now get real argc/argv, passed via RDI/RSI at
+            process entry (enter_ring3() already restores those
+            registers right before iret, so no stack-based ABI needed).
+            argv strings are written onto the process's own stack page
+            via the same physical-direct-map trick elf_load() already
+            uses for segment data. Along the way, fixed cmd_run() only
+            stripping a single leading space (could leave a spurious
+            empty argv[0] for "run  snake" with extra spaces).
+            Environment variables, SYS_SLEEP, per-process fd tables and
+            TTY line discipline still open in this phase.
 ```

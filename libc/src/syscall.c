@@ -39,9 +39,9 @@ int wait(void)
     return (int)__syscall0(SYS_WAIT);
 }
 
-int exec(const char* path)
+int exec(const char* path, char* const argv[])
 {
-    return (int)__syscall1(SYS_EXEC, (long)path);
+    return (int)__syscall2(SYS_EXEC, (long)path, (long)argv);
 }
 
 int open(const char* path, int flags)

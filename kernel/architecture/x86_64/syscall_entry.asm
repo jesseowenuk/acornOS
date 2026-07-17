@@ -29,8 +29,8 @@ extern current_process
 ; Return value in RAX
 ;
 ; process_t offsets used below (must match include/kernel/processes/process.h)
-;   stack_top = 160
-;   user_esp = 192
+;   stack_top = 192
+;   user_esp = 224
 ;
 ; Each syscall uses the CALLING PROCESS'S OWN kernel stack (stack_top)
 ; and its OWN saved-user-RSP field (user_esp), instead of a single
@@ -52,7 +52,7 @@ syscall_entry:
 
     mov rcx, [current_process]      ; RCX = process_t* of the caller
     lea r11, [rsp + 16]             ; r11 = TRUE user RSP (undo the 2 pushes above)
-    mov [rcx + 192], r11            ; process->user_esp = true user RSP
+    mov [rcx + 224], r11            ; process->user_esp = true user RSP
 
     ; R11 (true user RSP) also rells us where the 2 stashed values live
     ; "push rcx" ran first, so it sits closer to the top (-8); "push r11"
@@ -61,14 +61,14 @@ syscall_entry:
     ;   [r11 - 16]  = stashed RFLAGS (pushed 2nd)
     ; Both addresses are still in this process's own address space, so
     ; they're readable from here even after we move our own RSP away.
-    mov rsp, [rcx + 160]            ; Switch to process->stack_top (kernel stack)
+    mov rsp, [rcx + 192]            ; Switch to process->stack_top (kernel stack)
 
     ; Now safe to use the stack!
     ; Build a registers_t frame so syscall_handler can read args
     ; Must match registers_t layout in interrupts.h exactly
 
     push 0x23                               ; SS (user stack segment)
-    push qword [rcx + 192]                  ; RSP (true user stack pointer)
+    push qword [rcx + 224]                  ; RSP (true user stack pointer)
     push qword [r11 - 16]                   ; rflags (stashed, read back from user stack)
     push 0x2B                               ; CS (user code segment)
     push qword [r11 - 8]                    ; RIP (stashed return address)

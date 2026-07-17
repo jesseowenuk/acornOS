@@ -22,9 +22,13 @@ extern enter_ring3
 ;   cpu.cs = 128
 ;   cpu.ds = 136
 ;   cpu.ss = 144
-;   stack = 152
-;   stack_top = 160
-;   page_dir = 168
+;   cpu.r12 = 152
+;   cpu.r13 = 160
+;   cpu.r14 = 168
+;   cpu.r15 = 176
+;   stack = 184
+;   stack_top = 192
+;   page_dir = 200
 
 switch_context:
     ; --- Save old process state ---------------------------------------
@@ -61,9 +65,20 @@ switch_context:
     mov word [rdi+136], ds          ; Save DS
     mov word [rdi+144], ss          ; Save SS
 
+    ; Save callee-saved registers r12 - r15 
+    ; Any C caller of scheuler_yield() may have a
+    ; live local variable in one of these, and is entitled to assume
+    ; it survives the call. Missing before this fix - whichever process
+    ; ran next between switch-out and switch-back-in would silently
+    ; clobber them, corrupting the resuming process's own C state
+    mov [rdi+152], r12
+    mov [rdi+160], r13
+    mov [rdi+168], r14
+    mov [rdi+176], r15
+
     ; --- Switch page directory -------------------------------------
     ; Get new process's page_dir (offset 168 in process_t)
-    mov rax, [rsi+168]              ; RAX = new->page_dir
+    mov rax, [rsi+200]              ; RAX = new->page_dir
     test rax, rax                   ; Is it NULL?
     jz .no_switch                   ; If NULL keep current CR3
 
@@ -99,6 +114,13 @@ switch_context:
     mov rcx, [rsi+64]
     mov rdx, [rsi+72]
     mov rbp, [rsi+96]
+
+    ; Restore r12-r15 before we destroy our RSI (the new-process
+    ; pointer) on the next line - see the matching save comment above
+    mov r12, [rsi+152]
+    mov r13, [rsi+160]
+    mov r14, [rsi+168]
+    mov r15, [rsi+176]
 
     push qword [rsi+112]            ; Push RIP
     mov rax, [rsi+48]

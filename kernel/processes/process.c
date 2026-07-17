@@ -276,12 +276,31 @@ void process_wait(pid_t pid)
 
     while(1)
     {
+        // Disable interrupts for the check-then-block sequence below   
+        // otherwise the child could exit (via a timer interrupt
+        // preempting us right here) and try to wake us in the gap
+        // between "not dead yet" and actually marking ourselves
+        // BLOCKED. process_wake() would see we're not BLOCKED yet and
+        // silently  no-op, then we'd block anyway with nobody left to
+        // ever wake us - a classic lost-wake up race. The "memory"
+        // clobber matters - without it the compiler is free to reorder
+        // or cache memory reads/writes across a bare asm("cli"), since
+        // volatile alone only stops it deleting the instruction, not
+        // reordering surrounding code around it:
+        __asm__ volatile("cli" ::: "memory");
+
         for(int i = 0; i < MAX_PROCESSES; i++)
         {
             process_t* child = process_table[i];
 
             if(child && child->pid == pid && child->state == PROCESS_DEAD)
             {
+                __asm__ volatile("sti" ::: "memory");
+
+                // Must unlink from the scheduler's own run queue before
+                // freeing - otherwise the queue is left holding a
+                // dangling pointer into memory we're about to kfree()
+                scheduler_remove(child);
                 paging_free_directory(child->page_dir);
                 pmm_free((void*)virtual_to_physical(child->stack));
                 process_table[i] = 0;
@@ -290,8 +309,12 @@ void process_wait(pid_t pid)
             }
         }
 
-        // Not dead yet - block until sys_exit wakes us, then check again
+        // Not dead yet - block until sys_exit wakes us, then check
+        // again. Marking ourselves BLOCKED must stay atomic with the
+        // check above (still under cli); safe to re-enable
+        // interrupts immediatley after, before yielding.
         process_block(current_process);
+        __asm__ volatile("sti" ::: "memory");
         scheduler_yield();
     }
 }
@@ -302,7 +325,7 @@ void process_wait(pid_t pid)
 // the calling process - used by the shell to run a program as a child
 // while the shell keeps running.
 // Return the new process's PID, or -1 on failure.
-pid_t process_spawn(const char* path)
+pid_t process_spawn(const char* path, char** argv)
 {
     if(!path)
     {
@@ -316,7 +339,7 @@ pid_t process_spawn(const char* path)
         return -1;
     }
 
-    if(!elf_load_from_path(path, proc))
+    if(!elf_load_from_path(path, proc, argv))
     {
         // Loading failed - tear down the half-built process
         paging_free_directory(proc->page_dir);
@@ -606,7 +629,7 @@ pid_t process_fork()
 // free the old image, and jump into the new one via enter_ring3() - the
 // same ring3 entry mechanism a freshly created process uses.
 
-int process_exec(const char* path)
+int process_exec(const char* path, char** argv)
 {
     if(!path)
     {
@@ -649,7 +672,11 @@ int process_exec(const char* path)
     current_process->stack_top = new_kstack_top;
     current_process->page_dir = new_dir;
 
-    uint64_t entry = elf_load_from_path(path, current_process);
+    // Like 'path', argv and its strings point into the OLD image's user
+    // space - safe to dereference here since elf_load() copies them
+    // onto the NEW stack before this call returns, well before
+    // old_page_dir gets freed below
+    uint64_t entry = elf_load_from_path(path, current_process, argv);
 
     if(!entry)
     {
