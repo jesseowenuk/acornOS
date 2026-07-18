@@ -207,6 +207,7 @@ void process_print_all()
         "RUNNING",                  // PROCESS_RUNNING
         "BLOCKED",                  // PROCESS_BLOCKED
         "DEAD   ",                  // PROCESS_DEAD
+        "SLEEP  ",                  // PROCESS_SLEEPING
     };
 
     for(int i = 0; i < MAX_PROCESSES; i++)

@@ -252,7 +252,7 @@
 
 ---
 
-## Phase 7.5 — Real-Time Clock (⬜)
+## Phase 7.5 — Real-Time Clock (✅)
 
 > Know what time it actually is. Only the 100Hz scheduler tick exists
 > right now - no wall-clock time anywhere, so file timestamps

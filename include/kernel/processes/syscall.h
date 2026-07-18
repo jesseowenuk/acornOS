@@ -19,6 +19,7 @@
 #define SYS_READDIR     12
 #define SYS_DELETE      13
 #define SYS_HEAP_GROW   14              // Grow the process heap by N bytes - see sys_heap_grow()
+#define SYS_SLEEP       15              // Block the calling process for N milliseconds
 
 // --- Syscall handler ---------------------------------------------
 // Called from syscall_entry when the SYSCALL instruction fires

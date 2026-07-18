@@ -62,4 +62,14 @@ int close(int fd);
 // Seek within a file
 int seek(int fd, int offset, int whence);
 
+// Block the calling process for 'seconds' seconds - a real timer-driven
+// wakeup, not a busy-wait loop
+void sleep(unsigned int seconds);
+
+// Block the calling process for 'microseconds' microseconds. The
+// underlying timer only ticks every 1000/TIMER_FRQUENCY ms, so this is
+// rounded UP to the nearest whole tick - anything under one tick still
+// sleeps for one tick rather than returning immediatley.
+void usleep(unsigned int microseconds);
+
 #endif

@@ -402,6 +402,12 @@ static int procfs_read(file_t* file, void* buffer, uint32_t size)
                     state = "dead";
                     break;
                 }
+
+                case PROCESS_SLEEPING:
+                {
+                    state = "sleeping";
+                    break;
+                }
             }
 
             length = ksnprintf(temp, sizeof(temp),

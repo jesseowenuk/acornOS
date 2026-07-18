@@ -219,21 +219,39 @@ static void test_proc(int argc, char** argv)
     }
 }
 
+static void test_sleep(int argc, char** argv)
+{
+    (void)argc;
+    (void)argv;
+
+    printf("pid=%d sleeping 1 second...\n", getpid());
+    sleep(1);
+    printf("awake after sleep(1)\n");
+
+    printf("sleeping 200ms via usleep...\n");
+    usleep(200000);
+    printf("awake after usleep(200000)\n");
+}
+
 typedef struct
 {
     const char* name;
     void (*fn)(int argc, char** argv);
+    int run_in_all;         // 0 = explicit only, skipped by "all"
 } test_t;
 
 static test_t tests[] =
 {
-    {"argv",    test_argv},
-    {"printf",  test_printf},
-    {"string",  test_string},
-    {"fileio",  test_fileio},
-    {"stdio",   test_stdio},
-    {"malloc",  test_malloc},
-    {"proc",    test_proc},
+    {"argv",    test_argv,      1},
+    {"printf",  test_printf,    1},
+    {"string",  test_string,    1},
+    {"fileio",  test_fileio,    1},
+    {"stdio",   test_stdio,     1},
+    {"malloc",  test_malloc,    1},
+    {"proc",    test_proc,      1},
+    // Not run by "all" - over a second of real wall-clock delay would
+    // slow down every boot's self test. Run explicitly via 'run hello.elf sleep'
+    {"sleep",   test_sleep,     0},
     {0, 0}
 };
 
@@ -255,7 +273,10 @@ int main(int argc, char** argv)
     {
         for(int i = 0; tests[i].name; i++)
         {
-            run_test(&tests[i], argc, argv);
+            if(tests[i].run_in_all)
+            {
+                run_test(&tests[i], argc, argv);
+            }
         }
     }
     else

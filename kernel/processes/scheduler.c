@@ -1,5 +1,6 @@
 #include <architecture/x86_64/tss.h>
 #include <drivers/serial.h>
+#include <drivers/timer.h>
 #include <drivers/vga.h>
 #include <kernel/core/kprintf.h>
 #include <kernel/core/panic.h>
@@ -113,6 +114,27 @@ void scheduler_remove(process_t* proc)
     }
 }
 
+// --- scheduler_wake_sleepers -----------------------------
+// Wake any process whose sys_sleep() timer has elapsed. Called every
+// tick so a sleeping process becomes runnable again on its own,
+// without needing an external event the way process_block()/
+// process_wake() do for a blocked process.
+
+static void scheduler_wake_sleepers()
+{
+    uint32_t now = timer_get_ticks();
+
+    for(int i = 0; i < MAX_PROCESSES; i++)
+    {
+        process_t* proc = process_table[i];
+
+        if(proc && proc->state == PROCESS_SLEEPING && now >= proc->wake_at_tick)
+        {
+            proc->state = PROCESS_READY;
+        }
+    }
+}
+
 // --- scheduler_tick --------------------------------------
 // Called every timer tick - handles preemption
 // This is called from irq_handler in idt.c
@@ -121,6 +143,8 @@ void scheduler_tick(registers_t* regs)
 {
     (void)regs;                         // Not needed yet - will be for saving
                                         // register state directly from IRQ
+
+    scheduler_wake_sleepers();
 
     if(!current_process)
     {

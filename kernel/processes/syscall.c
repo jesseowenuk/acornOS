@@ -1,4 +1,5 @@
 #include <drivers/serial.h>
+#include <drivers/timer.h>
 #include <file_system/vfs.h>
 #include <kernel/core/kprintf.h>
 #include <kernel/core/panic.h>
@@ -408,6 +409,40 @@ static void sys_heap_grow(registers_t* regs)
     regs->rax = old_end;
 }
 
+// --- sys_sleep -----------------------------------------
+// Blocks the calling process for at least 'ms' milliseconds via a real
+// timer-driven wakeup - not a busy-wait loop. Sets wake_at_tick and
+// marks the process PROCESS_SLEEPING; scheduler_wake_sleepers() (called
+// every timer tick) flips it back to READY once enough ticks have
+// passed, the same way process_wake() does for a blocked process.
+//
+// arg1 (RDI) = milliseconds to sleep
+static void sys_sleep(registers_t* regs)
+{
+    uint64_t ms = (uint64_t)regs->rdi;
+
+    if(!current_process)
+    {
+        return;
+    }
+
+    // Timer runs at TIMER_FREQUENCY Hz, so each tick is 1000/TIMER_FREQUENCY
+    // ms - round the requested sleep UP to a whole number of ticks so a
+    // short sleep still blocks for at least one tick rather than
+    // returning immediatley (0 ticks would just fall straight through)
+    uint32_t ticks = (uint32_t)((ms * TIMER_FREQUENCY + 999) / 1000);
+
+    if(ticks == 0)
+    {
+        ticks = 1;
+    }
+
+    current_process->wake_at_tick = timer_get_ticks() + ticks;
+    current_process->state = PROCESS_SLEEPING;
+
+    scheduler_yield();
+}
+
 // --- Syscall dispatch table ----------------------------
 // Array of function pointers - index = syscall number
 // Makes adding new syscalls as simple as adding an entry here
@@ -430,6 +465,7 @@ static syscall_fn syscall_table[] =
     sys_readdir,            // 12 - SYS_READDIR
     sys_delete,             // 13 - SYS_DELETE
     sys_heap_grow,          // 14 - SYS_HEAP_GROW
+    sys_sleep,              // 15 - SYS_SLEEP
 };
 
 // Number of syscalls in the table

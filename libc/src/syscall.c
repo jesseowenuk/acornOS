@@ -58,3 +58,20 @@ int seek(int fd, int offset, int whence)
 {
     return (int)__syscall3(SYS_SEEK, (long)fd, (long)offset, (long)whence);
 }
+
+void sleep(unsigned int seconds)
+{
+    __syscall1(SYS_SLEEP, (long)seconds * 1000);
+}
+
+void usleep(unsigned int microseconds)
+{
+    long ms = (long)(microseconds / 1000);
+
+    if(ms == 0)
+    {
+        ms = 1;
+    }
+
+    __syscall1(SYS_SLEEP, ms);
+}

@@ -16,7 +16,8 @@ typedef enum
     PROCESS_READY       = 0,            // Waiting to be scheduled - has everything it needs
     PROCESS_RUNNING     = 1,            // Currently executing on the CPU
     PROCESS_BLOCKED     = 2,            // Waiting for an event (I/O, timer, lock)
-    PROCESS_DEAD        = 3             // Finished - resources not yet freed
+    PROCESS_DEAD        = 3,            // Finished - resources not yet freed
+    PROCESS_SLEEPING    = 4             // Waiting for wake_at_tick - see sys_sleep()
 } process_state_t;
 
 // --- CPU state -------------------------------------------
@@ -87,6 +88,8 @@ typedef struct process
                                             // elf_load(), right after its last LOAD segment
     uint64_t            heap_end;           // Current end of the heap ("the break").
                                             // See sys_heap_grow()
+    uint32_t            wake_at_tick;       // Timer tick to wake at - set by sys_sleep().
+                                            // checked by scheduler_wake_sleepers() every tick.
 } process_t;
 
 // --- Process table --------------------------------------
