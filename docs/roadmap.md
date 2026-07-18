@@ -259,11 +259,11 @@
 > (created/modified/accessed - already fields on every inode) can't be
 > real.
 
-- ⬜ RTC (CMOS clock) driver
-- ⬜ Read current date/time at boot
-- ⬜ /devices/rtc (read current time)
-- ⬜ Real timestamps for shadowFS/barkFS (created/modified/accessed)
-- ⬜ Shell `date` command
+- ✅ RTC (CMOS clock) driver
+- ✅ Read current date/time at boot
+- ✅ /devices/rtc (read current time)
+- ✅ Real timestamps for shadowFS/barkFS (created/modified/accessed)
+- ✅ Shell `date` command
 
 ---
 

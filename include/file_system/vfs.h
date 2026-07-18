@@ -116,9 +116,9 @@ typedef struct inode
     uint32_t            permissions;                // rwxrwxrwx style permissions
     uint32_t            uid;                        // Owner user ID
     uint32_t            gid;                        // Owner group ID
-    uint32_t            created;                    // Creation timestamp (seconds since boot)
-    uint32_t            modified;                   // Last modification timestamp
-    uint32_t            accessed;                   // Last access timestamp
+    uint32_t            created;                    // Creation time
+    uint32_t            modified;                   // Last modified time
+    uint32_t            accessed;                   // Last access time
     uint32_t            link_count;                 // Number of directory entries pointing here
     fs_ops_t*           ops;                        // Operations for this filesystem type
     struct superblock*  sb;                         // Which filesystem this inode belongs to

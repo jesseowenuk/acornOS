@@ -85,6 +85,16 @@ enter_ring3:
     mov rdx, [rdi+72]
     mov rsi, [rdi+80]
     mov rbp, [rdi+96]
+
+    ; Restore r12-r15 before we destroy our own RDI (the process pointer)
+    ; on the last line below - matches switch_context's ring0 restore
+    ; path, so cpu_state_t is handled consistently everywhere it's 
+    ; restored from, not just on the path that happened to hit the bug
+    mov r12, [rdi+152]
+    mov r13, [rdi+160]
+    mov r14, [rdi+168]
+    mov r15, [rdi+176]
+
     mov rax, [rdi+48]
     mov rdi, [rdi+88]               ; cpu.rdi resored LAST - clobbers our pointer
 

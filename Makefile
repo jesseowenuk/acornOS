@@ -98,7 +98,8 @@ DRIVER_SRCS = \
 	$(DRIVERS_DIR)/timer/timer.c \
 	$(DRIVERS_DIR)/serial/serial.c \
 	$(DRIVERS_DIR)/null/null.c \
-	$(DRIVERS_DIR)/random/random.c
+	$(DRIVERS_DIR)/random/random.c \
+	$(DRIVERS_DIR)/rtc/rtc.c
 
 # File systems
 FS_SRCS = \

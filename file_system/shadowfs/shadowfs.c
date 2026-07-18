@@ -1,3 +1,4 @@
+#include <drivers/rtc.h>
 #include <drivers/serial.h>
 #include <file_system/shadowfs.h>
 #include <file_system/vfs.h>
@@ -97,6 +98,14 @@ static inode_t* shadowfs_create_inode(superblock_t* sb, uint32_t type)
 
     // One link (the directory entry)
     inode->link_count = 1;
+
+    // Real wall-clock time from the RTC, not ticks-since boot - a file
+    // created just before reboot and one created just after should
+    // not look like they happened at the same "time".
+    uint64_t now = rtc_now_epoch();
+    inode->created = now;
+    inode->modified = now;
+    inode->accessed = now;
 
     // Our operations table
     inode->ops = &shadowfs_ops;
@@ -502,6 +511,11 @@ static int shadowfs_read(file_t* file, void* buffer, uint32_t size)
 
     file->position += read;
 
+    if(read > 0)
+    {
+        file->inode->accessed = rtc_now_epoch();
+    }
+
     return (int)read;
 }
 
@@ -626,6 +640,11 @@ static int shadowfs_write(file_t* file, const void* buf, uint32_t size)
     // Update inode size and position
     inode->size += written;
     file->position += written;
+
+    if(written > 0)
+    {
+        inode->modified = rtc_now_epoch();
+    }
 
     return (int)written;
 }

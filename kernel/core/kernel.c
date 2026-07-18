@@ -4,6 +4,7 @@
 #include <drivers/keyboard.h>
 #include <drivers/null.h>
 #include <drivers/random.h>
+#include <drivers/rtc.h>
 #include <drivers/serial.h>
 #include <drivers/timer.h>
 #include <drivers/vga.h>
@@ -150,6 +151,13 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     kserial_printf("Timer initialised.\n");
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf(" [DONE]\n");
+
+    vga_set_colour(WHITE, BLACK);
+    kprintf("Initialising RTC...");
+    rtc_init();
+    kserial_printf("RTC initialised.\n");
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf(" [DONE]\n");
                              
     vga_set_colour(WHITE, BLACK);
     kprintf("Initialising keyboard...");
@@ -257,6 +265,13 @@ void kernel_main(uint64_t mem_map_addr, uint64_t mem_map_count, uint64_t highest
     vga_set_colour(WHITE, BLACK);
     kprintf("Registering /devices/serial...");
     devfs_register("/devices", "serial", dev_serial_read, dev_serial_write);
+    vga_set_colour(LIGHT_GREEN, BLACK);
+    kprintf(" [DONE]\n");
+
+    // Register /devices/rtc
+    vga_set_colour(WHITE, BLACK);
+    kprintf("Registering /devices/rtc...");
+    devfs_register("/devices", "rtc", dev_rtc_read, 0);
     vga_set_colour(LIGHT_GREEN, BLACK);
     kprintf(" [DONE]\n");
 

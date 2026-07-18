@@ -71,6 +71,7 @@ static void cmd_help()
     kprintf("    about        -- about acornOS\n");
     kprintf("    uptime       -- show time since boot\n");
     kprintf("    mem          -- show memory usage\n");
+    kprintf("    date         -- show current date/time\n");
     kprintf("    ps           -- list all processes\n");
     kprintf("    echo <text>  -- print text screen\n");
     kprintf("    ls [path]    -- list directory contents\n");
@@ -156,6 +157,24 @@ static void cmd_echo(const char* text)
         // Print the text
         kprintf("%s\n", text);
     }
+}
+
+static void cmd_date()
+{
+    int fd = vfs_open("/devices/rtc", O_RDONLY);
+
+    if(fd < 0)
+    {
+        kprintf("date: cannot open /devices/rtc\n");
+        return;
+    }
+
+    char buffer[32];
+    int bytes = vfs_read(fd, buffer, sizeof(buffer) - 1);
+    buffer[bytes] = 0;
+    vfs_close(fd);
+
+    kprintf("\n%s", buffer);
 }
 
 static void cmd_ps()
@@ -417,6 +436,7 @@ static command_t commands[] =
     {"about", cmd_about},
     {"uptime", cmd_uptime},
     {"mem", cmd_mem},
+    {"date", cmd_date},
     {"ps", cmd_ps},
     {"echo", cmd_echo},
     {"ls", cmd_ls},
