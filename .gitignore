@@ -3,3 +3,5 @@
 *.img
 *.iso
 *.log
+*.elf
+build
